@@ -43,21 +43,21 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-4">
-      <div className="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-md border border-gray-700">
+    <div className="min-h-screen flex items-center justify-center bg-white p-4">
+      <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md border border-gray-200">
         <div className="flex flex-col items-center mb-6">
           <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mb-3 shadow-lg">
             <span className="text-3xl text-white font-bold">S</span>
           </div>
-          <h2 className="text-2xl font-extrabold text-center text-gray-100 mb-1">Welcome Back</h2>
-          <p className="text-gray-400 text-xs text-center">Sign in to your SewNova account</p>
+          <h2 className="text-2xl font-extrabold text-center text-gray-800 mb-1">Welcome Back</h2>
+          <p className="text-gray-600 text-xs text-center">Sign in to your SewNova account</p>
         </div>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <input
               type="email"
-              className="w-full px-4 py-3 rounded-lg bg-gray-700 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm placeholder-gray-400"
+              className="w-full px-4 py-3 rounded-lg bg-gray-50 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm placeholder-gray-500 border border-gray-200"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -70,7 +70,7 @@ const Login = () => {
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
-                className="w-full px-4 py-3 pr-12 rounded-lg bg-gray-700 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm placeholder-gray-400"
+                className="w-full px-4 py-3 pr-12 rounded-lg bg-gray-50 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm placeholder-gray-500 border border-gray-200"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -79,7 +79,7 @@ const Login = () => {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-200 transition-colors"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
               >
                 {showPassword ? (
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -96,7 +96,7 @@ const Login = () => {
           </div>
           
           {error && (
-            <div className="bg-red-900/50 border border-red-500 text-red-200 px-3 py-2 rounded-lg text-xs">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-xs">
               {error}
             </div>
           )}
@@ -120,14 +120,14 @@ const Login = () => {
           </button>
         </form>
         
-        <div className="mt-6 pt-4 border-t border-gray-700">
+        <div className="mt-6 pt-4 border-t border-gray-200">
           <div className="flex items-center justify-center mb-3">
-            <div className="flex-1 h-px bg-gray-600"></div>
-            <span className="px-3 text-gray-400 text-xs">or</span>
-            <div className="flex-1 h-px bg-gray-600"></div>
+            <div className="flex-1 h-px bg-gray-300"></div>
+            <span className="px-3 text-gray-500 text-xs">or</span>
+            <div className="flex-1 h-px bg-gray-300"></div>
           </div>
           
-          <button className="w-full py-3 bg-white text-gray-800 font-semibold rounded-lg transition-all duration-200 flex items-center justify-center hover:bg-gray-100 shadow-lg text-sm">
+          <button className="w-full py-3 bg-white text-gray-800 font-semibold rounded-lg transition-all duration-200 flex items-center justify-center hover:bg-gray-50 shadow-lg text-sm border border-gray-200">
             <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
               <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -139,8 +139,8 @@ const Login = () => {
         </div>
         
         <div className="flex justify-center mt-4 text-xs">
-          <Link to="/" className="text-gray-400 hover:text-blue-400 transition-colors mr-4">Back to Home</Link>
-          <Link to="/signup" className="text-gray-400 hover:text-blue-400 transition-colors">Create Account</Link>
+          <Link to="/" className="text-gray-600 hover:text-blue-600 transition-colors mr-4">Back to Home</Link>
+          <Link to="/signup" className="text-gray-600 hover:text-blue-600 transition-colors">Create Account</Link>
         </div>
       </div>
     </div>
