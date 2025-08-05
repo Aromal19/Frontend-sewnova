@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import Sidebar from "../../components/Sidebar";
 import CustomerOrdersTable from "../../components/customer/CustomerOrdersTable";
 import TrackingWidget from "../../components/customer/TrackingWidget";
 import SellersList from "../../components/customer/SellersList";
@@ -41,39 +42,41 @@ const SectionContent = ({ section }) => {
 
 const CustomerDashboard = () => {
   const [active, setActive] = useState("orders");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
   return (
-    <div className="min-h-screen flex font-body bg-beige">
-      {/* Sidebar */}
-      <aside className="w-64 bg-gradient-to-b from-beige via-cream to-beige p-6 flex flex-col min-h-screen border-r border-beige">
-        <h2 className="text-2xl font-bold text-black mb-8 text-center">SewNova Customer</h2>
-        <nav className="flex flex-col gap-2">
-          {sections.map((s) => (
-            <button
-              key={s.key}
-              onClick={() => setActive(s.key)}
-              className={`text-left px-4 py-2 rounded transition font-medium text-black hover:bg-beige/80 ${active === s.key ? "bg-beige font-bold" : ""}`}
-            >
-              {s.label}
-            </button>
-          ))}
-        </nav>
-        <button
-          onClick={() => {
-            localStorage.removeItem("isCustomer");
-            window.location.href = "/login";
-          }}
-          className="mt-auto py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded"
-        >
-          Logout
-        </button>
-      </aside>
+    <div className="min-h-screen flex bg-gray-50">
+      {/* New Sidebar */}
+      <Sidebar 
+        isOpen={sidebarOpen} 
+        setIsOpen={setSidebarOpen} 
+        userRole="customer" 
+      />
+      
       {/* Main Content */}
-      <main className="flex-1 p-10 text-black">
-        <header className="mb-8 flex items-center justify-between">
-          <h1 className="text-3xl font-bold capitalize">{sections.find((s) => s.key === active)?.label}</h1>
-        </header>
-        <div className="bg-gradient-to-b from-beige via-cream to-beige rounded-lg p-8 min-h-[300px] border border-beige">
-          <SectionContent section={active} />
+      <main className={`flex-1 transition-all duration-500 ease-in-out ${
+        sidebarOpen ? 'ml-0' : 'ml-0'
+      }`}>
+        <div className="p-8">
+          <header className="mb-8 flex items-center justify-between">
+            <h1 className="text-3xl font-bold text-gray-800 capitalize">
+              {sections.find((s) => s.key === active)?.label}
+            </h1>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="p-2 rounded-lg bg-white shadow-md hover:shadow-lg transition-all duration-300"
+              >
+                <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+            </div>
+          </header>
+          
+          <div className="bg-white rounded-xl shadow-lg p-8 min-h-[600px] border border-gray-100">
+            <SectionContent section={active} />
+          </div>
         </div>
       </main>
     </div>

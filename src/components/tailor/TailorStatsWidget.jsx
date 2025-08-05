@@ -1,44 +1,60 @@
 import React from "react";
-import { FiTrendingUp, FiTrendingDown, FiDollarSign, FiPackage, FiUsers, FiStar } from "react-icons/fi";
+import { FiTrendingUp, FiTrendingDown, FiDollarSign, FiPackage, FiCheckCircle, FiStar, FiClock, FiUsers } from "react-icons/fi";
 
-const SellerStatsWidget = () => {
+const TailorStatsWidget = () => {
   const stats = [
     {
-      title: "Total Revenue",
-      value: "$12,450",
-      change: "+12.5%",
+      title: "Total Earnings",
+      value: "$8,450",
+      change: "+15.2%",
       trend: "up",
       icon: FiDollarSign,
       color: "from-coralblush to-pink-500"
     },
     {
-      title: "Total Orders",
-      value: "156",
-      change: "+8.2%",
+      title: "Active Orders",
+      value: "24",
+      change: "+8.5%",
       trend: "up",
       icon: FiPackage,
       color: "from-lilac to-purple-500"
     },
     {
-      title: "Active Customers",
-      value: "89",
-      change: "+15.3%",
+      title: "Completed Orders",
+      value: "156",
+      change: "+12.3%",
       trend: "up",
-      icon: FiUsers,
+      icon: FiCheckCircle,
       color: "from-champagne to-yellow-500"
     },
     {
       title: "Average Rating",
-      value: "4.8",
-      change: "+0.2",
+      value: "4.9",
+      change: "+0.3",
       trend: "up",
       icon: FiStar,
       color: "from-mint to-green-500"
+    },
+    {
+      title: "Hours Worked",
+      value: "142",
+      change: "+5.8%",
+      trend: "up",
+      icon: FiClock,
+      color: "from-blue-500 to-indigo-500"
+    },
+    {
+      title: "Happy Customers",
+      value: "89",
+      change: "+18.2%",
+      trend: "up",
+      icon: FiUsers,
+      color: "from-purple-500 to-pink-500"
     }
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {stats.map((stat, index) => (
         <div key={index} className="bg-white rounded-xl p-4 shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300">
           <div className="flex items-center justify-between">
@@ -69,4 +85,4 @@ const SellerStatsWidget = () => {
   );
 };
 
-export default SellerStatsWidget; 
+export default TailorStatsWidget; 

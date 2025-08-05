@@ -1,69 +1,400 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { 
+  FiHome, 
+  FiGrid, 
+  FiUsers, 
+  FiShoppingBag, 
+  FiSettings, 
+  FiLogOut,
+  FiChevronLeft,
+  FiChevronRight,
+  FiUser,
+  FiPackage,
+  FiTruck,
+  FiBarChart,
+  FiShield,
+  FiHeart,
+  FiMapPin,
+  FiDollarSign,
+  FiClipboard,
+  FiBox,
+  FiPlus,
+  FiScissors,
+  FiCalendar,
+  FiTrendingUp,
+  FiDatabase,
+  FiActivity,
+  FiAward,
+  FiMessageSquare,
+  FiFileText,
+  FiShoppingCart,
+  FiStar,
+  FiAlertCircle,
+  FiCheckCircle,
+  FiClock
+} from "react-icons/fi";
+import { getCurrentUser, getUserRole, isAuthenticated, logout } from "../utils/api";
 
-const Sidebar = ({ isOpen, setIsOpen, currentPage = "home" }) => {
-  const navItems = [
-    { key: "home", label: "Home", icon: "🏠", href: "/" },
-    { key: "workflow", label: "How It Works", icon: "⚙️", href: "#workflow" },
-    { key: "features", label: "Features", icon: "⭐", href: "#features" },
-    { key: "tailors", label: "Tailors", icon: "👔", href: "#tailors" },
-    { key: "vendors", label: "Vendors", icon: "🪡", href: "#vendors" },
-  ];
+const Sidebar = ({ isOpen, setIsOpen, userRole = "customer" }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [activeItem, setActiveItem] = useState("");
+  const [user, setUser] = useState(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUserRole, setCurrentUserRole] = useState(userRole);
+
+  // Check authentication status on component mount
+  useEffect(() => {
+    const checkAuth = () => {
+      const authenticated = isAuthenticated();
+      const currentUser = getCurrentUser();
+      const role = getUserRole();
+      
+      setIsLoggedIn(authenticated);
+      setUser(currentUser);
+      setCurrentUserRole(role || userRole);
+    };
+
+    checkAuth();
+
+    // Listen for storage changes (when user logs in/out in other tabs)
+    const handleStorageChange = (e) => {
+      if (e.key === 'user' || e.key === 'token' || e.key === 'userRole') {
+        checkAuth();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [userRole]);
+
+  // Update active item based on current location
+  useEffect(() => {
+    const path = location.pathname;
+    setActiveItem(path);
+  }, [location]);
+
+  const handleLogout = async () => {
+    await logout();
+    setUser(null);
+    setIsLoggedIn(false);
+    setCurrentUserRole("customer");
+    navigate('/login');
+  };
+
+  // Get user's display name
+  const getUserDisplayName = () => {
+    if (!user) return "Guest";
+    
+    if (user.firstname && user.lastname) {
+      return `${user.firstname} ${user.lastname}`;
+    } else if (user.firstname) {
+      return user.firstname;
+    } else if (user.email) {
+      return user.email.split('@')[0];
+    }
+    
+    return "User";
+  };
+
+  // Get user's initial for avatar
+  const getUserInitial = () => {
+    if (!user) return "G";
+    
+    if (user.firstname) {
+      return user.firstname.charAt(0).toUpperCase();
+    } else if (user.email) {
+      return user.email.charAt(0).toUpperCase();
+    }
+    
+    return "U";
+  };
+
+  // Navigation items based on user role
+  const getNavItems = () => {
+    const baseItems = [
+      { key: "/dashboard", label: "Dashboard", icon: FiHome, href: `/dashboard/${currentUserRole}` },
+    ];
+
+    switch (currentUserRole) {
+      case "customer":
+        return [
+          ...baseItems,
+          { key: "/orders", label: "My Orders", icon: FiPackage, href: "/orders" },
+          { key: "/wishlist", label: "Wishlist", icon: FiHeart, href: "/wishlist" },
+          { key: "/tracking", label: "Order Tracking", icon: FiTruck, href: "/tracking" },
+          { key: "/sellers", label: "Fabric Sellers", icon: FiShoppingBag, href: "/sellers" },
+          { key: "/tailors", label: "Find Tailors", icon: FiScissors, href: "/tailors" },
+          { key: "/profile", label: "Profile", icon: FiUser, href: "/profile" },
+        ];
+      
+      case "seller":
+        return [
+          ...baseItems,
+          { key: "/fabrics", label: "My Fabrics", icon: FiBox, href: "/fabrics" },
+          { key: "/add-fabric", label: "Add Fabric", icon: FiPlus, href: "/add-fabric" },
+          { key: "/orders", label: "Orders", icon: FiPackage, href: "/orders" },
+          { key: "/inventory", label: "Inventory", icon: FiDatabase, href: "/inventory" },
+          { key: "/analytics", label: "Analytics", icon: FiBarChart, href: "/analytics" },
+          { key: "/earnings", label: "Earnings", icon: FiDollarSign, href: "/earnings" },
+          { key: "/customers", label: "Customers", icon: FiUsers, href: "/customers" },
+          { key: "/reviews", label: "Reviews", icon: FiStar, href: "/reviews" },
+          { key: "/profile", label: "Profile", icon: FiUser, href: "/profile" },
+        ];
+      
+      case "tailor":
+        return [
+          ...baseItems,
+          { key: "/active-orders", label: "Active Orders", icon: FiPackage, href: "/active-orders" },
+          { key: "/completed-orders", label: "Completed", icon: FiCheckCircle, href: "/completed-orders" },
+          { key: "/pending-orders", label: "Pending", icon: FiClock, href: "/pending-orders" },
+          { key: "/workflow", label: "Workflow", icon: FiGrid, href: "/workflow" },
+          { key: "/schedule", label: "Schedule", icon: FiCalendar, href: "/schedule" },
+          { key: "/appointments", label: "Appointments", icon: FiMessageSquare, href: "/appointments" },
+          { key: "/earnings", label: "Earnings", icon: FiDollarSign, href: "/earnings" },
+          { key: "/customers", label: "Customers", icon: FiUsers, href: "/customers" },
+          { key: "/reviews", label: "Reviews", icon: FiStar, href: "/reviews" },
+          { key: "/profile", label: "Profile", icon: FiUser, href: "/profile" },
+        ];
+      
+      case "admin":
+        return [
+          ...baseItems,
+          { key: "/overview", label: "Platform Overview", icon: FiActivity, href: "/overview" },
+          { key: "/customers", label: "Customers", icon: FiUsers, href: "/customers" },
+          { key: "/tailors", label: "Tailors", icon: FiScissors, href: "/tailors" },
+          { key: "/sellers", label: "Sellers", icon: FiShoppingBag, href: "/sellers" },
+          { key: "/orders", label: "All Orders", icon: FiPackage, href: "/orders" },
+          { key: "/analytics", label: "Analytics", icon: FiBarChart, href: "/analytics" },
+          { key: "/insights", label: "Insights", icon: FiTrendingUp, href: "/insights" },
+          { key: "/reports", label: "Reports", icon: FiFileText, href: "/reports" },
+          { key: "/deliveries", label: "Deliveries", icon: FiTruck, href: "/deliveries" },
+          { key: "/waste", label: "Waste Management", icon: FiBox, href: "/waste" },
+          { key: "/disputes", label: "Disputes", icon: FiAlertCircle, href: "/disputes" },
+          { key: "/settings", label: "Settings", icon: FiSettings, href: "/settings" },
+        ];
+      
+      default:
+        return [
+          { key: "/", label: "Home", icon: FiHome, href: "/" },
+          { key: "/workflow", label: "How It Works", icon: FiGrid, href: "#workflow" },
+          { key: "/features", label: "Features", icon: FiShield, href: "#features" },
+          { key: "/tailors", label: "Tailors", icon: FiUser, href: "#tailors" },
+          { key: "/vendors", label: "Vendors", icon: FiShoppingBag, href: "#vendors" },
+        ];
+    }
+  };
+
+  const getRoleDisplayName = (role) => {
+    switch (role) {
+      case "admin": return "Administrator";
+      case "seller": return "Fabric Seller";
+      case "tailor": return "Tailor";
+      case "customer": return "Customer";
+      default: return "Guest";
+    }
+  };
+
+  const getRoleIcon = (role) => {
+    switch (role) {
+      case "admin": return FiShield;
+      case "seller": return FiShoppingBag;
+      case "tailor": return FiScissors;
+      case "customer": return FiUser;
+      default: return FiUser;
+    }
+  };
+
+  const navItems = getNavItems();
+  const RoleIcon = getRoleIcon(currentUserRole);
 
   return (
-    <div className={`${isOpen ? 'w-48' : 'w-12'} bg-gradient-to-b from-slate-900 to-slate-800 p-3 flex flex-col min-h-screen border-r border-slate-700 transition-all duration-300`}>
-      {/* Logo */}
-      <div className="p-2 border-b border-slate-700 mb-2">
+    <div 
+      className={`${
+        isOpen ? 'w-64' : 'w-16'
+      } bg-[#000714] border-r border-gray-800 flex flex-col min-h-screen transition-all duration-500 ease-in-out shadow-2xl`}
+    >
+      {/* Logo Section */}
+      <div className="p-4 border-b border-gray-800">
         <div className="flex items-center justify-start">
-          <div className="w-6 h-6 bg-gradient-to-r from-amber-300 to-amber-400 rounded-full flex items-center justify-center">
-            <span className="text-slate-900 font-bold text-sm">S</span>
+          <div className="w-8 h-8 bg-gradient-to-r from-coralblush to-pink-500 rounded-lg flex items-center justify-center shadow-lg">
+            <span className="text-white font-bold text-sm">S</span>
           </div>
-          {isOpen && <span className="text-white font-bold text-sm ml-2">SewNova</span>}
+          {isOpen && (
+            <span className="text-white font-bold text-lg ml-3 opacity-0 animate-fadeIn">
+              SewNova
+            </span>
+          )}
         </div>
       </div>
 
+      {/* Role Badge */}
+      {isOpen && (
+        <div className="px-4 py-2 border-b border-gray-800">
+          <div className="flex items-center space-x-2">
+            <div className="w-6 h-6 bg-gradient-to-r from-lilac to-purple-500 rounded-full flex items-center justify-center">
+              <RoleIcon className="text-white text-xs" />
+            </div>
+            <span className="text-xs text-gray-400 font-medium">
+              {getRoleDisplayName(currentUserRole)}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Navigation */}
-      <nav className="flex-1">
-        <ul className="space-y-1">
-          {navItems.map((item) => (
-            <li key={item.key}>
-              <a
-                href={item.href}
-                className={`w-full flex items-center p-2 rounded-md transition-all duration-300 ${
-                  currentPage === item.key
-                    ? "bg-gradient-to-r from-amber-300 to-amber-400 text-slate-900 font-semibold"
-                    : "text-gray-300 hover:bg-gradient-to-r hover:from-amber-300 hover:to-amber-400 hover:text-slate-900"
-                } ${!isOpen ? 'justify-start' : ''}`}
-                title={!isOpen ? item.label : ''}
-              >
-                <span className="text-lg">{item.icon}</span>
-                {isOpen && <span className="ml-2 text-sm">{item.label}</span>}
-              </a>
-            </li>
-          ))}
+      <nav className="flex-1 px-3 py-4">
+        <ul className="space-y-2">
+          {navItems.map((item) => {
+            const IconComponent = item.icon;
+            const isActive = activeItem === item.key;
+            
+            return (
+              <li key={item.key}>
+                <Link
+                  to={item.href}
+                  className={`group relative flex items-center px-3 py-3 rounded-xl transition-all duration-300 ease-in-out transform hover:scale-105 ${
+                    isActive 
+                      ? 'bg-coralblush/20 text-white shadow-lg border border-coralblush/30' 
+                      : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+                  } ${!isOpen ? 'justify-center' : ''}`}
+                  title={!isOpen ? item.label : ''}
+                >
+                  {/* Active indicator */}
+                  {isActive && (
+                    <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-gradient-to-b from-coralblush to-pink-500 rounded-r-full"></div>
+                  )}
+                  
+                  {/* Icon */}
+                  <IconComponent 
+                    className={`text-xl transition-all duration-300 ${
+                      isActive ? 'text-coralblush' : 'group-hover:text-coralblush'
+                    }`} 
+                  />
+                  
+                  {/* Label */}
+                  {isOpen && (
+                    <span className={`ml-3 text-sm font-medium transition-all duration-300 ${
+                      isActive ? 'text-white' : 'text-gray-300'
+                    }`}>
+                      {item.label}
+                    </span>
+                  )}
+                  
+                  {/* Hover effect */}
+                  <div className={`absolute inset-0 rounded-xl transition-all duration-300 ${
+                    isActive 
+                      ? 'bg-gradient-to-r from-coralblush/10 to-coralblush/5' 
+                      : 'bg-gradient-to-r from-gray-800/0 to-gray-800/0 group-hover:from-gray-800/20 group-hover:to-gray-800/10'
+                  }`}></div>
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       </nav>
 
-      {/* Login Button */}
-      <div className="p-2 border-t border-slate-700 mb-2">
-        <Link 
-          to="/login" 
-          className={`w-full flex items-center p-2 bg-gradient-to-r from-amber-300 to-amber-400 text-slate-900 rounded-md font-semibold hover:from-amber-200 hover:to-amber-300 transition-all duration-300 ${!isOpen ? 'justify-start' : ''}`}
-          title={!isOpen ? 'Login' : ''}
-        >
-          <span className="text-lg">🔐</span>
-          {isOpen && <span className="ml-2 text-sm">Login</span>}
-        </Link>
-      </div>
+      {/* Bottom Section */}
+      <div className="p-3 border-t border-gray-800 space-y-2">
+        {/* User Profile */}
+        <div className={`flex items-center px-3 py-2 rounded-lg bg-gray-800/30 ${
+          !isOpen ? 'justify-center' : ''
+        }`}>
+          <div className="w-8 h-8 bg-gradient-to-r from-coralblush to-pink-500 rounded-full flex items-center justify-center">
+            {isLoggedIn ? (
+              <span className="text-white text-sm font-bold">
+                {getUserInitial()}
+              </span>
+            ) : (
+              <FiUser className="text-white text-sm" />
+            )}
+          </div>
+          {isOpen && (
+            <div className="ml-3 flex-1">
+              <p className="text-white text-sm font-medium">
+                {isLoggedIn ? getUserDisplayName() : "Guest"}
+              </p>
+              <p className="text-gray-400 text-xs capitalize">
+                {getRoleDisplayName(currentUserRole)}
+              </p>
+            </div>
+          )}
+        </div>
 
-      {/* Toggle Button */}
-      <div className="p-2 border-t border-slate-700">
+        {/* Quick Actions based on role */}
+        {isOpen && isLoggedIn && (
+          <div className="px-3 py-2">
+            {currentUserRole === "seller" && (
+              <Link
+                to="/add-fabric"
+                className="flex items-center px-3 py-2 bg-gradient-to-r from-coralblush to-pink-500 text-white rounded-lg text-sm font-medium hover:from-pink-500 hover:to-coralblush transition-all duration-300"
+              >
+                <FiPlus className="w-4 h-4 mr-2" />
+                Add New Fabric
+              </Link>
+            )}
+            {currentUserRole === "tailor" && (
+              <Link
+                to="/active-orders"
+                className="flex items-center px-3 py-2 bg-gradient-to-r from-coralblush to-pink-500 text-white rounded-lg text-sm font-medium hover:from-pink-500 hover:to-coralblush transition-all duration-300"
+              >
+                <FiPackage className="w-4 h-4 mr-2" />
+                View Active Orders
+              </Link>
+            )}
+            {currentUserRole === "admin" && (
+              <Link
+                to="/insights"
+                className="flex items-center px-3 py-2 bg-gradient-to-r from-coralblush to-pink-500 text-white rounded-lg text-sm font-medium hover:from-pink-500 hover:to-coralblush transition-all duration-300"
+              >
+                <FiTrendingUp className="w-4 h-4 mr-2" />
+                View Insights
+              </Link>
+            )}
+          </div>
+        )}
+
+        {/* Login/Logout Button */}
+        {isLoggedIn ? (
+          <button
+            onClick={handleLogout}
+            className={`group flex items-center px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-red-600/20 transition-all duration-300 w-full ${
+              !isOpen ? 'justify-center' : ''
+            }`}
+            title={!isOpen ? 'Logout' : ''}
+          >
+            <FiLogOut className="text-lg group-hover:text-red-400 transition-colors duration-300" />
+            {isOpen && (
+              <span className="ml-3 text-sm font-medium">Logout</span>
+            )}
+          </button>
+        ) : (
+          <Link
+            to="/login"
+            className={`group flex items-center px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-green-600/20 transition-all duration-300 ${
+              !isOpen ? 'justify-center' : ''
+            }`}
+            title={!isOpen ? 'Login' : ''}
+          >
+            <FiUser className="text-lg group-hover:text-green-400 transition-colors duration-300" />
+            {isOpen && (
+              <span className="ml-3 text-sm font-medium">Login</span>
+            )}
+          </Link>
+        )}
+
+        {/* Toggle Button */}
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="w-full flex items-center justify-start p-1 text-gray-300 hover:text-amber-300 transition-all duration-300"
+          className="w-full flex items-center justify-center p-2 text-gray-400 hover:text-white hover:bg-gray-800/50 rounded-lg transition-all duration-300 group"
           title={isOpen ? 'Collapse Sidebar' : 'Expand Sidebar'}
         >
-          <span className="text-lg">{isOpen ? '←' : '→'}</span>
+          {isOpen ? (
+            <FiChevronLeft className="text-lg group-hover:scale-110 transition-transform duration-300" />
+          ) : (
+            <FiChevronRight className="text-lg group-hover:scale-110 transition-transform duration-300" />
+          )}
         </button>
       </div>
     </div>

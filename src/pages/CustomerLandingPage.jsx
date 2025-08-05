@@ -1,8 +1,43 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
+import { getCurrentUser, isAuthenticated, logout } from "../utils/api";
+import { useNavigate } from "react-router-dom";
 
 const CustomerLandingPage = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [user, setUser] = useState(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const navigate = useNavigate();
+
+  // Check authentication status on component mount
+  useEffect(() => {
+    const checkAuth = () => {
+      const authenticated = isAuthenticated();
+      const currentUser = getCurrentUser();
+      
+      setIsLoggedIn(authenticated);
+      setUser(currentUser);
+    };
+
+    checkAuth();
+
+    // Listen for storage changes (when user logs in/out in other tabs)
+    const handleStorageChange = (e) => {
+      if (e.key === 'user' || e.key === 'token') {
+        checkAuth();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  const handleLogout = async () => {
+    await logout();
+    setUser(null);
+    setIsLoggedIn(false);
+    navigate('/login');
+  };
 
   const tailors = [
     {
@@ -67,6 +102,34 @@ const CustomerLandingPage = () => {
     ));
   };
 
+  // Get user's display name
+  const getUserDisplayName = () => {
+    if (!user) return "";
+    
+    if (user.firstname && user.lastname) {
+      return `${user.firstname} ${user.lastname}`;
+    } else if (user.firstname) {
+      return user.firstname;
+    } else if (user.email) {
+      return user.email.split('@')[0];
+    }
+    
+    return "User";
+  };
+
+  // Get user's initial for avatar
+  const getUserInitial = () => {
+    if (!user) return "?";
+    
+    if (user.firstname) {
+      return user.firstname.charAt(0).toUpperCase();
+    } else if (user.email) {
+      return user.email.charAt(0).toUpperCase();
+    }
+    
+    return "U";
+  };
+
   return (
     <div className="flex h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       {/* Sidebar */}
@@ -90,9 +153,31 @@ const CustomerLandingPage = () => {
                 />
                 <span className="absolute left-3 top-3 text-gray-400">🔍</span>
               </div>
-              <button className="p-3 text-gray-600 hover:text-amber-500 transition-colors">
-                <span className="text-xl">⚙️</span>
-              </button>
+              
+              {/* User Display or Sign In Button */}
+              {isLoggedIn && user ? (
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-gradient-to-r from-amber-400 to-orange-500 rounded-full flex items-center justify-center">
+                    <span className="text-white font-bold text-sm">
+                      {getUserInitial()}
+                    </span>
+                  </div>
+                  <span className="text-slate-900 font-medium">{getUserDisplayName()}</span>
+                  <button 
+                    onClick={handleLogout}
+                    className="px-3 py-1 text-sm text-gray-600 hover:text-red-500 transition-colors"
+                  >
+                    Logout
+                  </button>
+                </div>
+              ) : (
+                <button 
+                  onClick={() => navigate('/login')}
+                  className="p-3 text-gray-600 hover:text-amber-500 transition-colors"
+                >
+                  <span className="text-xl">⚙️</span>
+                </button>
+              )}
             </div>
           </div>
 

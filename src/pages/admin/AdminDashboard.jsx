@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import Sidebar from "../../components/Sidebar";
 import AnalyticsWidgets from "../../components/admin/dashboard/AnalyticsWidgets";
 import UsersTable from "../../components/admin/dashboard/UsersTable";
 import TailorsTable from "../../components/admin/dashboard/TailorsTable";
@@ -25,7 +26,7 @@ const SectionContent = ({ section }) => {
       return (
         <>
           <AnalyticsWidgets />
-          <div className="text-xl">Welcome, Admin! Use the sidebar to manage the platform.</div>
+          <div className="text-xl text-gray-300">Welcome, Admin! Use the sidebar to manage the platform.</div>
         </>
       );
     case "users":
@@ -49,40 +50,41 @@ const SectionContent = ({ section }) => {
 
 const AdminDashboard = () => {
   const [active, setActive] = useState("dashboard");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   return (
     <div className="min-h-screen flex bg-gray-900">
-      {/* Sidebar */}
-      <aside className="w-64 bg-gray-800 p-6 flex flex-col min-h-screen border-r border-gray-700">
-        <h2 className="text-2xl font-bold text-gray-100 mb-8 text-center">SewNova Admin</h2>
-        <nav className="flex flex-col gap-2">
-          {sections.map((s) => (
-            <button
-              key={s.key}
-              onClick={() => setActive(s.key)}
-              className={`text-left px-4 py-2 rounded transition font-medium text-gray-300 hover:text-white hover:bg-gray-700 ${active === s.key ? "bg-blue-700 text-white" : ""}`}
-            >
-              {s.label}
-            </button>
-          ))}
-        </nav>
-        <button
-          onClick={() => {
-            localStorage.removeItem("isAdmin");
-            window.location.href = "/admin/login";
-          }}
-          className="mt-auto py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded"
-        >
-          Logout
-        </button>
-      </aside>
+      {/* New Sidebar */}
+      <Sidebar 
+        isOpen={sidebarOpen} 
+        setIsOpen={setSidebarOpen} 
+        userRole="admin" 
+      />
+      
       {/* Main Content */}
-      <main className="flex-1 p-10 text-gray-100">
-        <header className="mb-8 flex items-center justify-between">
-          <h1 className="text-3xl font-bold capitalize">{sections.find((s) => s.key === active)?.label}</h1>
-        </header>
-        <div className="bg-gray-800 rounded-lg p-8 min-h-[300px] border border-gray-700">
-          <SectionContent section={active} />
+      <main className={`flex-1 transition-all duration-500 ease-in-out ${
+        sidebarOpen ? 'ml-0' : 'ml-0'
+      }`}>
+        <div className="p-8">
+          <header className="mb-8 flex items-center justify-between">
+            <h1 className="text-3xl font-bold text-gray-100 capitalize">
+              {sections.find((s) => s.key === active)?.label}
+            </h1>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="p-2 rounded-lg bg-gray-800 shadow-md hover:shadow-lg transition-all duration-300 border border-gray-700"
+              >
+                <svg className="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+            </div>
+          </header>
+          
+          <div className="bg-gray-800 rounded-xl shadow-lg p-8 min-h-[600px] border border-gray-700">
+            <SectionContent section={active} />
+          </div>
         </div>
       </main>
     </div>
