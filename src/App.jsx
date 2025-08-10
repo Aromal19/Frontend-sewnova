@@ -8,10 +8,14 @@ import SignupSelection from "./pages/SignupSelection";
 import CustomerSignup from "./pages/customer/CustomerSignup";
 import SellerSignup from "./pages/seller/SellerSignup";
 import TailorSignup from "./pages/tailor/TailorSignup";
-import CustomerDashboard from "./pages/customer/CustomerDashboard";
+import CustomerLandingPage from "./pages/CustomerLandingPage";
 import AdminInsights from "./pages/admin/AdminInsights";
 import AddFabric from "./pages/seller/AddFabric";
 import ActiveOrders from "./pages/tailor/ActiveOrders";
+import EmailVerification from "./pages/EmailVerification";
+import CustomerProfile from "./pages/customer/CustomerProfile";
+import SellerProfile from "./pages/seller/SellerProfile";
+import TailorProfile from "./pages/tailor/TailorProfile";
 
 const Orders = () => (
   <div className="p-8 text-gray-100">Your Orders (Customer View)</div>
@@ -30,11 +34,18 @@ function App() {
         <Route path="/signup/customer" element={<CustomerSignup />} />
         <Route path="/signup/seller" element={<SellerSignup />} />
         <Route path="/signup/tailor" element={<TailorSignup />} />
+        <Route path="/verify-email" element={<EmailVerification />} />
         
         {/* Dashboard Routes */}
-        <Route path="/dashboard/customer" element={<CustomerDashboard />} />
+        <Route path="/customer/landing" element={<CustomerLandingPage />} />
+        <Route path="/dashboard/customer" element={<CustomerLandingPage />} />
         <Route path="/dashboard/seller" element={<SellerDashboard />} />
         <Route path="/dashboard/tailor" element={<TailorDashboard />} />
+        
+        {/* Profile Routes */}
+        <Route path="/customer/profile" element={<CustomerProfile />} />
+        <Route path="/seller/profile" element={<SellerProfile />} />
+        <Route path="/tailor/profile" element={<TailorProfile />} />
         
         {/* Admin Routes */}
         <Route path="/insights" element={<AdminInsights />} />

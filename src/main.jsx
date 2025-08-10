@@ -11,7 +11,6 @@ import CustomerSignup from "./pages/customer/CustomerSignup";
 import SellerSignup from "./pages/seller/SellerSignup";
 import TailorSignup from "./pages/tailor/TailorSignup";
 import AdminApp from "./pages/admin/AdminApp";
-import CustomerDashboard from "./pages/customer/CustomerDashboard";
 import SellerDashboard from "./pages/seller/SellerDashboard";
 import CustomerLandingPage from "./pages/CustomerLandingPage";
 import { GOOGLE_CLIENT_ID } from "./config/googleOAuth";
@@ -30,9 +29,9 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           <Route path="/seller/signup" element={<SellerSignup />} />
           <Route path="/tailor/signup" element={<TailorSignup />} />
           <Route path="/admin/*" element={<AdminApp />} />
-          <Route path="/customer/dashboard" element={<CustomerDashboard />} />
+          <Route path="/dashboard/customer" element={<CustomerLandingPage />} />
           <Route path="/customer/landing" element={<CustomerLandingPage />} />
-          <Route path="/seller/dashboard" element={<SellerDashboard />} />
+          <Route path="/dashboard/seller" element={<SellerDashboard />} />
           <Route path="/*" element={<App />} />
         </Routes>
       </Router>

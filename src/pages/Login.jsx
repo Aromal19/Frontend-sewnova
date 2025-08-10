@@ -4,6 +4,7 @@ import { authAPI, getDashboardRoute } from "../utils/api";
 import { FiEye, FiEyeOff, FiMail, FiLock, FiArrowRight } from "react-icons/fi";
 import { GoogleLogin } from '@react-oauth/google';
 import axios from "axios";
+import EmailVerificationPending from "../components/EmailVerificationPending";
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -13,6 +14,8 @@ const Login = () => {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showEmailVerification, setShowEmailVerification] = useState(false);
+  const [verificationData, setVerificationData] = useState({});
   const navigate = useNavigate();
 
   const validateEmail = (email) => {
@@ -103,6 +106,13 @@ const Login = () => {
           const dashboardRoute = getDashboardRoute(data.user.role);
           navigate(dashboardRoute);
         }
+      } else if (data.requiresEmailVerification) {
+        // Show email verification pending screen
+        setVerificationData({
+          email: data.email,
+          userType: data.userType
+        });
+        setShowEmailVerification(true);
       } else {
         setErrors({ submit: data.message || 'Login failed' });
       }
@@ -117,18 +127,15 @@ const Login = () => {
   const handleGoogleSuccess = async (credentialResponse) => {
     setLoading(true);
     setErrors({});
-    
     try {
       const response = await axios.post("http://localhost:3000/api/auth/google-signin", {
         idToken: credentialResponse.credential
-      });
-
+      }, { withCredentials: true });
       if (response.data.success) {
-        // Store user data and token
+        // Store user data and accessToken
         localStorage.setItem('user', JSON.stringify(response.data.user));
-        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('accessToken', response.data.accessToken);
         localStorage.setItem('userRole', response.data.user.role);
-        
         // Route based on user role
         if (response.data.user.role === 'customer') {
           navigate('/customer/landing');
@@ -154,6 +161,23 @@ const Login = () => {
   const handleGoogleError = () => {
     setErrors({ submit: "Google Sign-In failed. Please try again." });
   };
+
+  // If email verification is required, show the verification pending component
+  if (showEmailVerification) {
+    return (
+      <EmailVerificationPending
+        email={verificationData.email}
+        userType={verificationData.userType}
+        onBack={() => {
+          setShowEmailVerification(false);
+          setVerificationData({});
+        }}
+        onResend={() => {
+          // Optional: Handle resend success
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-[#f2f29d]/20 to-white flex items-center justify-center p-4">

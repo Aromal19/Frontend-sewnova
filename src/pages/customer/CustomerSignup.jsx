@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { FiEye, FiEyeOff, FiUser, FiMail, FiPhone, FiLock, FiArrowRight, FiCheck } from "react-icons/fi";
 import { GoogleLogin } from '@react-oauth/google';
 import axios from "axios";
+import EmailVerificationPending from "../../components/EmailVerificationPending";
 
 const CustomerSignup = () => {
   const [formData, setFormData] = useState({
@@ -18,6 +19,8 @@ const CustomerSignup = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState("");
+  const [showEmailVerification, setShowEmailVerification] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState("");
   const navigate = useNavigate();
 
   const validateEmail = (email) => {
@@ -189,13 +192,13 @@ const CustomerSignup = () => {
         password: formData.password,
       });
 
-      if (response.data.message === 'Customer registered successfully') {
-        // Store user data and token
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('userRole', 'customer');
-        
-        navigate("/customer/landing");
+      if (response.data.success && response.data.requiresEmailVerification) {
+        // Show email verification pending screen
+        setRegisteredEmail(formData.email.toLowerCase().trim());
+        setShowEmailVerification(true);
+      } else if (response.data.success) {
+        // Fallback - shouldn't happen for regular signup
+        setErrors({ submit: "Registration successful but no verification required." });
       } else {
         setErrors({ submit: response.data.message || "Signup failed" });
       }
@@ -214,13 +217,13 @@ const CustomerSignup = () => {
   const handleGoogleSuccess = async (credentialResponse) => {
     setLoading(true);
     try {
-      const response = await axios.post("http://localhost:3000/api/customers/google-signin", {
+      const response = await axios.post("http://localhost:3000/api/auth/google-signin", {
         idToken: credentialResponse.credential
       });
 
-      if (response.data.message === 'Google Sign-In successful') {
-        // Store user data and token
-        localStorage.setItem('user', JSON.stringify(response.data.customer));
+      if (response.data.success) {
+        // Store user data and token - Google users are automatically verified
+        localStorage.setItem('user', JSON.stringify(response.data.user));
         localStorage.setItem('token', response.data.token);
         localStorage.setItem('userRole', 'customer');
         
@@ -244,8 +247,36 @@ const CustomerSignup = () => {
     setErrors({ submit: "Google Sign-In failed. Please try again." });
   };
 
+  const handleBackFromVerification = () => {
+    setShowEmailVerification(false);
+    setRegisteredEmail("");
+    setFormData({
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      password: "",
+      confirmPassword: "",
+    });
+    setErrors({});
+  };
+
+  // If email verification is required, show the verification pending component
+  if (showEmailVerification) {
+    return (
+      <EmailVerificationPending
+        email={registeredEmail}
+        userType="customer"
+        onBack={handleBackFromVerification}
+        onResend={() => {
+          // Optional: Handle resend success
+        }}
+      />
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-[#f2f29d]/20 to-white flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-amber-50 flex items-center justify-center px-4">
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-5">
         <div className="absolute top-0 left-0 w-72 h-72 bg-amber-400 rounded-full mix-blend-multiply filter blur-xl animate-pulse"></div>

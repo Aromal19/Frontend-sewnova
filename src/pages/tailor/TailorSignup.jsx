@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { FiEye, FiEyeOff, FiUser, FiMail, FiPhone, FiLock, FiArrowRight, FiCheck, FiBriefcase } from "react-icons/fi";
 import axios from "axios";
+import EmailVerificationPending from "../../components/EmailVerificationPending";
 
 const TailorSignup = () => {
   const [formData, setFormData] = useState({
@@ -19,6 +20,8 @@ const TailorSignup = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState("");
+  const [showEmailVerification, setShowEmailVerification] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState("");
   const navigate = useNavigate();
 
   const specializationOptions = [
@@ -219,24 +222,23 @@ const TailorSignup = () => {
     setLoading(true);
     
     try {
-      const response = await axios.post("http://localhost:3000/api/tailor/register", {
+      const response = await axios.post("http://localhost:3000/api/tailors/register", {
         firstname: formData.firstName.trim(),
         lastname: formData.lastName.trim(),
         email: formData.email.toLowerCase().trim(),
         phone: formData.phone.trim(),
         shopName: formData.shopName.trim(),
-        specializations: formData.specializations,
+        specialization: formData.specializations,
         password: formData.password,
-        role: "tailor",
       });
 
-      if (response.data.success) {
-        // Store user data and token
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('userRole', 'tailor');
-        
-        navigate("/dashboard/tailor");
+      if (response.data.success && response.data.requiresEmailVerification) {
+        // Show email verification pending screen
+        setRegisteredEmail(formData.email.toLowerCase().trim());
+        setShowEmailVerification(true);
+      } else if (response.data.success) {
+        // Fallback - shouldn't happen for regular signup
+        setErrors({ submit: "Registration successful but no verification required." });
       } else {
         setErrors({ submit: response.data.message || "Signup failed" });
       }
@@ -251,6 +253,23 @@ const TailorSignup = () => {
       setLoading(false);
     }
   };
+
+  // If email verification is required, show the verification pending component
+  if (showEmailVerification) {
+    return (
+      <EmailVerificationPending
+        email={registeredEmail}
+        userType="tailor"
+        onBack={() => {
+          setShowEmailVerification(false);
+          setRegisteredEmail("");
+        }}
+        onResend={() => {
+          // Optional: Handle resend success
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-[#f2f29d]/20 to-white flex items-center justify-center p-4">

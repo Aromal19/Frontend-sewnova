@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { FiEye, FiEyeOff, FiUser, FiMail, FiPhone, FiLock, FiArrowRight, FiCheck, FiBriefcase, FiGlobe } from "react-icons/fi";
 import axios from "axios";
+import EmailVerificationPending from "../../components/EmailVerificationPending";
 
 const SellerSignup = () => {
   const [formData, setFormData] = useState({
@@ -19,6 +20,8 @@ const SellerSignup = () => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showEmailVerification, setShowEmailVerification] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState("");
   const navigate = useNavigate();
 
   const validateEmail = (email) => {
@@ -72,7 +75,7 @@ const SellerSignup = () => {
     setLoading(true);
     
     try {
-      const response = await axios.post("http://localhost:3000/api/seller/register", {
+      const response = await axios.post("http://localhost:3000/api/sellers/register", {
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
         email: formData.email.toLowerCase().trim(),
@@ -81,16 +84,15 @@ const SellerSignup = () => {
         businessType: formData.businessType.trim(),
         website: formData.website.trim(),
         password: formData.password,
-        role: "seller",
       });
 
-      if (response.data.success) {
-        // Store user data and token
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('userRole', 'seller');
-        
-        navigate("/seller/dashboard");
+      if (response.data.success && response.data.requiresEmailVerification) {
+        // Show email verification pending screen
+        setRegisteredEmail(formData.email.toLowerCase().trim());
+        setShowEmailVerification(true);
+      } else if (response.data.success) {
+        // Fallback - shouldn't happen for regular signup
+        setErrors({ submit: "Registration successful but no verification required." });
       } else {
         setErrors({ submit: response.data.message || "Signup failed" });
       }
@@ -105,6 +107,23 @@ const SellerSignup = () => {
       setLoading(false);
     }
   };
+
+  // If email verification is required, show the verification pending component
+  if (showEmailVerification) {
+    return (
+      <EmailVerificationPending
+        email={registeredEmail}
+        userType="seller"
+        onBack={() => {
+          setShowEmailVerification(false);
+          setRegisteredEmail("");
+        }}
+        onResend={() => {
+          // Optional: Handle resend success
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-[#f2f29d]/20 to-white flex items-center justify-center p-4">

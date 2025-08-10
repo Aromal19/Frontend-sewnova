@@ -126,7 +126,7 @@ const Sidebar = ({ isOpen, setIsOpen, userRole = "customer" }) => {
           { key: "/tracking", label: "Order Tracking", icon: FiTruck, href: "/tracking" },
           { key: "/sellers", label: "Fabric Sellers", icon: FiShoppingBag, href: "/sellers" },
           { key: "/tailors", label: "Find Tailors", icon: FiScissors, href: "/tailors" },
-          { key: "/profile", label: "Profile", icon: FiUser, href: "/profile" },
+          { key: "/customer/profile", label: "Profile", icon: FiUser, href: "/customer/profile" },
         ];
       
       case "seller":
@@ -140,7 +140,7 @@ const Sidebar = ({ isOpen, setIsOpen, userRole = "customer" }) => {
           { key: "/earnings", label: "Earnings", icon: FiDollarSign, href: "/earnings" },
           { key: "/customers", label: "Customers", icon: FiUsers, href: "/customers" },
           { key: "/reviews", label: "Reviews", icon: FiStar, href: "/reviews" },
-          { key: "/profile", label: "Profile", icon: FiUser, href: "/profile" },
+          { key: "/seller/profile", label: "Profile", icon: FiUser, href: "/seller/profile" },
         ];
       
       case "tailor":
@@ -155,7 +155,7 @@ const Sidebar = ({ isOpen, setIsOpen, userRole = "customer" }) => {
           { key: "/earnings", label: "Earnings", icon: FiDollarSign, href: "/earnings" },
           { key: "/customers", label: "Customers", icon: FiUsers, href: "/customers" },
           { key: "/reviews", label: "Reviews", icon: FiStar, href: "/reviews" },
-          { key: "/profile", label: "Profile", icon: FiUser, href: "/profile" },
+          { key: "/tailor/profile", label: "Profile", icon: FiUser, href: "/tailor/profile" },
         ];
       
       case "admin":
