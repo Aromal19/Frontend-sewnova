@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { FiEye, FiEyeOff, FiUser, FiMail, FiPhone, FiLock, FiArrowRight, FiCheck, FiBriefcase } from "react-icons/fi";
+import PhoneNumberInput from "../../components/PhoneNumberInput";
 import axios from "axios";
 import EmailVerificationPending from "../../components/EmailVerificationPending";
 
@@ -358,23 +359,16 @@ const TailorSignup = () => {
                 )}
               </div>
 
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <FiPhone className="text-gray-400 text-lg" />
-                </div>
-                <input
-                  type="tel"
-                  name="phone"
-                  className={`w-full pl-12 pr-4 py-4 rounded-2xl bg-gray-50 text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-300 text-sm placeholder-gray-500 border ${
-                    errors.phone ? 'border-red-300' : 'border-gray-200'
-                  }`}
+              <div>
+                <PhoneNumberInput
                   value={formData.phone}
                   onChange={handleChange}
-                  placeholder="Phone Number (numbers only)"
+                  error={errors.phone}
+                  placeholder="Enter phone number"
+                  className="w-full"
+                  variant="signup"
+                  focusColor="purple"
                 />
-                {errors.phone && (
-                  <p className="text-red-500 text-xs mt-2 ml-1">{errors.phone}</p>
-                )}
               </div>
             </div>
 

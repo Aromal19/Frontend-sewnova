@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import Modal from '../components/Modal';
 import EmailVerificationPending from '../components/EmailVerificationPending';
@@ -11,6 +11,7 @@ const EmailVerification = () => {
   const [message, setMessage] = useState('');
   const [email, setEmail] = useState('');
   const [userType, setUserType] = useState('customer');
+  const verificationAttempted = useRef(false);
 
   useEffect(() => {
     const token = searchParams.get('token');
@@ -18,7 +19,8 @@ const EmailVerification = () => {
     const emailParam = searchParams.get('email');
     if (emailParam) setEmail(emailParam);
     if (type) setUserType(type);
-    if (token && type) {
+    if (token && type && !verificationAttempted.current) {
+      verificationAttempted.current = true;
       setStatus('loading');
       verifyEmail(token, type);
     }

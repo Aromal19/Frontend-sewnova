@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCurrentUser, isAuthenticated, logout } from '../../utils/api';
-import { FiUser, FiMail, FiPhone, FiMapPin, FiEdit, FiLock, FiShield, FiCheckCircle, FiXCircle, FiLogOut, FiArrowLeft, FiBriefcase, FiFileText, FiDollarSign, FiTruck } from 'react-icons/fi';
+import { FiUser, FiMail, FiPhone, FiMapPin, FiEdit, FiLock, FiShield, FiCheckCircle, FiXCircle, FiLogOut, FiArrowLeft, FiBriefcase, FiFileText, FiDollarSign, FiTruck, FiEye, FiEyeOff } from 'react-icons/fi';
 import Sidebar from '../../components/Sidebar';
+import PhoneNumberInput from '../../components/PhoneNumberInput';
 
 const SellerProfile = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -16,6 +17,11 @@ const SellerProfile = () => {
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
+  });
+  const [showPasswords, setShowPasswords] = useState({
+    currentPassword: false,
+    newPassword: false,
+    confirmPassword: false
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -49,6 +55,7 @@ const SellerProfile = () => {
             lastName: data.seller.lastname || '',
             email: data.seller.email || '',
             phone: data.seller.phone || '',
+            countryCode: data.seller.countryCode || '+91',
             businessName: data.seller.businessName || '',
             businessAddress: data.seller.address || '',
             businessType: data.seller.businessType || '',
@@ -80,6 +87,7 @@ const SellerProfile = () => {
           lastName: currentUser.lastname || '',
           email: currentUser.email || '',
           phone: currentUser.phone || '',
+          countryCode: currentUser.countryCode || '+91',
           businessName: currentUser.businessName || '',
           businessAddress: currentUser.address || '',
           businessType: currentUser.businessType || '',
@@ -128,6 +136,13 @@ const SellerProfile = () => {
         [name]: ''
       }));
     }
+  };
+
+  const handleCountryCodeChange = (countryCode) => {
+    setFormData(prev => ({
+      ...prev,
+      countryCode: countryCode
+    }));
   };
 
   const handlePasswordChange = (e) => {
@@ -180,7 +195,7 @@ const SellerProfile = () => {
     
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:3000/api/seller/update-profile', {
+      const response = await fetch('http://localhost:3000/api/sellers/update-profile', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -486,6 +501,9 @@ const SellerProfile = () => {
                             <FiXCircle className="w-5 h-5 text-red-500" />
                           )}
                         </div>
+                        {!user.isEmailVerified && (
+                          <p className="text-red-500 text-xs mt-1">Email not verified</p>
+                        )}
                         {errors.email && (
                           <p className="text-red-500 text-xs mt-1">{errors.email}</p>
                         )}
@@ -495,19 +513,15 @@ const SellerProfile = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Phone Number
                         </label>
-                        <input
-                          type="tel"
-                          name="phone"
+                        <PhoneNumberInput
                           value={formData.phone}
                           onChange={handleInputChange}
+                          onCountryCodeChange={handleCountryCodeChange}
                           disabled={!isEditing}
-                          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 ${
-                            isEditing ? 'border-gray-300' : 'border-gray-200 bg-gray-50'
-                          } ${errors.phone ? 'border-red-300' : ''}`}
+                          error={errors.phone}
+                          placeholder="Enter phone number"
+                          focusColor="emerald"
                         />
-                        {errors.phone && (
-                          <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
-                        )}
                       </div>
                     </div>
 
@@ -719,13 +733,21 @@ const SellerProfile = () => {
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             Current Password
                           </label>
-                          <input
-                            type="password"
-                            name="currentPassword"
-                            value={passwordData.currentPassword}
-                            onChange={handlePasswordChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                          />
+                          <div className="relative">
+                            <input
+                              type={showPasswords.currentPassword ? 'text' : 'password'}
+                              name="currentPassword"
+                              value={passwordData.currentPassword}
+                              onChange={handlePasswordChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 pr-10"
+                            />
+                            <span
+                              onClick={() => setShowPasswords(prev => ({ ...prev, currentPassword: !prev.currentPassword }))}
+                              className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer"
+                            >
+                              {showPasswords.currentPassword ? <FiEyeOff className="h-5 w-5 text-gray-500" /> : <FiEye className="h-5 w-5 text-gray-500" />}
+                            </span>
+                          </div>
                           {errors.currentPassword && (
                             <p className="text-red-500 text-xs mt-1">{errors.currentPassword}</p>
                           )}
@@ -735,13 +757,21 @@ const SellerProfile = () => {
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             New Password
                           </label>
-                          <input
-                            type="password"
-                            name="newPassword"
-                            value={passwordData.newPassword}
-                            onChange={handlePasswordChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                          />
+                          <div className="relative">
+                            <input
+                              type={showPasswords.newPassword ? 'text' : 'password'}
+                              name="newPassword"
+                              value={passwordData.newPassword}
+                              onChange={handlePasswordChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 pr-10"
+                            />
+                            <span
+                              onClick={() => setShowPasswords(prev => ({ ...prev, newPassword: !prev.newPassword }))}
+                              className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer"
+                            >
+                              {showPasswords.newPassword ? <FiEyeOff className="h-5 w-5 text-gray-500" /> : <FiEye className="h-5 w-5 text-gray-500" />}
+                            </span>
+                          </div>
                           {errors.newPassword && (
                             <p className="text-red-500 text-xs mt-1">{errors.newPassword}</p>
                           )}
@@ -751,13 +781,21 @@ const SellerProfile = () => {
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             Confirm New Password
                           </label>
-                          <input
-                            type="password"
-                            name="confirmPassword"
-                            value={passwordData.confirmPassword}
-                            onChange={handlePasswordChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                          />
+                          <div className="relative">
+                            <input
+                              type={showPasswords.confirmPassword ? 'text' : 'password'}
+                              name="confirmPassword"
+                              value={passwordData.confirmPassword}
+                              onChange={handlePasswordChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 pr-10"
+                            />
+                            <span
+                              onClick={() => setShowPasswords(prev => ({ ...prev, confirmPassword: !prev.confirmPassword }))}
+                              className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer"
+                            >
+                              {showPasswords.confirmPassword ? <FiEyeOff className="h-5 w-5 text-gray-500" /> : <FiEye className="h-5 w-5 text-gray-500" />}
+                            </span>
+                          </div>
                           {errors.confirmPassword && (
                             <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>
                           )}

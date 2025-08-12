@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCurrentUser, isAuthenticated, logout } from '../../utils/api';
-import { FiUser, FiMail, FiPhone, FiMapPin, FiEdit, FiLock, FiShield, FiCheckCircle, FiXCircle, FiLogOut, FiArrowLeft, FiScissors, FiFileText, FiAward, FiClock, FiStar } from 'react-icons/fi';
+import { FiUser, FiMail, FiPhone, FiMapPin, FiEdit, FiLock, FiShield, FiCheckCircle, FiXCircle, FiLogOut, FiArrowLeft, FiScissors, FiFileText, FiAward, FiClock, FiStar, FiEye, FiEyeOff } from 'react-icons/fi';
 import Sidebar from '../../components/Sidebar';
+import PhoneNumberInput from '../../components/PhoneNumberInput';
 
 const TailorProfile = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -16,6 +17,11 @@ const TailorProfile = () => {
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
+  });
+  const [showPasswords, setShowPasswords] = useState({
+    currentPassword: false,
+    newPassword: false,
+    confirmPassword: false
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -49,6 +55,7 @@ const TailorProfile = () => {
             lastName: data.tailor.lastname || '',
             email: data.tailor.email || '',
             phone: data.tailor.phone || '',
+            countryCode: data.tailor.countryCode || '+91',
             shopName: data.tailor.shopName || '',
             shopAddress: data.tailor.address || '',
             experience: data.tailor.experience || '',
@@ -81,6 +88,7 @@ const TailorProfile = () => {
           lastName: currentUser.lastname || '',
           email: currentUser.email || '',
           phone: currentUser.phone || '',
+          countryCode: currentUser.countryCode || '+91',
           shopName: currentUser.shopName || '',
           shopAddress: currentUser.address || '',
           experience: currentUser.experience || '',
@@ -130,6 +138,13 @@ const TailorProfile = () => {
         [name]: ''
       }));
     }
+  };
+
+  const handleCountryCodeChange = (countryCode) => {
+    setFormData(prev => ({
+      ...prev,
+      countryCode: countryCode
+    }));
   };
 
   const handlePasswordChange = (e) => {
@@ -194,7 +209,7 @@ const TailorProfile = () => {
     
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:3000/api/tailor/update-profile', {
+      const response = await fetch('http://localhost:3000/api/tailors/update-profile', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -507,6 +522,9 @@ const TailorProfile = () => {
                             <FiXCircle className="w-5 h-5 text-red-500" />
                           )}
                         </div>
+                        {!user.isEmailVerified && (
+                          <p className="text-red-500 text-xs mt-1">Email not verified</p>
+                        )}
                         {errors.email && (
                           <p className="text-red-500 text-xs mt-1">{errors.email}</p>
                         )}
@@ -516,19 +534,15 @@ const TailorProfile = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Phone Number
                         </label>
-                        <input
-                          type="tel"
-                          name="phone"
+                        <PhoneNumberInput
                           value={formData.phone}
                           onChange={handleInputChange}
+                          onCountryCodeChange={handleCountryCodeChange}
                           disabled={!isEditing}
-                          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 ${
-                            isEditing ? 'border-gray-300' : 'border-gray-200 bg-gray-50'
-                          } ${errors.phone ? 'border-red-300' : ''}`}
+                          error={errors.phone}
+                          placeholder="Enter phone number"
+                          focusColor="purple"
                         />
-                        {errors.phone && (
-                          <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
-                        )}
                       </div>
 
                       <div className="md:col-span-2">
@@ -784,13 +798,18 @@ const TailorProfile = () => {
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             Current Password
                           </label>
-                          <input
-                            type="password"
-                            name="currentPassword"
-                            value={passwordData.currentPassword}
-                            onChange={handlePasswordChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
-                          />
+                          <div className="relative">
+                            <input
+                              type={showPasswords.currentPassword ? 'text' : 'password'}
+                              name="currentPassword"
+                              value={passwordData.currentPassword}
+                              onChange={handlePasswordChange}
+                              className="w-full pr-10 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
+                            />
+                            <span className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer" onClick={() => setShowPasswords(prev => ({ ...prev, currentPassword: !prev.currentPassword }))}>
+                              {showPasswords.currentPassword ? <FiEyeOff className="h-5 w-5 text-gray-500" /> : <FiEye className="h-5 w-5 text-gray-500" />}
+                            </span>
+                          </div>
                           {errors.currentPassword && (
                             <p className="text-red-500 text-xs mt-1">{errors.currentPassword}</p>
                           )}
@@ -800,13 +819,18 @@ const TailorProfile = () => {
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             New Password
                           </label>
-                          <input
-                            type="password"
-                            name="newPassword"
-                            value={passwordData.newPassword}
-                            onChange={handlePasswordChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
-                          />
+                          <div className="relative">
+                            <input
+                              type={showPasswords.newPassword ? 'text' : 'password'}
+                              name="newPassword"
+                              value={passwordData.newPassword}
+                              onChange={handlePasswordChange}
+                              className="w-full pr-10 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
+                            />
+                            <span className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer" onClick={() => setShowPasswords(prev => ({ ...prev, newPassword: !prev.newPassword }))}>
+                              {showPasswords.newPassword ? <FiEyeOff className="h-5 w-5 text-gray-500" /> : <FiEye className="h-5 w-5 text-gray-500" />}
+                            </span>
+                          </div>
                           {errors.newPassword && (
                             <p className="text-red-500 text-xs mt-1">{errors.newPassword}</p>
                           )}
@@ -816,13 +840,18 @@ const TailorProfile = () => {
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             Confirm New Password
                           </label>
-                          <input
-                            type="password"
-                            name="confirmPassword"
-                            value={passwordData.confirmPassword}
-                            onChange={handlePasswordChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
-                          />
+                          <div className="relative">
+                            <input
+                              type={showPasswords.confirmPassword ? 'text' : 'password'}
+                              name="confirmPassword"
+                              value={passwordData.confirmPassword}
+                              onChange={handlePasswordChange}
+                              className="w-full pr-10 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
+                            />
+                            <span className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer" onClick={() => setShowPasswords(prev => ({ ...prev, confirmPassword: !prev.confirmPassword }))}>
+                              {showPasswords.confirmPassword ? <FiEyeOff className="h-5 w-5 text-gray-500" /> : <FiEye className="h-5 w-5 text-gray-500" />}
+                            </span>
+                          </div>
                           {errors.confirmPassword && (
                             <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>
                           )}

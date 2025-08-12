@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCurrentUser, isAuthenticated, logout } from '../../utils/api';
-import { FiUser, FiMail, FiPhone, FiMapPin, FiEdit, FiLock, FiShield, FiCheckCircle, FiXCircle, FiLogOut, FiArrowLeft, FiShoppingBag, FiHeart, FiStar, FiPackage } from 'react-icons/fi';
+import { FiUser, FiMail, FiPhone, FiMapPin, FiEdit, FiLock, FiShield, FiCheckCircle, FiXCircle, FiLogOut, FiArrowLeft, FiShoppingBag, FiHeart, FiStar, FiPackage, FiEye, FiEyeOff } from 'react-icons/fi';
 import Sidebar from '../../components/Sidebar';
+import PhoneNumberInput from '../../components/PhoneNumberInput';
 
 const CustomerProfile = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -16,6 +17,11 @@ const CustomerProfile = () => {
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
+  });
+  const [showPasswords, setShowPasswords] = useState({
+    currentPassword: false,
+    newPassword: false,
+    confirmPassword: false
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -49,6 +55,7 @@ const CustomerProfile = () => {
             lastName: data.customer.lastname || '',
             email: data.customer.email || '',
             phone: data.customer.phone || '',
+            countryCode: data.customer.countryCode || '+91',
             address: data.customer.address || '',
             city: data.customer.city || '',
             state: data.customer.state || '',
@@ -79,6 +86,7 @@ const CustomerProfile = () => {
           lastName: currentUser.lastname || '',
           email: currentUser.email || '',
           phone: currentUser.phone || '',
+          countryCode: currentUser.countryCode || '+91',
           address: currentUser.address || '',
           city: currentUser.city || '',
           state: currentUser.state || '',
@@ -126,6 +134,13 @@ const CustomerProfile = () => {
         [name]: ''
       }));
     }
+  };
+
+  const handleCountryCodeChange = (countryCode) => {
+    setFormData(prev => ({
+      ...prev,
+      countryCode: countryCode
+    }));
   };
 
   const handlePasswordChange = (e) => {
@@ -178,7 +193,7 @@ const CustomerProfile = () => {
     
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:3000/api/customer/update-profile', {
+      const response = await fetch('http://localhost:3000/api/customers/update-profile', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -464,6 +479,9 @@ const CustomerProfile = () => {
                             <FiXCircle className="w-5 h-5 text-red-500" />
                           )}
                         </div>
+                        {!user.isEmailVerified && (
+                          <p className="text-red-500 text-xs mt-1">Email not verified</p>
+                        )}
                         {errors.email && (
                           <p className="text-red-500 text-xs mt-1">{errors.email}</p>
                         )}
@@ -473,19 +491,15 @@ const CustomerProfile = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Phone Number
                         </label>
-                        <input
-                          type="tel"
-                          name="phone"
+                        <PhoneNumberInput
                           value={formData.phone}
                           onChange={handleInputChange}
+                          onCountryCodeChange={handleCountryCodeChange}
                           disabled={!isEditing}
-                          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 ${
-                            isEditing ? 'border-gray-300' : 'border-gray-200 bg-gray-50'
-                          } ${errors.phone ? 'border-red-300' : ''}`}
+                          error={errors.phone}
+                          placeholder="Enter phone number"
+                          focusColor="emerald"
                         />
-                        {errors.phone && (
-                          <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
-                        )}
                       </div>
 
                       <div className="md:col-span-2">
@@ -693,13 +707,21 @@ const CustomerProfile = () => {
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             Current Password
                           </label>
-                          <input
-                            type="password"
-                            name="currentPassword"
-                            value={passwordData.currentPassword}
-                            onChange={handlePasswordChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                          />
+                          <div className="relative">
+                            <input
+                              type={showPasswords.currentPassword ? 'text' : 'password'}
+                              name="currentPassword"
+                              value={passwordData.currentPassword}
+                              onChange={handlePasswordChange}
+                              className="w-full pr-10 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                            />
+                            <span
+                              onClick={() => setShowPasswords(prev => ({ ...prev, currentPassword: !prev.currentPassword }))}
+                              className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer"
+                            >
+                              {showPasswords.currentPassword ? <FiEyeOff className="w-5 h-5 text-gray-500" /> : <FiEye className="w-5 h-5 text-gray-500" />}
+                            </span>
+                          </div>
                           {errors.currentPassword && (
                             <p className="text-red-500 text-xs mt-1">{errors.currentPassword}</p>
                           )}
@@ -709,13 +731,21 @@ const CustomerProfile = () => {
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             New Password
                           </label>
-                          <input
-                            type="password"
-                            name="newPassword"
-                            value={passwordData.newPassword}
-                            onChange={handlePasswordChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                          />
+                          <div className="relative">
+                            <input
+                              type={showPasswords.newPassword ? 'text' : 'password'}
+                              name="newPassword"
+                              value={passwordData.newPassword}
+                              onChange={handlePasswordChange}
+                              className="w-full pr-10 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                            />
+                            <span
+                              onClick={() => setShowPasswords(prev => ({ ...prev, newPassword: !prev.newPassword }))}
+                              className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer"
+                            >
+                              {showPasswords.newPassword ? <FiEyeOff className="w-5 h-5 text-gray-500" /> : <FiEye className="w-5 h-5 text-gray-500" />}
+                            </span>
+                          </div>
                           {errors.newPassword && (
                             <p className="text-red-500 text-xs mt-1">{errors.newPassword}</p>
                           )}
@@ -725,13 +755,21 @@ const CustomerProfile = () => {
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             Confirm New Password
                           </label>
-                          <input
-                            type="password"
-                            name="confirmPassword"
-                            value={passwordData.confirmPassword}
-                            onChange={handlePasswordChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                          />
+                          <div className="relative">
+                            <input
+                              type={showPasswords.confirmPassword ? 'text' : 'password'}
+                              name="confirmPassword"
+                              value={passwordData.confirmPassword}
+                              onChange={handlePasswordChange}
+                              className="w-full pr-10 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                            />
+                            <span
+                              onClick={() => setShowPasswords(prev => ({ ...prev, confirmPassword: !prev.confirmPassword }))}
+                              className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer"
+                            >
+                              {showPasswords.confirmPassword ? <FiEyeOff className="w-5 h-5 text-gray-500" /> : <FiEye className="w-5 h-5 text-gray-500" />}
+                            </span>
+                          </div>
                           {errors.confirmPassword && (
                             <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>
                           )}
