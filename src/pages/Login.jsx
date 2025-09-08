@@ -96,7 +96,7 @@ const Login = () => {
       if (data.success) {
         // Store user data and token
         localStorage.setItem('user', JSON.stringify(data.user));
-        localStorage.setItem('token', data.token);
+        localStorage.setItem('token', data.accessToken);
         localStorage.setItem('userRole', data.user.role);
 
         // Route based on user role - customers go to landing page, others to dashboard
@@ -135,6 +135,7 @@ const Login = () => {
         // Store user data and accessToken
         localStorage.setItem('user', JSON.stringify(response.data.user));
         localStorage.setItem('accessToken', response.data.accessToken);
+        localStorage.setItem('token', response.data.accessToken);
         localStorage.setItem('userRole', response.data.user.role);
         // Route based on user role
         if (response.data.user.role === 'customer') {

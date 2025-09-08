@@ -114,18 +114,22 @@ const Sidebar = ({ isOpen, setIsOpen, userRole = "customer" }) => {
   // Navigation items based on user role
   const getNavItems = () => {
     const baseItems = [
-      { key: "/dashboard", label: "Dashboard", icon: FiHome, href: `/dashboard/${currentUserRole}` },
+      { key: "/dashboard", label: "Dashboard", icon: FiHome, href: currentUserRole === "customer" ? "/customer/dashboard" : `/dashboard/${currentUserRole}` },
     ];
 
     switch (currentUserRole) {
       case "customer":
         return [
           ...baseItems,
-          { key: "/orders", label: "My Orders", icon: FiPackage, href: "/orders" },
-          { key: "/wishlist", label: "Wishlist", icon: FiHeart, href: "/wishlist" },
-          { key: "/tracking", label: "Order Tracking", icon: FiTruck, href: "/tracking" },
-          { key: "/sellers", label: "Fabric Sellers", icon: FiShoppingBag, href: "/sellers" },
-          { key: "/tailors", label: "Find Tailors", icon: FiScissors, href: "/tailors" },
+          { key: "/customer/landing", label: "Explore", icon: FiGrid, href: "/customer/landing" },
+          { key: "/customer/fabrics", label: "Browse Fabrics", icon: FiShoppingBag, href: "/customer/fabrics" },
+          { key: "/customer/tailors", label: "Find Tailors", icon: FiScissors, href: "/customer/tailors" },
+          { key: "/customer/measurements", label: "My Measurements", icon: FiUser, href: "/customer/measurements" },
+          { key: "/customer/addresses", label: "My Addresses", icon: FiMapPin, href: "/customer/addresses" },
+          { key: "/customer/bookings", label: "My Bookings", icon: FiPackage, href: "/customer/bookings" },
+          { key: "/customer/orders", label: "My Orders", icon: FiClipboard, href: "/customer/orders" },
+          { key: "/customer/wishlist", label: "Wishlist", icon: FiHeart, href: "/customer/wishlist" },
+          { key: "/customer/tracking", label: "Order Tracking", icon: FiTruck, href: "/customer/tracking" },
           { key: "/customer/profile", label: "Profile", icon: FiUser, href: "/customer/profile" },
         ];
       

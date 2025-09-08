@@ -3,6 +3,7 @@ import Sidebar from "../components/Sidebar";
 import { getCurrentUser, isAuthenticated, logout } from "../utils/api";
 import { useNavigate } from "react-router-dom";
 import { FiSearch, FiMapPin, FiStar, FiHeart, FiShoppingCart, FiUser, FiLogOut, FiMenu, FiX, FiFilter, FiGrid, FiList } from "react-icons/fi";
+import { getApiUrl } from "../config/api";
 
 const CustomerLandingPage = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -43,167 +44,56 @@ const CustomerLandingPage = () => {
     navigate('/login');
   };
 
-  const tailors = [
-    {
-      id: 1,
-      name: "James Smith",
-      location: "New Delhi",
-      rating: 4.8,
-      experience: "15 years",
-      speciality: "Formal Wear",
-      image: "https://randomuser.me/api/portraits/men/32.jpg",
-      price: "₹2,500",
-      availability: "Available",
-      reviews: 127,
-      deliveryTime: "3-5 days"
-    },
-    {
-      id: 2,
-      name: "Ananya Rao",
-      location: "Mumbai",
-      rating: 4.9,
-      experience: "12 years",
-      speciality: "Bridal Wear",
-      image: "https://randomuser.me/api/portraits/women/44.jpg",
-      price: "₹3,200",
-      availability: "Available",
-      reviews: 89,
-      deliveryTime: "5-7 days"
-    },
-    {
-      id: 3,
-      name: "Farbeic Ali",
-      location: "Chennai",
-      rating: 4.7,
-      experience: "18 years",
-      speciality: "Casual Wear",
-      image: "https://randomuser.me/api/portraits/men/45.jpg",
-      price: "₹1,800",
-      availability: "Available",
-      reviews: 203,
-      deliveryTime: "2-4 days"
-    },
-    {
-      id: 4,
-      name: "Priya Sharma",
-      location: "Bangalore",
-      rating: 4.6,
-      experience: "10 years",
-      speciality: "Western Wear",
-      image: "https://randomuser.me/api/portraits/women/68.jpg",
-      price: "₹2,800",
-      availability: "Available",
-      reviews: 156,
-      deliveryTime: "4-6 days"
-    },
-    {
-      id: 5,
-      name: "Rajesh Kumar",
-      location: "Hyderabad",
-      rating: 4.5,
-      experience: "14 years",
-      speciality: "Traditional Wear",
-      image: "https://randomuser.me/api/portraits/men/67.jpg",
-      price: "₹2,100",
-      availability: "Available",
-      reviews: 94,
-      deliveryTime: "3-5 days"
-    },
-    {
-      id: 6,
-      name: "Meera Patel",
-      location: "Ahmedabad",
-      rating: 4.8,
-      experience: "16 years",
-      speciality: "Designer Wear",
-      image: "https://randomuser.me/api/portraits/women/23.jpg",
-      price: "₹4,500",
-      availability: "Available",
-      reviews: 67,
-      deliveryTime: "7-10 days"
-    }
-  ];
+  const [tailors, setTailors] = useState([]);
 
-  const fabrics = [
-    {
-      id: 1,
-      name: "Premium Cotton",
-      type: "Natural Fiber",
-      price: "₹450/m",
-      originalPrice: "₹550/m",
-      color: "bg-gradient-to-br from-yellow-100 to-amber-200",
-      image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=100&h=100&fit=crop&crop=center",
-      rating: 4.5,
-      vendor: "Cotton Co.",
-      reviews: 234,
-      discount: "18% OFF"
-    },
-    {
-      id: 2,
-      name: "Pure Silk",
-      type: "Natural Fiber",
-      price: "₹1,200/m",
-      originalPrice: "₹1,400/m",
-      color: "bg-gradient-to-br from-green-100 to-emerald-200",
-      image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=100&h=100&fit=crop&crop=center",
-      rating: 4.8,
-      vendor: "Silk Paradise",
-      reviews: 189,
-      discount: "14% OFF"
-    },
-    {
-      id: 3,
-      name: "Linen Blend",
-      type: "Natural Fiber",
-      price: "₹650/m",
-      originalPrice: "₹750/m",
-      color: "bg-gradient-to-br from-red-100 to-rose-200",
-      image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=100&h=100&fit=crop&crop=center",
-      rating: 4.3,
-      vendor: "Linen Masters",
-      reviews: 156,
-      discount: "13% OFF"
-    },
-    {
-      id: 4,
-      name: "Navy Wool",
-      type: "Natural Fiber",
-      price: "₹850/m",
-      originalPrice: "₹950/m",
-      color: "bg-gradient-to-br from-blue-900 to-indigo-900",
-      image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=100&h=100&fit=crop&crop=center",
-      rating: 4.6,
-      vendor: "Wool Masters",
-      reviews: 98,
-      discount: "11% OFF"
-    },
-    {
-      id: 5,
-      name: "Denim Fabric",
-      type: "Cotton Blend",
-      price: "₹380/m",
-      originalPrice: "₹480/m",
-      color: "bg-gradient-to-br from-blue-100 to-indigo-200",
-      image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=100&h=100&fit=crop&crop=center",
-      rating: 4.4,
-      vendor: "Denim World",
-      reviews: 312,
-      discount: "21% OFF"
-    },
-    {
-      id: 6,
-      name: "Velvet Silk",
-      type: "Luxury Fabric",
-      price: "₹1,800/m",
-      originalPrice: "₹2,200/m",
-      color: "bg-gradient-to-br from-purple-100 to-violet-200",
-      image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=100&h=100&fit=crop&crop=center",
-      rating: 4.9,
-      vendor: "Luxury Fabrics",
-      reviews: 78,
-      discount: "18% OFF"
-    }
-  ];
+  const [fabrics, setFabrics] = useState([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch verified tailors (public)
+        const tailorsRes = await fetch(getApiUrl('TAILOR_SERVICE', '/api/public/tailors?page=1&limit=20'));
+        const tailorsJson = await tailorsRes.json();
+        const tailorsData = Array.isArray(tailorsJson?.data) ? tailorsJson.data : [];
+        const mappedTailors = tailorsData.map((t) => ({
+          id: t._id,
+          name: `${t.firstname || ''} ${t.lastname || ''}`.trim() || t.shopName || 'Tailor',
+          location: t.district || t.state || t.address || '—',
+          rating: Number(t.rating || 0),
+          experience: t.experience ? `${t.experience} years` : '',
+          speciality: Array.isArray(t.specialization) && t.specialization.length ? t.specialization[0] : 'Tailoring',
+          image: t.profileImage || t.shopImage || '',
+          price: '—',
+          availability: t.isVerified ? 'Verified' : '—',
+          reviews: t.totalOrders || 0,
+          deliveryTime: ''
+        }));
+        setTailors(mappedTailors);
+
+        // Fetch public products (active)
+        const productsRes = await fetch(getApiUrl('SELLER_SERVICE', '/api/public/products?page=1&limit=20'));
+        const productsJson = await productsRes.json();
+        const products = Array.isArray(productsJson?.data) ? productsJson.data : [];
+        const mappedProducts = products.map((p) => ({
+          id: p._id,
+          name: p.name,
+          type: p.category,
+          price: typeof p.price === 'number' ? `₹${p.price}/${p.pricePerUnit === 'per_piece' ? 'pc' : p.pricePerUnit === 'per_yard' ? 'yd' : 'm'}` : '₹—',
+          originalPrice: '',
+          color: 'bg-gradient-to-br from-gray-100 to-gray-200',
+          image: (Array.isArray(p.images) && p.images[0]?.url) || '',
+          rating: Number(p?.rating?.average || 0),
+          vendor: 'Verified Seller',
+          reviews: Number(p?.rating?.count || 0),
+          discount: ''
+        }));
+        setFabrics(mappedProducts);
+      } catch (e) {
+        console.error('Error loading landing data:', e);
+      }
+    };
+    fetchData();
+  }, []);
 
   const renderStars = (rating) => {
     return Array.from({ length: 5 }, (_, i) => (
@@ -382,6 +272,12 @@ const CustomerLandingPage = () => {
                       ({filteredTailors.length} available)
                     </span>
                   </h2>
+                  <button
+                    onClick={() => navigate('/customer/tailors')}
+                    className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors text-sm font-medium"
+                  >
+                    View All Tailors
+                  </button>
                 </div>
                 
                 <div className={`grid gap-4 ${
@@ -393,11 +289,20 @@ const CustomerLandingPage = () => {
                     <div key={tailor.id} className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200 overflow-hidden">
                       {/* Tailor Image */}
                       <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200">
-                        <img
-                          src={tailor.image}
-                          alt={tailor.name}
-                          className="w-full h-full object-cover"
-                        />
+                        {tailor.image ? (
+                          <img
+                            src={tailor.image}
+                            alt={tailor.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'flex';
+                            }}
+                          />
+                        ) : null}
+                        <div className="w-full h-full bg-gradient-to-br from-purple-100 to-pink-200 flex items-center justify-center" style={{ display: tailor.image ? 'none' : 'flex' }}>
+                          <span className="text-4xl">👔</span>
+                        </div>
                         <div className="absolute top-2 right-2">
                           <button className="p-1.5 bg-white/80 backdrop-blur-sm rounded-full text-gray-600 hover:text-red-500 hover:bg-red-50 transition-all duration-200">
                             <FiHeart className="w-4 h-4" />
@@ -423,12 +328,11 @@ const CustomerLandingPage = () => {
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className="text-lg font-bold text-green-600">
-                              {tailor.price}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              starting price
-                            </div>
+                            {tailor.price && (
+                              <div className="text-lg font-bold text-green-600">
+                                {tailor.price}
+                              </div>
+                            )}
                           </div>
                         </div>
 
@@ -441,17 +345,21 @@ const CustomerLandingPage = () => {
                             <span className="text-xs text-gray-600 font-medium">{tailor.rating}</span>
                             <span className="text-xs text-gray-500 ml-1">({tailor.reviews})</span>
                           </div>
-                          <div className="text-xs text-gray-500">
-                            {tailor.deliveryTime}
-                          </div>
+                          {tailor.deliveryTime && (
+                            <div className="text-xs text-gray-500">
+                              {tailor.deliveryTime}
+                            </div>
+                          )}
                         </div>
 
                         {/* Speciality */}
-                        <div className="mb-3">
-                          <span className="inline-block px-2 py-1 bg-amber-100 text-amber-700 text-xs font-medium rounded">
-                            {tailor.speciality}
-                          </span>
-                        </div>
+                        {tailor.speciality && (
+                          <div className="mb-3">
+                            <span className="inline-block px-2 py-1 bg-amber-100 text-amber-700 text-xs font-medium rounded">
+                              {tailor.speciality}
+                            </span>
+                          </div>
+                        )}
 
                         {/* Action Button */}
                         <button className="w-full bg-gradient-to-r from-amber-400 to-orange-500 text-white py-2 px-4 rounded-lg font-medium text-sm hover:from-amber-500 hover:to-orange-600 transition-all duration-200">
@@ -475,6 +383,12 @@ const CustomerLandingPage = () => {
                       ({filteredFabrics.length} available)
                     </span>
                   </h2>
+                  <button
+                    onClick={() => navigate('/customer/fabrics')}
+                    className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors text-sm font-medium"
+                  >
+                    View All Fabrics
+                  </button>
                 </div>
                 
                 <div className={`grid gap-4 ${
@@ -486,7 +400,18 @@ const CustomerLandingPage = () => {
                     <div key={fabric.id} className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200 overflow-hidden">
                       {/* Fabric Image */}
                       <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200">
-                        <div className={`w-full h-full ${fabric.color} flex items-center justify-center`}>
+                        {fabric.image ? (
+                          <img
+                            src={fabric.image}
+                            alt={fabric.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'flex';
+                            }}
+                          />
+                        ) : null}
+                        <div className={`w-full h-full ${fabric.color} flex items-center justify-center`} style={{ display: fabric.image ? 'none' : 'flex' }}>
                           <span className="text-4xl">🧵</span>
                         </div>
                         <div className="absolute top-2 right-2">

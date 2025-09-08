@@ -122,9 +122,10 @@ const TailorSignup = () => {
 
       case "phone":
         if (!value.trim()) return "*Required";
-        if (/[^0-9]/.test(value.trim())) return "Phone number should only contain numbers";
-        if (value.trim().length < 10) return "Phone number must be at least 10 digits";
-        if (value.trim().length > 15) return "Phone number must be less than 15 digits";
+        if (/[^0-9+\s]/.test(value.trim())) return "Only numbers, + and spaces allowed";
+        const numericPhone = value.replace(/\D/g, "");
+        if (numericPhone.length < 10) return "Phone number must be at least 10 digits";
+        if (numericPhone.length > 15) return "Phone number must be less than 15 digits";
         return "";
 
       case "shopName":
@@ -163,9 +164,9 @@ const TailorSignup = () => {
       return; // Don't update state if numbers are entered
     }
     
-    // Block letters and special characters in phone field (only allow numbers)
-    if (name === "phone" && /[^0-9]/.test(value)) {
-      return; // Don't update state if letters or special characters are entered
+    // Allow + and spaces for international format; block other non-numeric characters
+    if (name === "phone" && /[^0-9+\s]/.test(value)) {
+      return; // Block letters and disallowed special characters
     }
     
     setFormData((prev) => ({

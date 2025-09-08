@@ -2,7 +2,7 @@ const API_BASE_URL = 'http://localhost:3000/api';
 
 // Helper function to get auth headers
 const getAuthHeaders = () => {
-  const token = localStorage.getItem('accessToken');
+  const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
   return {
     'Content-Type': 'application/json',
     ...(token && { 'Authorization': `Bearer ${token}` })
@@ -12,6 +12,7 @@ const getAuthHeaders = () => {
 // Helper function to handle token invalidation
 const handleTokenInvalidation = () => {
   localStorage.removeItem('accessToken');
+  localStorage.removeItem('token');
   localStorage.removeItem('user');
   localStorage.removeItem('userRole');
   window.location.href = '/login';
@@ -84,6 +85,7 @@ export const authAPI = {
     const data = await response.json();
     if (data.success && data.accessToken) {
       localStorage.setItem('accessToken', data.accessToken);
+      localStorage.setItem('token', data.accessToken); // Also store as 'token' for compatibility
       if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
     }
     return data;
@@ -117,6 +119,73 @@ export const authAPI = {
   }
 };
 
+// DEBUG: Function to manually set token for testing
+export const setTokenManually = async () => {
+  try {
+    console.log('🔧 Manually setting token...');
+    const response = await fetch('http://localhost:3000/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: 'aromalgirish00@gmail.com',
+        password: 'Aromal@2002'
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success && data.accessToken) {
+      localStorage.setItem('accessToken', data.accessToken);
+      localStorage.setItem('token', data.accessToken);
+      if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
+      console.log('✅ Token set successfully!');
+      return true;
+    } else {
+      console.log('❌ Login failed:', data.message);
+      return false;
+    }
+  } catch (error) {
+    console.error('❌ Error setting token:', error);
+    return false;
+  }
+};
+
+// DEBUG: Function to check current token status
+export const checkTokenStatus = () => {
+  const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+  const user = localStorage.getItem('user');
+  
+  console.log('🔍 Token Status Check:');
+  console.log('Token exists:', !!token);
+  console.log('User exists:', !!user);
+  
+  if (token) {
+    try {
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1]));
+        const now = Math.floor(Date.now() / 1000);
+        const expiresIn = payload.exp - now;
+        
+        console.log('Token payload:', payload);
+        console.log('Token expires in:', expiresIn, 'seconds');
+        console.log('Token valid:', expiresIn > 0);
+        
+        return {
+          exists: true,
+          valid: expiresIn > 0,
+          expiresIn,
+          payload
+        };
+      }
+    } catch (error) {
+      console.log('❌ Error decoding token:', error);
+    }
+  }
+  
+  return { exists: false, valid: false };
+};
+
 export const logout = async () => {
   try {
     await fetch(`${API_BASE_URL}/auth/logout`, {
@@ -130,7 +199,7 @@ export const logout = async () => {
 };
 
 export const isAuthenticated = () => {
-  const token = localStorage.getItem('accessToken');
+  const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
   const user = localStorage.getItem('user');
   return !!(token && user);
 };

@@ -9,6 +9,10 @@ import CustomerSignup from "./pages/customer/CustomerSignup";
 import SellerSignup from "./pages/seller/SellerSignup";
 import TailorSignup from "./pages/tailor/TailorSignup";
 import CustomerLandingPage from "./pages/CustomerLandingPage";
+import CustomerDashboard from "./pages/customer/CustomerDashboard";
+import CustomerMeasurements from "./pages/customer/CustomerMeasurements";
+import CustomerAddresses from "./pages/customer/CustomerAddresses";
+import CustomerBookings from "./pages/customer/CustomerBookings";
 import AdminInsights from "./pages/admin/AdminInsights";
 import AddFabric from "./pages/seller/AddFabric";
 import ActiveOrders from "./pages/tailor/ActiveOrders";
@@ -16,6 +20,14 @@ import EmailVerification from "./pages/EmailVerification";
 import CustomerProfile from "./pages/customer/CustomerProfile";
 import SellerProfile from "./pages/seller/SellerProfile";
 import TailorProfile from "./pages/tailor/TailorProfile";
+import Fabrics from "./pages/seller/Fabrics";
+import Inventory from "./pages/seller/Inventory";
+// New customer flow pages
+import FabricBrowse from "./pages/customer/FabricBrowse";
+import TailorBrowse from "./pages/customer/TailorBrowse";
+import ProductDetail from "./pages/customer/ProductDetail";
+import TailorDetail from "./pages/customer/TailorDetail";
+import BookingFlow from "./pages/customer/BookingFlow";
 
 const Orders = () => (
   <div className="p-8 text-gray-100">Your Orders (Customer View)</div>
@@ -42,6 +54,19 @@ function App() {
         <Route path="/dashboard/seller" element={<SellerDashboard />} />
         <Route path="/dashboard/tailor" element={<TailorDashboard />} />
         
+        {/* Customer Service Routes */}
+        <Route path="/customer/dashboard" element={<CustomerDashboard />} />
+        <Route path="/customer/measurements" element={<CustomerMeasurements />} />
+        <Route path="/customer/addresses" element={<CustomerAddresses />} />
+        <Route path="/customer/bookings" element={<CustomerBookings />} />
+        
+        {/* Customer Flow Routes */}
+        <Route path="/customer/fabrics" element={<FabricBrowse />} />
+        <Route path="/customer/tailors" element={<TailorBrowse />} />
+        <Route path="/customer/fabric/:id" element={<ProductDetail />} />
+        <Route path="/customer/tailor/:id" element={<TailorDetail />} />
+        <Route path="/customer/booking/create" element={<BookingFlow />} />
+        
         {/* Profile Routes */}
         <Route path="/customer/profile" element={<CustomerProfile />} />
         <Route path="/seller/profile" element={<SellerProfile />} />
@@ -52,8 +77,8 @@ function App() {
         
         {/* Seller Routes */}
         <Route path="/add-fabric" element={<AddFabric />} />
-        <Route path="/fabrics" element={<SellerDashboard />} />
-        <Route path="/inventory" element={<SellerDashboard />} />
+        <Route path="/fabrics" element={<Fabrics />} />
+        <Route path="/inventory" element={<Inventory />} />
         <Route path="/analytics" element={<SellerDashboard />} />
         <Route path="/earnings" element={<SellerDashboard />} />
         <Route path="/customers" element={<SellerDashboard />} />

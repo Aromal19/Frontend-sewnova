@@ -83,7 +83,7 @@ const Signup = () => {
       if (response.data.success) {
         // Store user data and token
         localStorage.setItem('user', JSON.stringify(response.data.user));
-        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('token', response.data.accessToken);
         localStorage.setItem('userRole', 'admin');
         
         navigate("/admin/dashboard");

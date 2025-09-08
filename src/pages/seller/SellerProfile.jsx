@@ -4,6 +4,8 @@ import { getCurrentUser, isAuthenticated, logout } from '../../utils/api';
 import { FiUser, FiMail, FiPhone, FiMapPin, FiEdit, FiLock, FiShield, FiCheckCircle, FiXCircle, FiLogOut, FiArrowLeft, FiBriefcase, FiFileText, FiDollarSign, FiTruck, FiEye, FiEyeOff } from 'react-icons/fi';
 import Sidebar from '../../components/Sidebar';
 import PhoneNumberInput from '../../components/PhoneNumberInput';
+import API_CONFIG, { getApiUrl } from '../../config/api';
+import Swal from 'sweetalert2';
 
 const SellerProfile = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -26,6 +28,9 @@ const SellerProfile = () => {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [userLoading, setUserLoading] = useState(true);
+  const [verifying, setVerifying] = useState(false);
+  const [verifyResult, setVerifyResult] = useState(null);
+  const [isBusinessVerified, setIsBusinessVerified] = useState(false);
   const navigate = useNavigate();
 
   // Fetch latest user data from database
@@ -80,6 +85,7 @@ const SellerProfile = () => {
       
       setIsLoggedIn(authenticated);
       setUser(currentUser);
+      setIsBusinessVerified(!!(currentUser?.businessVerified || currentUser?.isVerified));
       
       if (currentUser) {
         setFormData({
@@ -96,6 +102,7 @@ const SellerProfile = () => {
           bankAccount: currentUser.bankAccount || '',
           ifscCode: currentUser.ifscCode || ''
         });
+        setIsBusinessVerified(!!(currentUser?.businessVerified || currentUser?.isVerified));
         
         // Fetch latest data from database
         fetchUserData();
@@ -143,6 +150,92 @@ const SellerProfile = () => {
       ...prev,
       countryCode: countryCode
     }));
+  };
+
+  const ensureValidToken = async () => {
+    const isTokenNearExpiry = (jwtToken) => {
+      try {
+        if (!jwtToken) return true;
+        const parts = jwtToken.split('.');
+        if (parts.length !== 3) return true;
+        const payload = JSON.parse(atob(parts[1]));
+        const now = Math.floor(Date.now() / 1000);
+        const safetyWindowSeconds = 30;
+        return typeof payload.exp !== 'number' || payload.exp <= (now + safetyWindowSeconds);
+      } catch {
+        return true;
+      }
+    };
+    let token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+    if (!token || isTokenNearExpiry(token)) {
+      try {
+        const refreshResponse = await fetch(`${API_CONFIG.AUTH_SERVICE}/api/auth/refresh-token`, { method: 'POST', credentials: 'include' });
+        const refreshData = await refreshResponse.json();
+        if (refreshData?.success && refreshData?.accessToken) {
+          localStorage.setItem('accessToken', refreshData.accessToken);
+          localStorage.setItem('token', refreshData.accessToken);
+          token = refreshData.accessToken;
+        }
+      } catch {}
+    }
+    return token || '';
+  };
+
+  const handleVerifyClick = async () => {
+    try {
+      const { value: file } = await Swal.fire({
+        title: 'Upload Aadhaar',
+        text: 'Select your Aadhaar image or PDF for verification',
+        input: 'file',
+        inputAttributes: {
+          accept: 'image/*,application/pdf'
+        },
+        showCancelButton: true,
+        confirmButtonText: 'Verify',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#16a34a'
+      });
+      if (!file) return;
+      setVerifying(true);
+      setVerifyResult(null);
+
+      const token = await ensureValidToken();
+      const form = new FormData();
+      form.append('file', file);
+      const expectedName = `${formData.firstName || ''} ${formData.lastName || ''}`.trim();
+      if (expectedName) form.append('expectedName', expectedName);
+      const resp = await fetch(getApiUrl('SELLER_SERVICE', '/api/sellers/verify-aadhaar'), {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: form,
+        credentials: 'include'
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data?.success) throw new Error(data?.message || 'Verification failed');
+      if (data.data?.status === 'verified') {
+        setVerifyResult(data.data?.parsed || {});
+        setIsBusinessVerified(true);
+        await Swal.fire({
+          icon: 'success',
+          title: 'Verification Successful',
+          html: `<div style="text-align:left">Aadhaar: <b>${data.data.parsed.aadhaarNumber || '—'}</b><br/>DOB: <b>${data.data.parsed.dob || '—'}</b><br/>Gender: <b>${data.data.parsed.gender || '—'}</b></div>`
+        });
+      } else {
+        await Swal.fire({
+          icon: 'error',
+          title: 'Verification Unverified',
+          text: 'Aadhaar number format, DOB, or gender not detected. Please try a clearer image/PDF.'
+        });
+      }
+    } catch (err) {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Verification Failed',
+        text: err.message || 'Please try again with a clearer image.'
+      });
+    } finally {
+      setVerifying(false);
+    }
   };
 
   const handlePasswordChange = (e) => {
@@ -355,6 +448,7 @@ const SellerProfile = () => {
         {/* Content */}
         <main className="flex-1 p-6 overflow-y-auto">
           <div className="max-w-6xl mx-auto">
+            {/* File input replaced by SweetAlert file picker */}
             {/* Verification Status */}
             {!user.isEmailVerified && (
               <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -378,8 +472,8 @@ const SellerProfile = () => {
               </div>
             )}
 
-            {/* Business Verification Status */}
-            {!user.businessVerified && (
+            {/* Business Verification Status - hidden once verified */}
+            {!isBusinessVerified && (
               <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
@@ -432,13 +526,22 @@ const SellerProfile = () => {
                   <div className="space-y-6">
                     <div className="flex items-center justify-between">
                       <h2 className="text-xl font-semibold text-gray-900">Personal Information</h2>
-                      <button
-                        onClick={() => setIsEditing(!isEditing)}
-                        className="flex items-center space-x-2 px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600 transition-all duration-200"
-                      >
-                        <FiEdit className="w-4 h-4" />
-                        <span>{isEditing ? 'Cancel' : 'Edit Profile'}</span>
-                      </button>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={handleVerifyClick}
+                          disabled={verifying}
+                          className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-all duration-200 disabled:opacity-50"
+                        >
+                          {verifying ? 'Verifying...' : 'Complete Verification'}
+                        </button>
+                        <button
+                          onClick={() => setIsEditing(!isEditing)}
+                          className="flex items-center space-x-2 px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600 transition-all duration-200"
+                        >
+                          <FiEdit className="w-4 h-4" />
+                          <span>{isEditing ? 'Cancel' : 'Edit Profile'}</span>
+                        </button>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -540,6 +643,17 @@ const SellerProfile = () => {
                         >
                           {loading ? 'Saving...' : 'Save Changes'}
                         </button>
+                      </div>
+                    )}
+                    {verifyResult && (
+                      <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <h3 className="font-semibold text-charcoal mb-2">Verification Details</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-700">
+                          <div><span className="text-gray-500">Aadhaar:</span> {verifyResult.aadhaarNumber || '—'}</div>
+                          <div><span className="text-gray-500">Name:</span> {verifyResult.name || '—'}</div>
+                          <div><span className="text-gray-500">DOB:</span> {verifyResult.dob || '—'}</div>
+                          <div><span className="text-gray-500">Gender:</span> {verifyResult.gender || '—'}</div>
+                        </div>
                       </div>
                     )}
                   </div>

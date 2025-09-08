@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Token Debug Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .error { color: red; }
+        .success { color: green; }
+        .info { color: blue; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 3px; overflow-x: auto; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Token Debug Test</h1>
+    
+    <div class="section">
+        <h2>1. Check localStorage</h2>
+        <button onclick="checkLocalStorage()">Check localStorage</button>
+        <div id="localStorageResult"></div>
+    </div>
+
+    <div class="section">
+        <h2>2. Test Login</h2>
+        <button onclick="testLogin()">Test Login</button>
+        <div id="loginResult"></div>
+    </div>
+
+    <div class="section">
+        <h2>3. Test Token Validation</h2>
+        <button onclick="testTokenValidation()">Test Token Validation</button>
+        <div id="validationResult"></div>
+    </div>
+
+    <div class="section">
+        <h2>4. Test Customer Service</h2>
+        <button onclick="testCustomerService()">Test Customer Service</button>
+        <div id="customerResult"></div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            return `<div class="${type}">[${timestamp}] ${message}</div>`;
+        }
+
+        function updateResult(elementId, content) {
+            document.getElementById(elementId).innerHTML = content;
+        }
+
+        async function checkLocalStorage() {
+            let result = '<h3>localStorage Contents:</h3>';
+            
+            const token = localStorage.getItem('token');
+            const accessToken = localStorage.getItem('accessToken');
+            const user = localStorage.getItem('user');
+            
+            result += log(`Token: ${token ? 'Present' : 'Missing'}`, token ? 'success' : 'error');
+            result += log(`AccessToken: ${accessToken ? 'Present' : 'Missing'}`, accessToken ? 'success' : 'error');
+            result += log(`User: ${user ? 'Present' : 'Missing'}`, user ? 'success' : 'error');
+            
+            if (token) {
+                result += '<h4>Token Details:</h4>';
+                result += log(`Length: ${token.length}`, 'info');
+                result += log(`Format: ${token.split('.').length === 3 ? 'Valid JWT' : 'Invalid JWT'}`, token.split('.').length === 3 ? 'success' : 'error');
+                result += '<pre>' + token + '</pre>';
+            }
+            
+            if (accessToken) {
+                result += '<h4>AccessToken Details:</h4>';
+                result += log(`Length: ${accessToken.length}`, 'info');
+                result += log(`Format: ${accessToken.split('.').length === 3 ? 'Valid JWT' : 'Invalid JWT'}`, accessToken.split('.').length === 3 ? 'success' : 'error');
+                result += '<pre>' + accessToken + '</pre>';
+            }
+            
+            if (user) {
+                result += '<h4>User Details:</h4>';
+                result += '<pre>' + user + '</pre>';
+            }
+            
+            updateResult('localStorageResult', result);
+        }
+
+        async function testLogin() {
+            let result = '<h3>Login Test:</h3>';
+            
+            try {
+                result += log('Attempting login...', 'info');
+                
+                const response = await fetch('http://localhost:3000/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'aromalgirish00@gmail.com',
+                        password: 'Aromal@2002'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    result += log('✅ Login successful!', 'success');
+                    result += log(`AccessToken: ${data.accessToken ? 'Present' : 'Missing'}`, data.accessToken ? 'success' : 'error');
+                    
+                    if (data.accessToken) {
+                        // Store token
+                        localStorage.setItem('token', data.accessToken);
+                        localStorage.setItem('accessToken', data.accessToken);
+                        if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
+                        
+                        result += log('✅ Token stored in localStorage', 'success');
+                        result += log(`Token length: ${data.accessToken.length}`, 'info');
+                        result += log(`Token format: ${data.accessToken.split('.').length === 3 ? 'Valid JWT' : 'Invalid JWT'}`, data.accessToken.split('.').length === 3 ? 'success' : 'error');
+                    }
+                } else {
+                    result += log(`❌ Login failed: ${data.message}`, 'error');
+                }
+                
+            } catch (error) {
+                result += log(`❌ Login error: ${error.message}`, 'error');
+            }
+            
+            updateResult('loginResult', result);
+        }
+
+        async function testTokenValidation() {
+            let result = '<h3>Token Validation Test:</h3>';
+            
+            const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+            
+            if (!token) {
+                result += log('❌ No token found in localStorage', 'error');
+                updateResult('validationResult', result);
+                return;
+            }
+            
+            try {
+                result += log('Testing token validation...', 'info');
+                
+                const response = await fetch('http://localhost:3000/api/auth/validate-token', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    result += log('✅ Token validation successful!', 'success');
+                    result += log(`User: ${data.user?.email}`, 'success');
+                    result += log(`Role: ${data.user?.role}`, 'success');
+                } else {
+                    result += log(`❌ Token validation failed: ${data.message}`, 'error');
+                    result += log(`Status: ${response.status}`, 'error');
+                }
+                
+            } catch (error) {
+                result += log(`❌ Validation error: ${error.message}`, 'error');
+            }
+            
+            updateResult('validationResult', result);
+        }
+
+        async function testCustomerService() {
+            let result = '<h3>Customer Service Test:</h3>';
+            
+            const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+            
+            if (!token) {
+                result += log('❌ No token found in localStorage', 'error');
+                updateResult('customerResult', result);
+                return;
+            }
+            
+            try {
+                result += log('Testing customer service...', 'info');
+                
+                const testAddress = {
+                    addressType: 'home',
+                    addressLine: '123 Test Street',
+                    landmark: 'Test Landmark',
+                    locality: 'Test Locality',
+                    city: 'Mumbai',
+                    district: 'Mumbai Suburban',
+                    state: 'Maharashtra',
+                    pincode: '400001',
+                    country: 'India',
+                    isDefault: false
+                };
+
+                const response = await fetch('http://localhost:3002/api/addresses', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(testAddress)
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    result += log('✅ Customer service request successful!', 'success');
+                    result += log(`Message: ${data.message}`, 'success');
+                } else {
+                    result += log(`❌ Customer service failed: ${data.message}`, 'error');
+                    result += log(`Status: ${response.status}`, 'error');
+                }
+                
+            } catch (error) {
+                result += log(`❌ Customer service error: ${error.message}`, 'error');
+            }
+            
+            updateResult('customerResult', result);
+        }
+    </script>
+</body>
+</html> 

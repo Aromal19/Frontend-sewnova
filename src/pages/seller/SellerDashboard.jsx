@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
 import SellerOrdersTable from "../../components/seller/SellerOrdersTable";
 import SellerStatsWidget from "../../components/seller/SellerStatsWidget";
@@ -23,6 +24,7 @@ import {
 
 const SellerDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
   const [timeRange, setTimeRange] = useState("7d");
 
@@ -195,9 +197,9 @@ const SellerDashboard = () => {
                   <option value="90d">Last 90 days</option>
                   <option value="1y">Last year</option>
                 </select>
-                <button className="px-6 py-3 bg-gradient-to-r from-coralblush to-pink-500 text-white rounded-lg font-semibold hover:from-pink-500 hover:to-coralblush transition-all duration-300 shadow-lg flex items-center space-x-2">
+                <button onClick={() => navigate('/add-fabric')} className="px-6 py-3 bg-gradient-to-r from-coralblush to-pink-500 text-white rounded-lg font-semibold hover:from-pink-500 hover:to-coralblush transition-all duration-300 shadow-lg flex items-center space-x-2">
                   <FiPlus className="w-4 h-4" />
-                  <span>Add Product</span>
+                  <span>Add Fabric</span>
                 </button>
               </div>
             </div>
@@ -416,9 +418,9 @@ const SellerDashboard = () => {
               <div className="p-6 border-b border-gray-100">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold text-charcoal">Product Management</h3>
-                  <button className="px-4 py-2 bg-gradient-to-r from-coralblush to-pink-500 text-white rounded-lg font-medium hover:from-pink-500 hover:to-coralblush transition-all duration-300 flex items-center space-x-2">
+                  <button onClick={() => navigate('/add-fabric')} className="px-4 py-2 bg-gradient-to-r from-coralblush to-pink-500 text-white rounded-lg font-medium hover:from-pink-500 hover:to-coralblush transition-all duration-300 flex items-center space-x-2">
                     <FiPlus className="w-4 h-4" />
-                    <span>Add New Product</span>
+                    <span>Add New Fabric</span>
                   </button>
                 </div>
               </div>

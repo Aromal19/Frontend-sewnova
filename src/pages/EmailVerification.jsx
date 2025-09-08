@@ -59,6 +59,7 @@ const EmailVerification = () => {
         // Store access token and user info
         if (data.accessToken) {
           localStorage.setItem('accessToken', data.accessToken);
+          localStorage.setItem('token', data.accessToken);
         }
         if (data.user) {
           localStorage.setItem('user', JSON.stringify(data.user));

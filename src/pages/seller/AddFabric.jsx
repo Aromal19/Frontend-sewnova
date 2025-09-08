@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import API_CONFIG, { getApiUrl } from "../../config/api";
 import Sidebar from "../../components/Sidebar";
 import { 
   FiUpload, 
@@ -18,13 +19,14 @@ const AddFabric = () => {
   const [formData, setFormData] = useState({
     name: "",
     category: "",
-    material: "",
     color: "",
     pattern: "",
     weight: "",
     width: "",
     price: "",
+    pricePerUnit: "per_meter",
     stock: "",
+    careInstructions: "",
     description: "",
     tags: [],
     images: []
@@ -34,15 +36,31 @@ const AddFabric = () => {
   const [newTag, setNewTag] = useState("");
 
   const categories = [
-    "Silk", "Cotton", "Wool", "Linen", "Polyester", "Velvet", "Satin", "Chiffon", "Denim", "Other"
+    { value: "cotton", label: "Cotton" },
+    { value: "silk", label: "Silk" },
+    { value: "linen", label: "Linen" },
+    { value: "wool", label: "Wool" },
+    { value: "polyester", label: "Polyester" },
+    { value: "denim", label: "Denim" },
+    { value: "chiffon", label: "Chiffon" },
+    { value: "georgette", label: "Georgette" },
+    { value: "other", label: "Other" }
   ];
 
-  const materials = [
-    "100% Silk", "100% Cotton", "Cotton Blend", "Wool Blend", "Polyester Blend", "Linen Blend", "Other"
+  const priceUnits = [
+    { value: "per_meter", label: "Per Meter" },
+    { value: "per_yard", label: "Per Yard" },
+    { value: "per_piece", label: "Per Piece" }
   ];
 
   const patterns = [
-    "Solid", "Floral", "Geometric", "Striped", "Polka Dot", "Abstract", "Animal Print", "Paisley", "Other"
+    { value: "solid", label: "Solid" },
+    { value: "floral", label: "Floral" },
+    { value: "geometric", label: "Geometric" },
+    { value: "striped", label: "Striped" },
+    { value: "polka_dot", label: "Polka Dot" },
+    { value: "abstract", label: "Abstract" },
+    { value: "other", label: "Other" }
   ];
 
   const handleInputChange = (e) => {
@@ -79,6 +97,57 @@ const AddFabric = () => {
       ...prev,
       images: [...prev.images, ...newImages]
     }));
+
+    // Auto-detect color from the first newly added image
+    if (imageFiles.length > 0) {
+      void (async () => {
+        try {
+          // Ensure valid token (reuse logic from submit)
+          const isTokenNearExpiry = (jwtToken) => {
+            try {
+              if (!jwtToken) return true;
+              const parts = jwtToken.split('.');
+              if (parts.length !== 3) return true;
+              const payload = JSON.parse(atob(parts[1]));
+              const now = Math.floor(Date.now() / 1000);
+              const safetyWindowSeconds = 30;
+              return typeof payload.exp !== 'number' || payload.exp <= (now + safetyWindowSeconds);
+            } catch {
+              return true;
+            }
+          };
+          const ensureValidToken = async () => {
+            let token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+            if (!token || isTokenNearExpiry(token)) {
+              try {
+                const refreshResponse = await fetch(`${API_CONFIG.AUTH_SERVICE}/api/auth/refresh-token`, { method: 'POST', credentials: 'include' });
+                const refreshData = await refreshResponse.json();
+                if (refreshData?.success && refreshData?.accessToken) {
+                  localStorage.setItem('accessToken', refreshData.accessToken);
+                  localStorage.setItem('token', refreshData.accessToken);
+                  token = refreshData.accessToken;
+                }
+              } catch {}
+            }
+            return token || '';
+          };
+
+          const token = await ensureValidToken();
+          const form = new FormData();
+          form.append('image', imageFiles[0]);
+          const resp = await fetch(getApiUrl('SELLER_SERVICE', '/api/products/detect-color'), {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: form,
+            credentials: 'include'
+          });
+          const data = await resp.json();
+          if (resp.ok && data?.success && data?.color) {
+            setFormData(prev => ({ ...prev, color: data.color }));
+          }
+        } catch {}
+      })();
+    }
   };
 
   const removeImage = (index) => {
@@ -110,11 +179,12 @@ const AddFabric = () => {
 
     if (!formData.name.trim()) newErrors.name = "Fabric name is required";
     if (!formData.category) newErrors.category = "Category is required";
-    if (!formData.material) newErrors.material = "Material is required";
+    if (!formData.pricePerUnit) newErrors.pricePerUnit = "Price unit is required";
     if (!formData.color.trim()) newErrors.color = "Color is required";
     if (!formData.price) newErrors.price = "Price is required";
     if (!formData.stock) newErrors.stock = "Stock quantity is required";
     if (!formData.description.trim()) newErrors.description = "Description is required";
+    if (!formData.careInstructions.trim()) newErrors.careInstructions = "Care instructions are required";
     if (formData.images.length === 0) newErrors.images = "At least one image is required";
 
     setErrors(newErrors);
@@ -131,14 +201,82 @@ const AddFabric = () => {
     setIsSubmitting(true);
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Success - redirect to fabrics page
+      const isTokenNearExpiry = (jwtToken) => {
+        try {
+          if (!jwtToken) return true;
+          const parts = jwtToken.split('.');
+          if (parts.length !== 3) return true;
+          const payload = JSON.parse(atob(parts[1]));
+          const now = Math.floor(Date.now() / 1000);
+          const safetyWindowSeconds = 30;
+          return typeof payload.exp !== 'number' || payload.exp <= (now + safetyWindowSeconds);
+        } catch {
+          return true;
+        }
+      };
+
+      const ensureValidToken = async () => {
+        let token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+        if (!token || isTokenNearExpiry(token)) {
+          try {
+            const refreshResponse = await fetch(`${API_CONFIG.AUTH_SERVICE}/api/auth/refresh-token`, {
+              method: 'POST',
+              credentials: 'include'
+            });
+            const refreshData = await refreshResponse.json();
+            if (refreshData?.success && refreshData?.accessToken) {
+              localStorage.setItem('accessToken', refreshData.accessToken);
+              localStorage.setItem('token', refreshData.accessToken);
+              token = refreshData.accessToken;
+            }
+          } catch {}
+        }
+        return token || '';
+      };
+
+      const form = new FormData();
+      form.append("name", formData.name);
+      form.append("description", formData.description);
+      form.append("category", (formData.category || '').toLowerCase());
+      form.append("price", String(formData.price));
+      form.append("pricePerUnit", formData.pricePerUnit);
+      form.append("color", formData.color);
+      if (formData.pattern) form.append("pattern", (formData.pattern || '').toLowerCase().replace(/\s+/g, '_'));
+      form.append("weight", String(formData.weight));
+      form.append("width", String(formData.width));
+      form.append("careInstructions", formData.careInstructions);
+      form.append("stock", String(formData.stock));
+      if (formData.tags?.length) form.append("tags", formData.tags.join(","));
+      for (const img of formData.images) {
+        form.append("images", img.file);
+      }
+
+      const token = await ensureValidToken();
+      const doRequest = async (useToken) => {
+        const resp = await fetch(getApiUrl('SELLER_SERVICE', '/api/products'), {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${useToken}`
+          },
+          body: form,
+          credentials: 'include'
+        });
+        return resp;
+      };
+      let response = await doRequest(token);
+      if (response.status === 401) {
+        const refreshed = await ensureValidToken();
+        response = await doRequest(refreshed);
+      }
+      const data = await response.json();
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.message || `Request failed: ${response.status}`);
+      }
+
       alert("Fabric added successfully!");
-      // You can add navigation here
     } catch (error) {
-      alert("Error adding fabric. Please try again.");
+      console.error('Add fabric failed:', error);
+      alert(error.message || "Error adding fabric. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -225,8 +363,8 @@ const AddFabric = () => {
                         }`}
                       >
                         <option value="">Select Category</option>
-                        {categories.map(category => (
-                          <option key={category} value={category}>{category}</option>
+                        {categories.map(option => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
                         ))}
                       </select>
                       {errors.category && (
@@ -239,25 +377,24 @@ const AddFabric = () => {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Material *
+                        Price Unit *
                       </label>
                       <select
-                        name="material"
-                        value={formData.material}
+                        name="pricePerUnit"
+                        value={formData.pricePerUnit}
                         onChange={handleInputChange}
                         className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-coralblush focus:border-transparent ${
-                          errors.material ? 'border-red-500' : 'border-gray-300'
+                          errors.pricePerUnit ? 'border-red-500' : 'border-gray-300'
                         }`}
                       >
-                        <option value="">Select Material</option>
-                        {materials.map(material => (
-                          <option key={material} value={material}>{material}</option>
+                        {priceUnits.map(option => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
                         ))}
                       </select>
-                      {errors.material && (
+                      {errors.pricePerUnit && (
                         <p className="text-red-500 text-sm mt-1 flex items-center">
                           <FiAlertCircle className="w-4 h-4 mr-1" />
-                          {errors.material}
+                          {errors.pricePerUnit}
                         </p>
                       )}
                     </div>
@@ -297,8 +434,8 @@ const AddFabric = () => {
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-coralblush focus:border-transparent"
                       >
                         <option value="">Select Pattern</option>
-                        {patterns.map(pattern => (
-                          <option key={pattern} value={pattern}>{pattern}</option>
+                        {patterns.map(option => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
                         ))}
                       </select>
                     </div>
@@ -443,6 +580,29 @@ const AddFabric = () => {
                           </div>
                         ))}
                       </div>
+                    )}
+                  </div>
+
+                  {/* Care Instructions */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Care Instructions *
+                    </label>
+                    <input
+                      type="text"
+                      name="careInstructions"
+                      value={formData.careInstructions}
+                      onChange={handleInputChange}
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-coralblush focus:border-transparent ${
+                        errors.careInstructions ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="e.g., Hand wash cold, do not bleach"
+                    />
+                    {errors.careInstructions && (
+                      <p className="text-red-500 text-sm mt-1 flex items-center">
+                        <FiAlertCircle className="w-4 h-4 mr-1" />
+                        {errors.careInstructions}
+                      </p>
                     )}
                   </div>
 

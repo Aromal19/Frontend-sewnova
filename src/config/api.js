@@ -1,0 +1,122 @@
+// API Configuration for SewNova Services
+// To configure environment variables, create a .env file in the frontend directory with:
+// VITE_CUSTOMER_SERVICE_URL=http://localhost:3001
+// VITE_AUTH_SERVICE_URL=http://localhost:3002
+// VITE_TAILOR_SERVICE_URL=http://localhost:3003
+// VITE_SELLER_SERVICE_URL=http://localhost:3004
+
+const API_CONFIG = {
+  // Customer Service (running on port 3002)
+  CUSTOMER_SERVICE: import.meta.env.VITE_CUSTOMER_SERVICE_URL || 'http://localhost:3002',
+  
+  // Auth Service (running on port 3000)
+  AUTH_SERVICE: import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:3000',
+  
+  // Other services can be added here
+  TAILOR_SERVICE: import.meta.env.VITE_TAILOR_SERVICE_URL || 'http://localhost:3003',
+  SELLER_SERVICE: import.meta.env.VITE_SELLER_SERVICE_URL || 'http://localhost:3004',
+};
+
+// Helper function to get full API URL
+export const getApiUrl = (service, endpoint) => {
+  const baseUrl = API_CONFIG[service];
+  if (!baseUrl) {
+    throw new Error(`Unknown service: ${service}`);
+  }
+  return `${baseUrl}${endpoint}`;
+};
+
+// Helper function to make authenticated API calls
+export const apiCall = async (service, endpoint, options = {}) => {
+  try {
+    const url = getApiUrl(service, endpoint);
+    let token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+
+    // Decode JWT to check expiry
+    const isTokenNearExpiry = (jwtToken) => {
+      try {
+        if (!jwtToken) return true;
+        const parts = jwtToken.split('.');
+        if (parts.length !== 3) return true;
+        const payload = JSON.parse(atob(parts[1]));
+        const now = Math.floor(Date.now() / 1000);
+        const safetyWindowSeconds = 30; // refresh if expiring within 30s
+        return typeof payload.exp !== 'number' || payload.exp <= (now + safetyWindowSeconds);
+      } catch {
+        return true;
+      }
+    };
+
+    // Proactively refresh if no token or token near expiry
+    if (!token || isTokenNearExpiry(token)) {
+      try {
+        const preRefreshResponse = await fetch(`${API_CONFIG.AUTH_SERVICE}/api/auth/refresh-token`, {
+          method: 'POST',
+          credentials: 'include'
+        });
+        const preRefreshData = await preRefreshResponse.json();
+        if (preRefreshData?.success && preRefreshData?.accessToken) {
+          localStorage.setItem('accessToken', preRefreshData.accessToken);
+          localStorage.setItem('token', preRefreshData.accessToken);
+          token = preRefreshData.accessToken;
+        }
+      } catch {}
+    }
+
+    const defaultOptions = {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` }),
+        ...options.headers,
+      },
+    };
+
+    let response = await fetch(url, {
+      ...defaultOptions,
+      ...options,
+      headers: {
+        ...defaultOptions.headers,
+        ...options.headers,
+      },
+      credentials: 'include',
+    });
+
+    // If unauthorized, try to refresh access token once and retry
+    if (response.status === 401) {
+      try {
+        const refreshResponse = await fetch(`${API_CONFIG.AUTH_SERVICE}/api/auth/refresh-token`, {
+          method: 'POST',
+          credentials: 'include'
+        });
+        const refreshData = await refreshResponse.json();
+        if (refreshData?.success && refreshData?.accessToken) {
+          localStorage.setItem('accessToken', refreshData.accessToken);
+          localStorage.setItem('token', refreshData.accessToken);
+          // Retry original request with new token
+          const retriedHeaders = {
+            ...defaultOptions.headers,
+            ...(refreshData.accessToken && { 'Authorization': `Bearer ${refreshData.accessToken}` }),
+            ...options.headers,
+          };
+          response = await fetch(url, {
+            ...defaultOptions,
+            ...options,
+            headers: retriedHeaders,
+            credentials: 'include',
+          });
+        }
+      } catch {}
+    }
+
+    if (!response.ok) {
+      throw new Error(`API call failed: ${response.status} ${response.statusText}`);
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error('apiCall error:', error);
+    throw error;
+  }
+};
+
+export default API_CONFIG; 

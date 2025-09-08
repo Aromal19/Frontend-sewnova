@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCurrentUser, isAuthenticated, logout } from '../../utils/api';
-import { FiUser, FiMail, FiPhone, FiMapPin, FiEdit, FiLock, FiShield, FiCheckCircle, FiXCircle, FiLogOut, FiArrowLeft, FiScissors, FiFileText, FiAward, FiClock, FiStar, FiEye, FiEyeOff } from 'react-icons/fi';
+import { FiUser, FiMail, FiPhone, FiMapPin, FiEdit, FiLock, FiShield, FiCheckCircle, FiXCircle, FiLogOut, FiArrowLeft, FiScissors, FiFileText, FiAward, FiClock, FiStar, FiEye, FiEyeOff, FiCamera, FiUpload, FiX } from 'react-icons/fi';
 import Sidebar from '../../components/Sidebar';
 import PhoneNumberInput from '../../components/PhoneNumberInput';
+import Swal from 'sweetalert2';
 
 const TailorProfile = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -26,6 +27,9 @@ const TailorProfile = () => {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [userLoading, setUserLoading] = useState(true);
+  const [verifying, setVerifying] = useState(false);
+  const [verifyResult, setVerifyResult] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const navigate = useNavigate();
 
   // Fetch latest user data from database
@@ -58,12 +62,14 @@ const TailorProfile = () => {
             countryCode: data.tailor.countryCode || '+91',
             shopName: data.tailor.shopName || '',
             shopAddress: data.tailor.address || '',
-            experience: data.tailor.experience || '',
+            experience: String(data.tailor.experience || ''),
             speciality: data.tailor.specialization || '',
             skills: data.tailor.specialization || [],
             workingHours: data.tailor.workingHours || '',
             about: data.tailor.about || '',
-            portfolio: data.tailor.portfolio || []
+            portfolio: data.tailor.portfolio || [],
+            profileImage: data.tailor.profileImage || '',
+            shopImage: data.tailor.shopImage || ''
           });
         }
       }
@@ -91,12 +97,14 @@ const TailorProfile = () => {
           countryCode: currentUser.countryCode || '+91',
           shopName: currentUser.shopName || '',
           shopAddress: currentUser.address || '',
-          experience: currentUser.experience || '',
+          experience: String(currentUser.experience || ''),
           speciality: currentUser.specialization || '',
           skills: currentUser.specialization || [],
           workingHours: currentUser.workingHours || '',
           about: currentUser.about || '',
-          portfolio: currentUser.portfolio || []
+          portfolio: currentUser.portfolio || [],
+          profileImage: currentUser.profileImage || '',
+          shopImage: currentUser.shopImage || ''
         });
         
         // Fetch latest data from database
@@ -123,6 +131,92 @@ const TailorProfile = () => {
     setUser(null);
     setIsLoggedIn(false);
     navigate('/login');
+  };
+
+  // Simple form; saving handled by existing Save Changes
+
+  const ensureValidToken = async () => {
+    const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+    if (token) return token;
+    // fallback: try refresh via backend util if wired, otherwise return token
+    return token || '';
+  };
+
+  const handleVerifyClick = async () => {
+    try {
+      const { value: file } = await Swal.fire({
+        title: 'Upload Aadhaar',
+        text: 'Select your Aadhaar image or PDF for verification',
+        input: 'file',
+        inputAttributes: { accept: 'image/*,application/pdf' },
+        showCancelButton: true,
+        confirmButtonText: 'Verify',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#7c3aed'
+      });
+      if (!file) return;
+      setVerifying(true);
+      setVerifyResult(null);
+
+      const token = await ensureValidToken();
+      const form = new FormData();
+      form.append('file', file);
+      const firstName = (formData.firstName || '').trim();
+      const lastName = (formData.lastName || '').trim();
+      const expectedName = `${firstName} ${lastName}`.trim();
+      if (expectedName) form.append('expectedName', expectedName);
+      if (firstName) form.append('expectedFirstName', firstName);
+      if (lastName) form.append('expectedLastName', lastName);
+      // Try tailor-service first (3003), then fallback to auth-service (3000)
+      let resp = await fetch('http://localhost:3003/api/tailors/verify-aadhaar', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: form,
+        credentials: 'include'
+      });
+      if (resp.status === 404) {
+        resp = await fetch('http://localhost:3000/api/tailors/verify-aadhaar', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: form,
+          credentials: 'include'
+        });
+      }
+      const data = await resp.json();
+      if (!resp.ok || !data?.success) throw new Error(data?.message || 'Verification failed');
+      if (data.data?.status === 'verified') {
+        setVerifyResult(data.data?.parsed || {});
+        // Update local user cache to reflect verified status immediately
+        const updatedUser = {
+          ...(user || {}),
+          isVerified: true,
+          aadhaar: {
+            ...(user?.aadhaar || {}),
+            number: data.data.parsed?.aadhaarNumber || user?.aadhaar?.number || '',
+            dob: data.data.parsed?.dob || user?.aadhaar?.dob || '',
+            gender: data.data.parsed?.gender || user?.aadhaar?.gender || '',
+            status: 'verified'
+          }
+        };
+        setUser(updatedUser);
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        await Swal.fire({
+          icon: 'success',
+          title: 'Verification Successful',
+          html: `<div style="text-align:left">Aadhaar: <b>${data.data.parsed.aadhaarNumber || '—'}</b><br/>DOB: <b>${data.data.parsed.dob || '—'}</b><br/>Gender: <b>${data.data.parsed.gender || '—'}</b></div>`
+        });
+      } else {
+        await Swal.fire({
+          icon: 'error',
+          title: 'Verification Unverified',
+          text: 'Name mismatch or missing/invalid details.'
+        });
+      }
+    } catch (err) {
+      await Swal.fire({ icon: 'error', title: 'Verification Failed', text: err.message || 'Try again later.' });
+    } finally {
+      setVerifying(false);
+    }
   };
 
   const handleInputChange = (e) => {
@@ -177,14 +271,14 @@ const TailorProfile = () => {
   const validateForm = () => {
     const newErrors = {};
     
-    if (!formData.firstName.trim()) newErrors.firstName = 'First name is required';
-    if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required';
-    if (!formData.email.trim()) newErrors.email = 'Email is required';
-    if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
-    if (!formData.shopName.trim()) newErrors.shopName = 'Shop name is required';
-    if (!formData.shopAddress.trim()) newErrors.shopAddress = 'Shop address is required';
-    if (!formData.experience.trim()) newErrors.experience = 'Experience is required';
-    if (!formData.speciality.trim()) newErrors.speciality = 'Speciality is required';
+    if (!formData.firstName?.trim()) newErrors.firstName = 'First name is required';
+    if (!formData.lastName?.trim()) newErrors.lastName = 'Last name is required';
+    if (!formData.email?.trim()) newErrors.email = 'Email is required';
+    if (!formData.phone?.trim()) newErrors.phone = 'Phone number is required';
+    if (!formData.shopName?.trim()) newErrors.shopName = 'Shop name is required';
+    if (!formData.shopAddress?.trim()) newErrors.shopAddress = 'Shop address is required';
+    if (!formData.experience?.trim()) newErrors.experience = 'Experience is required';
+    if (!formData.speciality?.trim()) newErrors.speciality = 'Speciality is required';
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -209,13 +303,19 @@ const TailorProfile = () => {
     
     setLoading(true);
     try {
+      // Convert experience back to number for backend
+      const profileData = {
+        ...formData,
+        experience: Number(formData.experience) || 0
+      };
+      
       const response = await fetch('http://localhost:3000/api/tailors/update-profile', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(profileData)
       });
       
       const data = await response.json();
@@ -300,6 +400,79 @@ const TailorProfile = () => {
     } catch (error) {
       console.error('Error sending verification email:', error);
       alert('Failed to send verification email. Please try again.');
+    }
+  };
+
+  const handleImageUpload = async (file, imageType) => {
+    if (!file) return;
+    
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('imageType', imageType);
+      
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+      
+      // Upload to tailor service
+      const uploadResponse = await fetch('http://localhost:3003/api/tailors/upload-image', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+      
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json();
+        throw new Error(errorData.message || 'Failed to upload image');
+      }
+      
+      const uploadData = await uploadResponse.json();
+      
+      if (uploadData.success) {
+        const imageUrl = uploadData.data[imageType];
+        
+        // Update the form data with the new image URL
+        setFormData(prev => ({
+          ...prev,
+          [imageType]: imageUrl
+        }));
+        
+        // Update the user object immediately for UI feedback
+        const updatedUser = { ...user, [imageType]: imageUrl };
+        setUser(updatedUser);
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        
+        alert(`${imageType === 'profileImage' ? 'Profile' : 'Shop'} image updated successfully!`);
+      } else {
+        throw new Error(uploadData.message || 'Upload failed');
+      }
+      
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      alert('Failed to upload image. Please try again.');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleImageFileSelect = (e, imageType) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select a valid image file');
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Image size should be less than 5MB');
+        return;
+      }
+      
+      handleImageUpload(file, imageType);
     }
   };
 
@@ -398,22 +571,36 @@ const TailorProfile = () => {
               </div>
             )}
 
-            {/* Shop Verification Status */}
-            {!user.shopVerified && (
+            {/* Identity Verification */}
+            {user.isVerified ? (
+              <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <FiCheckCircle className="w-6 h-6 text-green-600" />
+                    <div>
+                      <h3 className="text-lg font-semibold text-green-800">Aadhaar Verified</h3>
+                      <p className="text-green-700 text-sm">
+                        Your identity has been verified successfully.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
               <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <FiFileText className="w-6 h-6 text-blue-600" />
                     <div>
-                      <h3 className="text-lg font-semibold text-blue-800">Shop Verification Pending</h3>
+                      <h3 className="text-lg font-semibold text-blue-800">Identity Verification Pending</h3>
                       <p className="text-blue-700 text-sm">
-                        Your shop documents and portfolio are under review. This usually takes 3-5 business days.
+                        Verify your identity with Aadhaar to get verified status.
                       </p>
                     </div>
                   </div>
-                  <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                    Under Review
-                  </span>
+                  <button onClick={handleVerifyClick} disabled={verifying} className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50">
+                    {verifying ? 'Verifying...' : 'Verify with Aadhaar'}
+                  </button>
                 </div>
               </div>
             )}
@@ -460,6 +647,73 @@ const TailorProfile = () => {
                         <FiEdit className="w-4 h-4" />
                         <span>{isEditing ? 'Cancel' : 'Edit Profile'}</span>
                       </button>
+                    </div>
+
+                    {/* Profile Image Upload */}
+                    <div className="bg-gray-50 rounded-lg p-6">
+                      <h3 className="text-lg font-medium text-gray-900 mb-4">Profile Photo</h3>
+                      <div className="flex items-center space-x-6">
+                        <div className="relative">
+                          {formData.profileImage ? (
+                            <img
+                              src={formData.profileImage}
+                              alt="Profile"
+                              className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
+                            />
+                          ) : (
+                            <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center border-4 border-white shadow-lg">
+                              <FiUser className="w-8 h-8 text-gray-400" />
+                            </div>
+                          )}
+                          {isEditing && (
+                            <label className="absolute -bottom-2 -right-2 bg-purple-500 text-white rounded-full p-2 cursor-pointer hover:bg-purple-600 transition-all duration-200">
+                              <FiCamera className="w-4 h-4" />
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => handleImageFileSelect(e, 'profileImage')}
+                                className="hidden"
+                                disabled={uploadingImage}
+                              />
+                            </label>
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-600 mb-2">
+                            Upload a professional profile photo to help customers recognize you.
+                          </p>
+                          {isEditing && (
+                            <div className="flex items-center space-x-2">
+                              <label className="flex items-center space-x-2 px-3 py-2 bg-white border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-all duration-200">
+                                <FiUpload className="w-4 h-4 text-gray-500" />
+                                <span className="text-sm text-gray-700">
+                                  {uploadingImage ? 'Uploading...' : 'Choose Photo'}
+                                </span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={(e) => handleImageFileSelect(e, 'profileImage')}
+                                  className="hidden"
+                                  disabled={uploadingImage}
+                                />
+                              </label>
+                              {formData.profileImage && (
+                                <button
+                                  onClick={() => {
+                                    setFormData(prev => ({ ...prev, profileImage: '' }));
+                                    const updatedUser = { ...user, profileImage: '' };
+                                    setUser(updatedUser);
+                                    localStorage.setItem('user', JSON.stringify(updatedUser));
+                                  }}
+                                  className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200"
+                                >
+                                  <FiX className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -563,6 +817,18 @@ const TailorProfile = () => {
                       </div>
                     </div>
 
+                    {/* Aadhaar Details (if available) */}
+                    {(verifyResult?.aadhaarNumber || user?.aadhaar?.number) && (
+                      <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                        <h3 className="text-md font-semibold text-gray-900 mb-2">Aadhaar Details</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                          <div><span className="text-gray-500">Aadhaar:</span> {verifyResult?.aadhaarNumber || user?.aadhaar?.number || '—'}</div>
+                          <div><span className="text-gray-500">DOB:</span> {verifyResult?.dob || user?.aadhaar?.dob || '—'}</div>
+                          <div><span className="text-gray-500">Gender:</span> {verifyResult?.gender || user?.aadhaar?.gender || '—'}</div>
+                        </div>
+                      </div>
+                    )}
+
                     {isEditing && (
                       <div className="flex justify-end space-x-3">
                         <button
@@ -595,6 +861,73 @@ const TailorProfile = () => {
                         <FiEdit className="w-4 h-4" />
                         <span>{isEditing ? 'Cancel' : 'Edit Shop'}</span>
                       </button>
+                    </div>
+
+                    {/* Shop Image Upload */}
+                    <div className="bg-gray-50 rounded-lg p-6">
+                      <h3 className="text-lg font-medium text-gray-900 mb-4">Shop Photo</h3>
+                      <div className="flex items-center space-x-6">
+                        <div className="relative">
+                          {formData.shopImage ? (
+                            <img
+                              src={formData.shopImage}
+                              alt="Shop"
+                              className="w-32 h-24 rounded-lg object-cover border-4 border-white shadow-lg"
+                            />
+                          ) : (
+                            <div className="w-32 h-24 rounded-lg bg-gray-200 flex items-center justify-center border-4 border-white shadow-lg">
+                              <FiScissors className="w-8 h-8 text-gray-400" />
+                            </div>
+                          )}
+                          {isEditing && (
+                            <label className="absolute -bottom-2 -right-2 bg-purple-500 text-white rounded-full p-2 cursor-pointer hover:bg-purple-600 transition-all duration-200">
+                              <FiCamera className="w-4 h-4" />
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => handleImageFileSelect(e, 'shopImage')}
+                                className="hidden"
+                                disabled={uploadingImage}
+                              />
+                            </label>
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-600 mb-2">
+                            Upload a photo of your shop or workspace to showcase your professional environment.
+                          </p>
+                          {isEditing && (
+                            <div className="flex items-center space-x-2">
+                              <label className="flex items-center space-x-2 px-3 py-2 bg-white border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-all duration-200">
+                                <FiUpload className="w-4 h-4 text-gray-500" />
+                                <span className="text-sm text-gray-700">
+                                  {uploadingImage ? 'Uploading...' : 'Choose Shop Photo'}
+                                </span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={(e) => handleImageFileSelect(e, 'shopImage')}
+                                  className="hidden"
+                                  disabled={uploadingImage}
+                                />
+                              </label>
+                              {formData.shopImage && (
+                                <button
+                                  onClick={() => {
+                                    setFormData(prev => ({ ...prev, shopImage: '' }));
+                                    const updatedUser = { ...user, shopImage: '' };
+                                    setUser(updatedUser);
+                                    localStorage.setItem('user', JSON.stringify(updatedUser));
+                                  }}
+                                  className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200"
+                                >
+                                  <FiX className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -663,23 +996,6 @@ const TailorProfile = () => {
                         )}
                       </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Working Hours
-                        </label>
-                        <input
-                          type="text"
-                          name="workingHours"
-                          value={formData.workingHours}
-                          onChange={handleInputChange}
-                          disabled={!isEditing}
-                          placeholder="e.g., 9:00 AM - 7:00 PM"
-                          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 ${
-                            isEditing ? 'border-gray-300' : 'border-gray-200 bg-gray-50'
-                          }`}
-                        />
-                      </div>
-
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Shop Address
@@ -699,7 +1015,7 @@ const TailorProfile = () => {
                         )}
                       </div>
                     </div>
-
+ 
                     {isEditing && (
                       <div className="flex justify-end space-x-3">
                         <button
