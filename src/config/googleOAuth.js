@@ -14,6 +14,7 @@ export const googleButtonConfig = {
   size: "large",
   text: "signin_with",
   shape: "rectangular",
-  logo_alignment: "left",
-  width: "100%"
+  logo_alignment: "left"
+  // Note: width should not be set to "100%" as it's invalid for Google Sign-In buttons
+  // The button will automatically size based on the container
 }; 

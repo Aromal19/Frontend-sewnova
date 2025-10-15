@@ -6,7 +6,6 @@ import {
   FiTrendingUp, 
   FiTrendingDown, 
   FiPackage, 
-  FiDollarSign, 
   FiUsers, 
   FiStar,
   FiPlus,
@@ -82,10 +81,10 @@ const TailorDashboard = () => {
   const stats = [
     {
       title: "Total Earnings",
-      value: "$8,450",
+      value: "₹8,450",
       change: "+15.2%",
       trend: "up",
-      icon: FiDollarSign,
+      icon: FiTrendingUp,
       color: "from-coralblush to-pink-500"
     },
     {
@@ -119,7 +118,7 @@ const TailorDashboard = () => {
       id: "#ORD-001",
       customer: "Sarah Johnson",
       service: "Wedding Dress Alteration",
-      amount: "$450",
+      amount: "₹450",
       status: "in-progress",
       deadline: "2024-01-20",
       priority: "high"
@@ -128,7 +127,7 @@ const TailorDashboard = () => {
       id: "#ORD-002",
       customer: "Mike Chen",
       service: "Suit Fitting",
-      amount: "$320",
+      amount: "₹320",
       status: "pending",
       deadline: "2024-01-22",
       priority: "medium"
@@ -137,7 +136,7 @@ const TailorDashboard = () => {
       id: "#ORD-003",
       customer: "Emma Davis",
       service: "Dress Hemming",
-      amount: "$180",
+      amount: "₹180",
       status: "completed",
       deadline: "2024-01-18",
       priority: "low"
@@ -146,7 +145,7 @@ const TailorDashboard = () => {
       id: "#ORD-004",
       customer: "Alex Wilson",
       service: "Blouse Alteration",
-      amount: "$120",
+      amount: "₹120",
       status: "in-progress",
       deadline: "2024-01-25",
       priority: "medium"
@@ -185,7 +184,7 @@ const TailorDashboard = () => {
       id: "#ORD-005",
       customer: "Lisa Brown",
       service: "Dress Alteration",
-      amount: "$280",
+      amount: "₹280",
       completedDate: "2024-01-15",
       rating: 5
     },
@@ -193,7 +192,7 @@ const TailorDashboard = () => {
       id: "#ORD-006",
       customer: "John Smith",
       service: "Suit Tailoring",
-      amount: "$350",
+      amount: "₹350",
       completedDate: "2024-01-14",
       rating: 5
     },
@@ -201,7 +200,7 @@ const TailorDashboard = () => {
       id: "#ORD-007",
       customer: "Maria Garcia",
       service: "Blouse Fitting",
-      amount: "$150",
+      amount: "₹150",
       completedDate: "2024-01-13",
       rating: 4
     }

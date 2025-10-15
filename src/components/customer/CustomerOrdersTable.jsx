@@ -16,13 +16,13 @@ const CustomerOrdersTable = () => (
           <td className="border px-4 py-2">#12345</td>
           <td className="border px-4 py-2">2024-06-01</td>
           <td className="border px-4 py-2">Shipped</td>
-          <td className="border px-4 py-2">$120</td>
+          <td className="border px-4 py-2">₹120</td>
         </tr>
         <tr>
           <td className="border px-4 py-2">#12346</td>
           <td className="border px-4 py-2">2024-06-03</td>
           <td className="border px-4 py-2">Processing</td>
-          <td className="border px-4 py-2">$80</td>
+          <td className="border px-4 py-2">₹80</td>
         </tr>
       </tbody>
     </table>

@@ -1,60 +1,60 @@
 import React from "react";
-import { FiTrendingUp, FiTrendingDown, FiPackage, FiCheckCircle, FiStar, FiClock, FiUsers } from "react-icons/fi";
+import { FiTrendingUp, FiTrendingDown, FiUsers, FiPackage, FiDollarSign, FiScissors, FiShoppingBag, FiClock } from "react-icons/fi";
 
-const TailorStatsWidget = () => {
+const AdminStatsWidget = () => {
   const stats = [
     {
-      title: "Total Earnings",
-      value: "₹8,450",
-      change: "+15.2%",
+      title: "Total Users",
+      value: "1,250",
+      change: "+12.5%",
       trend: "up",
-      icon: FiTrendingUp,
+      icon: FiUsers,
       color: "from-coralblush to-pink-500"
     },
     {
-      title: "Active Orders",
-      value: "24",
-      change: "+8.5%",
+      title: "Total Orders",
+      value: "3,420",
+      change: "+8.2%",
       trend: "up",
       icon: FiPackage,
       color: "from-lilac to-purple-500"
     },
     {
-      title: "Completed Orders",
-      value: "156",
-      change: "+12.3%",
+      title: "Total Revenue",
+      value: "₹1,25,000",
+      change: "+15.3%",
       trend: "up",
-      icon: FiCheckCircle,
+      icon: FiDollarSign,
       color: "from-champagne to-yellow-500"
     },
     {
-      title: "Average Rating",
-      value: "4.9",
-      change: "+0.3",
+      title: "Active Tailors",
+      value: "45",
+      change: "+3",
       trend: "up",
-      icon: FiStar,
+      icon: FiScissors,
       color: "from-mint to-green-500"
     },
     {
-      title: "Hours Worked",
-      value: "142",
-      change: "+5.8%",
+      title: "Active Sellers",
+      value: "32",
+      change: "+2",
       trend: "up",
-      icon: FiClock,
+      icon: FiShoppingBag,
       color: "from-blue-500 to-indigo-500"
     },
     {
-      title: "Happy Customers",
-      value: "89",
-      change: "+18.2%",
-      trend: "up",
-      icon: FiUsers,
+      title: "Pending Orders",
+      value: "156",
+      change: "-5.2%",
+      trend: "down",
+      icon: FiClock,
       color: "from-purple-500 to-pink-500"
     }
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
       {stats.map((stat, index) => (
         <div key={index} className="bg-white rounded-xl p-4 shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300">
           <div className="flex items-center justify-between">
@@ -85,4 +85,4 @@ const TailorStatsWidget = () => {
   );
 };
 
-export default TailorStatsWidget; 
+export default AdminStatsWidget;

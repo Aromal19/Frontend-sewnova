@@ -82,15 +82,7 @@ const Login = () => {
     setErrors({});
 
     try {
-      // Check for admin login first
-      if (formData.email === "admin@sewnova.com" && formData.password === "admin123") {
-        localStorage.setItem("isAdmin", "true");
-        localStorage.setItem("adminToken", "admin-token");
-        navigate("/admin/dashboard");
-        return;
-      }
-
-      // Regular user login using API utility
+      // Regular user login using API utility (includes admin)
       const data = await authAPI.login(formData.email, formData.password);
 
       if (data.success) {
@@ -99,11 +91,16 @@ const Login = () => {
         localStorage.setItem('token', data.accessToken);
         localStorage.setItem('userRole', data.user.role);
 
+        console.log('Login successful, user role:', data.user.role);
+        console.log('User data:', data.user);
+
         // Route based on user role - customers go to landing page, others to dashboard
         if (data.user.role === 'customer') {
+          console.log('Redirecting to customer landing');
           navigate('/customer/landing');
         } else {
           const dashboardRoute = getDashboardRoute(data.user.role);
+          console.log('Redirecting to dashboard route:', dashboardRoute);
           navigate(dashboardRoute);
         }
       } else if (data.requiresEmailVerification) {
@@ -298,13 +295,14 @@ const Login = () => {
               <GoogleLogin
                 onSuccess={handleGoogleSuccess}
                 onError={handleGoogleError}
-                useOneTap
+                useOneTap={false}
                 theme="outline"
                 size="large"
                 text="signin_with"
                 shape="rectangular"
                 logo_alignment="left"
-                width="100%"
+                auto_select={false}
+                cancel_on_tap_outside={false}
               />
             </div>
           </div>

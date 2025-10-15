@@ -16,9 +16,11 @@ import {
   FiChevronUp
 } from "react-icons/fi";
 import { apiCall } from "../../config/api";
+import { useCart } from "../../context/CartContext";
 
 const FabricBrowse = () => {
   const navigate = useNavigate();
+  const { addFabricToCart } = useCart();
   const [fabrics, setFabrics] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -134,8 +136,15 @@ const FabricBrowse = () => {
           stock: product.stock || 0,
           tags: product.tags || [],
           seller: {
+            _id: product.seller?._id,
             name: product.seller?.name || 'Unknown Seller',
+            businessName: product.seller?.businessName,
+            businessType: product.seller?.businessType,
+            isVerified: product.seller?.isVerified || false,
+            aadhaarVerified: product.seller?.aadhaarVerified || false,
             rating: product.seller?.rating || 4.0,
+            totalSales: product.seller?.totalSales || 0,
+            profileImage: product.seller?.profileImage,
             location: product.seller?.location || 'Location not specified'
           },
           rating: product.rating?.average || 4.0,
@@ -167,8 +176,15 @@ const FabricBrowse = () => {
     // TODO: API call to update wishlist
   };
 
-  const handleBookWithTailor = (fabricId) => {
-    navigate(`/customer/booking/create?fabricId=${fabricId}`);
+  const handleAddToCart = (fabric) => {
+    addFabricToCart({
+      id: fabric._id,
+      name: fabric.name,
+      price: fabric.price,
+      image: fabric.images?.[0],
+    });
+    // Navigate to cart for immediate feedback
+    navigate('/customer/cart');
   };
 
   const handleViewDetails = (fabricId) => {
@@ -390,14 +406,27 @@ const FabricBrowse = () => {
                     <span className="font-bold text-gray-900">₹{fabric.price}/m</span>
                   </div>
                   
-                  <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-                    <div className="flex items-center">
-                      <FiUser className="w-4 h-4 mr-1" />
-                      <span>{fabric.seller.name}</span>
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between text-sm text-gray-500 mb-2">
+                      <div className="flex items-center">
+                        <FiUser className="w-4 h-4 mr-1" />
+                        <span>{fabric.seller.name}</span>
+                        {fabric.seller.isVerified && (
+                          <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+                            ✓ Verified
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center">
+                        <FiMapPin className="w-4 h-4 mr-1" />
+                        <span>{fabric.seller.location}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center">
-                      <FiMapPin className="w-4 h-4 mr-1" />
-                      <span>{fabric.seller.location}</span>
+                    <div className="flex items-center justify-between text-xs text-gray-400">
+                      <span>{fabric.seller.businessType}</span>
+                      {fabric.seller.totalSales > 0 && (
+                        <span>{fabric.seller.totalSales} sales</span>
+                      )}
                     </div>
                   </div>
                   
@@ -409,11 +438,11 @@ const FabricBrowse = () => {
                       View Details
                     </button>
                     <button
-                      onClick={() => handleBookWithTailor(fabric._id)}
+                      onClick={() => handleAddToCart(fabric)}
                       className="flex-1 px-3 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors"
                     >
                       <FiShoppingCart className="w-4 h-4 inline mr-1" />
-                      Book
+                      Add to Cart
                     </button>
                   </div>
                 </div>

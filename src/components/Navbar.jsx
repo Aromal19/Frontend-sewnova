@@ -11,7 +11,8 @@ import {
   FiMenu,
   FiX,
   FiShield,
-  FiUser
+  FiUser,
+  FiShoppingCart
 } from "react-icons/fi";
 
 const Navbar = ({ userRole = null }) => {
@@ -134,6 +135,16 @@ const Navbar = ({ userRole = null }) => {
             {userRole ? (
               // Logged in user
               <div className="flex items-center space-x-3">
+                {/* Cart */}
+                {userRole === 'customer' && (
+                  <Link
+                    to="/customer/cart"
+                    className="group flex items-center px-3 py-2 text-gray-300 hover:text-white hover:bg-gray-800/50 rounded-lg transition-all duration-300"
+                  >
+                    <FiShoppingCart className="text-lg group-hover:text-amber-400 transition-colors duration-300 mr-2" />
+                    <span className="text-sm font-medium">Cart</span>
+                  </Link>
+                )}
                 <div className="flex items-center px-3 py-2 rounded-lg bg-gray-800/30">
                   <div className="w-6 h-6 bg-gradient-to-r from-amber-400 to-orange-500 rounded-full flex items-center justify-center">
                     <FiUser className="text-[#000714] text-xs" />

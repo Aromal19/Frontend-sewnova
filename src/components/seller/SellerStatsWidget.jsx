@@ -1,39 +1,39 @@
 import React from "react";
-import { FiTrendingUp, FiTrendingDown, FiDollarSign, FiPackage, FiUsers, FiStar } from "react-icons/fi";
+import { FiTrendingUp, FiTrendingDown, FiPackage } from "react-icons/fi";
 
 const SellerStatsWidget = () => {
   const stats = [
     {
-      title: "Total Revenue",
-      value: "$12,450",
-      change: "+12.5%",
-      trend: "up",
-      icon: FiDollarSign,
-      color: "from-coralblush to-pink-500"
-    },
-    {
-      title: "Total Orders",
-      value: "156",
-      change: "+8.2%",
+      title: "Total Products",
+      value: "24",
+      change: "+3",
       trend: "up",
       icon: FiPackage,
       color: "from-lilac to-purple-500"
     },
     {
-      title: "Active Customers",
-      value: "89",
-      change: "+15.3%",
+      title: "Active Products",
+      value: "22",
+      change: "+2",
       trend: "up",
-      icon: FiUsers,
+      icon: FiPackage,
       color: "from-champagne to-yellow-500"
     },
     {
-      title: "Average Rating",
-      value: "4.8",
-      change: "+0.2",
+      title: "Categories",
+      value: "8",
+      change: "+1",
       trend: "up",
-      icon: FiStar,
+      icon: FiPackage,
       color: "from-mint to-green-500"
+    },
+    {
+      title: "Low Stock",
+      value: "3",
+      change: "-1",
+      trend: "down",
+      icon: FiPackage,
+      color: "from-coralblush to-pink-500"
     }
   ];
 

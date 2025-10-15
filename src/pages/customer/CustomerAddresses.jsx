@@ -212,7 +212,7 @@ const CustomerAddresses = () => {
 
   if (loading) {
     return (
-      <div className="flex h-screen bg-gray-50">
+      <div className="flex min-h-screen bg-gray-50">
         <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} currentPage="addresses" />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
@@ -225,14 +225,14 @@ const CustomerAddresses = () => {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50">
       {/* Sidebar */}
       <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} currentPage="addresses" />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col min-h-screen">
         {/* Header */}
-        <header className="bg-white shadow-sm border-b border-gray-200">
+        <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
           <div className="px-6 py-4">
             <div className="flex items-center justify-between">
               <div>

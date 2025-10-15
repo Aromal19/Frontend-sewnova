@@ -7,7 +7,6 @@ import {
   FiUsers, 
   FiShoppingBag, 
   FiScissors, 
-  FiDollarSign, 
   FiPackage,
   FiStar,
   FiActivity,
@@ -59,10 +58,10 @@ const AdminInsights = () => {
     },
     {
       title: "Revenue",
-      value: "$45,678",
+      value: "₹45,678",
       change: "+18.7%",
       trend: "up",
-      icon: FiDollarSign,
+      icon: FiTrendingUp,
       color: "from-blue-500 to-indigo-500"
     },
     {
@@ -76,19 +75,19 @@ const AdminInsights = () => {
   ];
 
   const topSellers = [
-    { name: "Premium Fabrics Co.", orders: 234, revenue: "$12,450", rating: 4.8 },
-    { name: "Silk & Cotton Hub", orders: 189, revenue: "$9,870", rating: 4.7 },
-    { name: "Fabric World", orders: 156, revenue: "$8,230", rating: 4.6 },
-    { name: "Textile Masters", orders: 134, revenue: "$7,120", rating: 4.5 },
-    { name: "Quality Fabrics", orders: 98, revenue: "$5,890", rating: 4.4 }
+    { name: "Premium Fabrics Co.", orders: 234, revenue: "₹12,450", rating: 4.8 },
+    { name: "Silk & Cotton Hub", orders: 189, revenue: "₹9,870", rating: 4.7 },
+    { name: "Fabric World", orders: 156, revenue: "₹8,230", rating: 4.6 },
+    { name: "Textile Masters", orders: 134, revenue: "₹7,120", rating: 4.5 },
+    { name: "Quality Fabrics", orders: 98, revenue: "₹5,890", rating: 4.4 }
   ];
 
   const topTailors = [
-    { name: "Sarah Johnson", orders: 89, earnings: "$4,560", rating: 4.9 },
-    { name: "Mike Chen", orders: 76, earnings: "$3,890", rating: 4.8 },
-    { name: "Emma Davis", orders: 65, earnings: "$3,340", rating: 4.7 },
-    { name: "Alex Wilson", orders: 54, earnings: "$2,780", rating: 4.6 },
-    { name: "Lisa Brown", orders: 43, earnings: "$2,210", rating: 4.5 }
+    { name: "Sarah Johnson", orders: 89, earnings: "₹4,560", rating: 4.9 },
+    { name: "Mike Chen", orders: 76, earnings: "₹3,890", rating: 4.8 },
+    { name: "Emma Davis", orders: 65, earnings: "₹3,340", rating: 4.7 },
+    { name: "Alex Wilson", orders: 54, earnings: "₹2,780", rating: 4.6 },
+    { name: "Lisa Brown", orders: 43, earnings: "₹2,210", rating: 4.5 }
   ];
 
   const recentActivities = [

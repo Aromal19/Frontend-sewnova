@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCurrentUser, isAuthenticated, logout } from '../../utils/api';
-import { FiUser, FiMail, FiPhone, FiMapPin, FiEdit, FiLock, FiShield, FiCheckCircle, FiXCircle, FiLogOut, FiArrowLeft, FiScissors, FiFileText, FiAward, FiClock, FiStar, FiEye, FiEyeOff, FiCamera, FiUpload, FiX } from 'react-icons/fi';
+import { FiUser, FiMail, FiPhone, FiMapPin, FiEdit, FiCheckCircle, FiXCircle, FiLogOut, FiArrowLeft, FiScissors, FiFileText, FiAward, FiClock, FiStar, FiCamera, FiUpload, FiX } from 'react-icons/fi';
 import Sidebar from '../../components/Sidebar';
 import PhoneNumberInput from '../../components/PhoneNumberInput';
 import Swal from 'sweetalert2';
@@ -12,18 +12,7 @@ const TailorProfile = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
   const [isEditing, setIsEditing] = useState(false);
-  const [showChangePassword, setShowChangePassword] = useState(false);
   const [formData, setFormData] = useState({});
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
-  });
-  const [showPasswords, setShowPasswords] = useState({
-    currentPassword: false,
-    newPassword: false,
-    confirmPassword: false
-  });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [userLoading, setUserLoading] = useState(true);
@@ -241,20 +230,6 @@ const TailorProfile = () => {
     }));
   };
 
-  const handlePasswordChange = (e) => {
-    const { name, value } = e.target;
-    setPasswordData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
-    }
-  };
 
   const handleSkillChange = (skill) => {
     const currentSkills = formData.skills || [];
@@ -284,19 +259,6 @@ const TailorProfile = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const validatePasswordForm = () => {
-    const newErrors = {};
-    
-    if (!passwordData.currentPassword) newErrors.currentPassword = 'Current password is required';
-    if (!passwordData.newPassword) newErrors.newPassword = 'New password is required';
-    if (passwordData.newPassword.length < 6) newErrors.newPassword = 'Password must be at least 6 characters';
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
 
   const handleSaveProfile = async () => {
     if (!validateForm()) return;
@@ -337,43 +299,6 @@ const TailorProfile = () => {
     }
   };
 
-  const handleChangePassword = async () => {
-    if (!validatePasswordForm()) return;
-    
-    setLoading(true);
-    try {
-      const response = await fetch('http://localhost:3000/api/auth/change-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-        },
-        body: JSON.stringify({
-          currentPassword: passwordData.currentPassword,
-          newPassword: passwordData.newPassword
-        })
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setShowChangePassword(false);
-        setPasswordData({
-          currentPassword: '',
-          newPassword: '',
-          confirmPassword: ''
-        });
-        alert('Password changed successfully!');
-      } else {
-        alert(data.message || 'Failed to change password');
-      }
-    } catch (error) {
-      console.error('Error changing password:', error);
-      alert('Failed to change password. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const resendVerificationEmail = async () => {
     try {
@@ -612,8 +537,7 @@ const TailorProfile = () => {
                   {[
                     { key: 'profile', label: 'Profile', icon: FiUser },
                     { key: 'shop', label: 'Shop', icon: FiScissors },
-                    { key: 'skills', label: 'Skills', icon: FiAward },
-                    { key: 'security', label: 'Security', icon: FiShield }
+                    { key: 'skills', label: 'Skills', icon: FiAward }
                   ].map((tab) => {
                     const IconComponent = tab.icon;
                     return (
@@ -765,9 +689,9 @@ const TailorProfile = () => {
                             name="email"
                             value={formData.email}
                             onChange={handleInputChange}
-                            disabled={!isEditing}
+                            disabled={!isEditing || user.isEmailVerified}
                             className={`flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 ${
-                              isEditing ? 'border-gray-300' : 'border-gray-200 bg-gray-50'
+                              isEditing && !user.isEmailVerified ? 'border-gray-300' : 'border-gray-200 bg-gray-50'
                             } ${errors.email ? 'border-red-300' : ''}`}
                           />
                           {user.isEmailVerified ? (
@@ -776,6 +700,9 @@ const TailorProfile = () => {
                             <FiXCircle className="w-5 h-5 text-red-500" />
                           )}
                         </div>
+                        {user.isEmailVerified && (
+                          <p className="text-green-600 text-xs mt-1">Email verified - cannot be changed</p>
+                        )}
                         {!user.isEmailVerified && (
                           <p className="text-red-500 text-xs mt-1">Email not verified</p>
                         )}
@@ -1092,118 +1019,6 @@ const TailorProfile = () => {
                   </div>
                 )}
 
-                {/* Security Tab */}
-                {activeTab === 'security' && (
-                  <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                      <h2 className="text-xl font-semibold text-gray-900">Security Settings</h2>
-                      <button
-                        onClick={() => setShowChangePassword(!showChangePassword)}
-                        className="flex items-center space-x-2 px-4 py-2 bg-purple-500 text-white rounded-lg text-sm font-medium hover:bg-purple-600 transition-all duration-200"
-                      >
-                        <FiLock className="w-4 h-4" />
-                        <span>Change Password</span>
-                      </button>
-                    </div>
-
-                    {showChangePassword && (
-                      <div className="bg-gray-50 rounded-lg p-6 space-y-4">
-                        <h3 className="text-lg font-medium text-gray-900">Change Password</h3>
-                        
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Current Password
-                          </label>
-                          <div className="relative">
-                            <input
-                              type={showPasswords.currentPassword ? 'text' : 'password'}
-                              name="currentPassword"
-                              value={passwordData.currentPassword}
-                              onChange={handlePasswordChange}
-                              className="w-full pr-10 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
-                            />
-                            <span className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer" onClick={() => setShowPasswords(prev => ({ ...prev, currentPassword: !prev.currentPassword }))}>
-                              {showPasswords.currentPassword ? <FiEyeOff className="h-5 w-5 text-gray-500" /> : <FiEye className="h-5 w-5 text-gray-500" />}
-                            </span>
-                          </div>
-                          {errors.currentPassword && (
-                            <p className="text-red-500 text-xs mt-1">{errors.currentPassword}</p>
-                          )}
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            New Password
-                          </label>
-                          <div className="relative">
-                            <input
-                              type={showPasswords.newPassword ? 'text' : 'password'}
-                              name="newPassword"
-                              value={passwordData.newPassword}
-                              onChange={handlePasswordChange}
-                              className="w-full pr-10 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
-                            />
-                            <span className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer" onClick={() => setShowPasswords(prev => ({ ...prev, newPassword: !prev.newPassword }))}>
-                              {showPasswords.newPassword ? <FiEyeOff className="h-5 w-5 text-gray-500" /> : <FiEye className="h-5 w-5 text-gray-500" />}
-                            </span>
-                          </div>
-                          {errors.newPassword && (
-                            <p className="text-red-500 text-xs mt-1">{errors.newPassword}</p>
-                          )}
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Confirm New Password
-                          </label>
-                          <div className="relative">
-                            <input
-                              type={showPasswords.confirmPassword ? 'text' : 'password'}
-                              name="confirmPassword"
-                              value={passwordData.confirmPassword}
-                              onChange={handlePasswordChange}
-                              className="w-full pr-10 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
-                            />
-                            <span className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer" onClick={() => setShowPasswords(prev => ({ ...prev, confirmPassword: !prev.confirmPassword }))}>
-                              {showPasswords.confirmPassword ? <FiEyeOff className="h-5 w-5 text-gray-500" /> : <FiEye className="h-5 w-5 text-gray-500" />}
-                            </span>
-                          </div>
-                          {errors.confirmPassword && (
-                            <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>
-                          )}
-                        </div>
-
-                        <div className="flex justify-end space-x-3">
-                          <button
-                            onClick={() => setShowChangePassword(false)}
-                            className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg text-sm font-medium hover:bg-gray-200 transition-all duration-200"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            onClick={handleChangePassword}
-                            disabled={loading}
-                            className="px-6 py-2 bg-purple-500 text-white rounded-lg text-sm font-medium hover:bg-purple-600 transition-all duration-200 disabled:opacity-50"
-                          >
-                            {loading ? 'Changing...' : 'Change Password'}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <div className="flex items-center space-x-3">
-                        <FiShield className="w-5 h-5 text-blue-600" />
-                        <div>
-                          <h3 className="text-sm font-medium text-blue-800">Professional Account Security</h3>
-                          <p className="text-blue-700 text-sm">
-                            Your professional account is protected with secure authentication. Keep your credentials safe and never share them with anyone.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           </div>

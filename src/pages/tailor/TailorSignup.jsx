@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { FiEye, FiEyeOff, FiUser, FiMail, FiPhone, FiLock, FiArrowRight, FiCheck, FiBriefcase } from "react-icons/fi";
 import PhoneNumberInput from "../../components/PhoneNumberInput";
@@ -42,6 +42,31 @@ const TailorSignup = () => {
     const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     return emailRegex.test(email);
   };
+
+  // Debounced email availability check
+  useEffect(() => {
+    const email = (formData.email || "").toLowerCase().trim();
+    if (!email) return; // nothing to check
+    if (!validateEmail(email)) return; // wait until format is valid
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await axios.get("http://localhost:3000/api/auth/check-email", {
+          params: { email }
+        });
+        const available = res?.data?.available;
+        if (available === false) {
+          setErrors(prev => ({ ...prev, email: res?.data?.message || "Email is already registered" }));
+        } else {
+          setErrors(prev => ({ ...prev, email: "" }));
+        }
+      } catch {
+        // ignore network errors for availability check
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [formData.email]);
 
   const validateIndianPhone = (phone) => {
     // Indian phone number validation: +91 followed by 10 digits or 10 digits starting with 6-9
@@ -122,10 +147,7 @@ const TailorSignup = () => {
 
       case "phone":
         if (!value.trim()) return "*Required";
-        if (/[^0-9+\s]/.test(value.trim())) return "Only numbers, + and spaces allowed";
-        const numericPhone = value.replace(/\D/g, "");
-        if (numericPhone.length < 10) return "Phone number must be at least 10 digits";
-        if (numericPhone.length > 15) return "Phone number must be less than 15 digits";
+        if (!validateIndianPhone(value.trim())) return "Please enter a valid Indian phone number";
         return "";
 
       case "shopName":

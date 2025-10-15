@@ -83,6 +83,7 @@ export const authAPI = {
       credentials: 'include',
     });
     const data = await response.json();
+    console.log('Auth API response:', data);
     if (data.success && data.accessToken) {
       localStorage.setItem('accessToken', data.accessToken);
       localStorage.setItem('token', data.accessToken); // Also store as 'token' for compatibility
@@ -221,4 +222,7 @@ export const getDashboardRoute = (role) => {
     case 'admin': return '/admin/dashboard';
     default: return '/';
   }
-}; 
+};
+
+// Export validateToken function directly for use in ProtectedRoute
+export const validateToken = authAPI.validateToken; 

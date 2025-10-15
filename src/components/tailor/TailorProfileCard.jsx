@@ -1,17 +1,19 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 
 const TailorProfileCard = ({ tailor }) => {
+  const navigate = useNavigate();
   return (
     <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
       <div className="flex items-center space-x-4 mb-4">
         <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-600 rounded-full flex items-center justify-center">
           <span className="text-2xl text-white font-bold">
-            {tailor?.firstName?.charAt(0) || "T"}
+            {(tailor?.firstname || tailor?.firstName || 'T').charAt(0)}
           </span>
         </div>
         <div>
           <h3 className="text-lg font-semibold text-gray-800">
-            {tailor?.firstName} {tailor?.lastName}
+            {tailor?.firstname || tailor?.firstName} {tailor?.lastname || tailor?.lastName}
           </h3>
           <p className="text-gray-600 text-sm">{tailor?.shopName}</p>
         </div>
@@ -57,7 +59,7 @@ const TailorProfileCard = ({ tailor }) => {
       </div>
       
       <div className="mt-4 flex space-x-2">
-        <button className="flex-1 bg-orange-600 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-orange-700 transition-colors">
+        <button onClick={() => navigate(`/customer/tailor/${tailor?._id}`)} className="flex-1 bg-orange-600 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-orange-700 transition-colors">
           View Profile
         </button>
         <button className="flex-1 bg-gray-100 text-gray-700 py-2 px-4 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors">

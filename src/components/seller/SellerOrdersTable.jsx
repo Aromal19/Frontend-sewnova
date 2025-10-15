@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { FiEye, FiEdit, FiTrash2, FiPackage, FiUser, FiCalendar, FiDollarSign } from "react-icons/fi";
+import { FiEye, FiEdit, FiTrash2, FiPackage, FiUser, FiCalendar, FiTrendingUp } from "react-icons/fi";
 
 const SellerOrdersTable = () => {
   const [selectedStatus, setSelectedStatus] = useState("all");
@@ -11,7 +11,7 @@ const SellerOrdersTable = () => {
       product: "Premium Silk Fabric",
       date: "2024-01-15",
       status: "completed",
-      amount: "$450",
+      amount: "₹450",
       quantity: 5,
       paymentStatus: "paid"
     },
@@ -21,7 +21,7 @@ const SellerOrdersTable = () => {
       product: "Cotton Blend Fabric",
       date: "2024-01-14",
       status: "processing",
-      amount: "$320",
+      amount: "₹320",
       quantity: 3,
       paymentStatus: "paid"
     },
@@ -31,7 +31,7 @@ const SellerOrdersTable = () => {
       product: "Wool Fabric",
       date: "2024-01-13",
       status: "shipped",
-      amount: "$280",
+      amount: "₹280",
       quantity: 2,
       paymentStatus: "paid"
     },
@@ -41,7 +41,7 @@ const SellerOrdersTable = () => {
       product: "Linen Fabric",
       date: "2024-01-12",
       status: "pending",
-      amount: "$190",
+      amount: "₹190",
       quantity: 4,
       paymentStatus: "pending"
     },
@@ -51,7 +51,7 @@ const SellerOrdersTable = () => {
       product: "Silk Blend Fabric",
       date: "2024-01-11",
       status: "completed",
-      amount: "$520",
+      amount: "₹520",
       quantity: 6,
       paymentStatus: "paid"
     },
@@ -61,7 +61,7 @@ const SellerOrdersTable = () => {
       product: "Cotton Fabric",
       date: "2024-01-10",
       status: "cancelled",
-      amount: "$150",
+      amount: "₹150",
       quantity: 2,
       paymentStatus: "refunded"
     }
@@ -140,7 +140,7 @@ const SellerOrdersTable = () => {
               <th className="text-left py-4 px-6 font-medium text-gray-700">Payment</th>
               <th className="text-left py-4 px-6 font-medium text-gray-700">
                 <div className="flex items-center">
-                  <FiDollarSign className="w-4 h-4 mr-2" />
+                  <FiTrendingUp className="w-4 h-4 mr-2" />
                   Amount
                 </div>
               </th>

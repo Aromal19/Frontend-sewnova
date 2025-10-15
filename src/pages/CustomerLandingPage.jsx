@@ -45,14 +45,20 @@ const CustomerLandingPage = () => {
   };
 
   const [tailors, setTailors] = useState([]);
-
   const [fabrics, setFabrics] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       try {
-        // Fetch verified tailors (public)
-        const tailorsRes = await fetch(getApiUrl('TAILOR_SERVICE', '/api/public/tailors?page=1&limit=20'));
+        // Fetch data in parallel for better performance
+        const [tailorsRes, productsRes] = await Promise.all([
+          fetch(getApiUrl('TAILOR_SERVICE', '/api/public/tailors?page=1&limit=20')),
+          fetch(getApiUrl('SELLER_SERVICE', '/api/public/products?page=1&limit=20'))
+        ]);
+
+        // Process tailors data
         const tailorsJson = await tailorsRes.json();
         const tailorsData = Array.isArray(tailorsJson?.data) ? tailorsJson.data : [];
         const mappedTailors = tailorsData.map((t) => ({
@@ -70,8 +76,7 @@ const CustomerLandingPage = () => {
         }));
         setTailors(mappedTailors);
 
-        // Fetch public products (active)
-        const productsRes = await fetch(getApiUrl('SELLER_SERVICE', '/api/public/products?page=1&limit=20'));
+        // Process products data
         const productsJson = await productsRes.json();
         const products = Array.isArray(productsJson?.data) ? productsJson.data : [];
         const mappedProducts = products.map((p) => ({
@@ -90,6 +95,8 @@ const CustomerLandingPage = () => {
         setFabrics(mappedProducts);
       } catch (e) {
         console.error('Error loading landing data:', e);
+      } finally {
+        setLoading(false);
       }
     };
     fetchData();
@@ -145,14 +152,14 @@ const CustomerLandingPage = () => {
   );
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50">
       {/* Sidebar */}
       <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} currentPage="explore" />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col min-h-screen">
         {/* Header */}
-        <header className="bg-white shadow-sm border-b border-gray-200">
+        <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
           <div className="px-4 py-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
@@ -175,32 +182,47 @@ const CustomerLandingPage = () => {
                 </div>
               </div>
               
-              {/* User Display */}
-              {isLoggedIn && user ? (
-                <div className="flex items-center space-x-3">
-                  <div className="flex items-center space-x-2 bg-gray-100 px-3 py-1.5 rounded-lg">
-                    <div className="w-6 h-6 bg-gradient-to-r from-amber-400 to-orange-500 rounded-full flex items-center justify-center">
-                      <span className="text-white font-bold text-xs">
-                        {getUserInitial()}
-                      </span>
-                    </div>
-                    <span className="text-gray-700 font-medium text-sm">{getUserDisplayName()}</span>
-                  </div>
-                  <button 
-                    onClick={handleLogout}
-                    className="p-1.5 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200"
-                  >
-                    <FiLogOut className="w-4 h-4" />
-                  </button>
-                </div>
-              ) : (
+              {/* Cart and User Display */}
+              <div className="flex items-center space-x-3">
+                {/* Cart Icon */}
                 <button 
-                  onClick={() => navigate('/login')}
-                  className="px-4 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-medium text-sm hover:from-amber-500 hover:to-orange-600 transition-all duration-200"
+                  onClick={() => navigate('/customer/cart')}
+                  className="relative p-2 text-gray-600 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all duration-200"
                 >
-                  Sign In
+                  <FiShoppingCart className="w-5 h-5" />
+                  {/* Cart badge - you can add cart count logic here */}
+                  <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold">
+                    0
+                  </span>
                 </button>
-              )}
+
+                {/* User Display */}
+                {isLoggedIn && user ? (
+                  <div className="flex items-center space-x-3">
+                    <div className="flex items-center space-x-2 bg-gray-100 px-3 py-1.5 rounded-lg">
+                      <div className="w-6 h-6 bg-gradient-to-r from-amber-400 to-orange-500 rounded-full flex items-center justify-center">
+                        <span className="text-white font-bold text-xs">
+                          {getUserInitial()}
+                        </span>
+                      </div>
+                      <span className="text-gray-700 font-medium text-sm">{getUserDisplayName()}</span>
+                    </div>
+                    <button 
+                      onClick={handleLogout}
+                      className="p-1.5 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200"
+                    >
+                      <FiLogOut className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={() => navigate('/login')}
+                    className="px-4 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-medium text-sm hover:from-amber-500 hover:to-orange-600 transition-all duration-200"
+                  >
+                    Sign In
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Tabs and Controls */}
@@ -259,9 +281,22 @@ const CustomerLandingPage = () => {
         </header>
 
         {/* Content */}
-        <main className="flex-1 p-4 overflow-y-auto">
+        <main className="flex-1 p-4 overflow-y-auto bg-gray-50">
           <div className="max-w-7xl mx-auto">
-            {/* Tailors Section */}
+            {/* Loading State */}
+            {loading && (
+              <div className="flex items-center justify-center py-12">
+                <div className="flex flex-col items-center space-y-4">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500"></div>
+                  <p className="text-gray-600 text-sm">Loading content...</p>
+                </div>
+              </div>
+            )}
+
+            {/* Content when loaded */}
+            {!loading && (
+              <>
+                {/* Tailors Section */}
             {(activeTab === "all" || activeTab === "tailors") && (
               <div className="mb-8">
                 <div className="flex items-center justify-between mb-4">
@@ -361,9 +396,9 @@ const CustomerLandingPage = () => {
                           </div>
                         )}
 
-                        {/* Action Button */}
-                        <button className="w-full bg-gradient-to-r from-amber-400 to-orange-500 text-white py-2 px-4 rounded-lg font-medium text-sm hover:from-amber-500 hover:to-orange-600 transition-all duration-200">
-                          Book Now
+                        {/* Action Button (no direct booking in new flow) */}
+                        <button onClick={() => navigate(`/customer/tailor/${tailor.id || tailor._id || ''}`)} className="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-lg font-medium text-sm hover:bg-gray-200 transition-all duration-200">
+                          View Profile
                         </button>
                       </div>
                     </div>
@@ -459,7 +494,7 @@ const CustomerLandingPage = () => {
                         </div>
 
                         {/* Action Button */}
-                        <button className="w-full bg-gradient-to-r from-emerald-400 to-teal-500 text-white py-2 px-4 rounded-lg font-medium text-sm hover:from-emerald-500 hover:to-teal-600 transition-all duration-200 flex items-center justify-center">
+                        <button onClick={() => navigate('/customer/fabrics')} className="w-full bg-gradient-to-r from-emerald-400 to-teal-500 text-white py-2 px-4 rounded-lg font-medium text-sm hover:from-emerald-500 hover:to-teal-600 transition-all duration-200 flex items-center justify-center">
                           <FiShoppingCart className="w-4 h-4 mr-2" />
                           Add to Cart
                         </button>
@@ -487,6 +522,8 @@ const CustomerLandingPage = () => {
                   Clear Search
                 </button>
               </div>
+            )}
+              </>
             )}
           </div>
         </main>

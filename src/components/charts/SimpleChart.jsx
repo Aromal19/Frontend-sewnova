@@ -88,10 +88,12 @@ const SimpleChart = ({
   const renderPieChart = () => {
     const total = data.reduce((sum, value) => sum + value, 0);
     let currentAngle = 0;
+    const centerX = 50;
+    const centerY = height / 2;
     
     return (
       <svg width="100%" height={height} className="overflow-visible">
-        <g transform="translate(50%, 50%)">
+        <g transform={`translate(${centerX}, ${centerY})`}>
           {data.map((value, index) => {
             const percentage = (value / total) * 100;
             const angle = (percentage / 100) * 360;

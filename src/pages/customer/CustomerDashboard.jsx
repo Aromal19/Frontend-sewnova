@@ -11,9 +11,8 @@ import {
   FiUser,
   FiHeart,
   FiTruck,
-  FiDollarSign,
-  FiCalendar,
   FiTrendingUp,
+  FiCalendar,
   FiStar,
   FiClock,
   FiCheckCircle,
@@ -114,14 +113,14 @@ const CustomerDashboard = () => {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50">
       {/* Sidebar */}
       <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} currentPage="dashboard" />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col min-h-screen">
         {/* Header */}
-        <header className="bg-white shadow-sm border-b border-gray-200">
+        <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
           <div className="px-6 py-4">
             <div className="flex items-center justify-between">
               <div>
@@ -223,7 +222,7 @@ const CustomerDashboard = () => {
                   <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                     <div className="flex items-center">
                       <div className="w-12 h-12 bg-gradient-to-r from-amber-400 to-orange-600 rounded-lg flex items-center justify-center">
-                        <FiDollarSign className="w-6 h-6 text-white" />
+                        <FiTrendingUp className="w-6 h-6 text-white" />
                       </div>
                       <div className="ml-4">
                         <p className="text-sm font-medium text-gray-600">Total Spent</p>

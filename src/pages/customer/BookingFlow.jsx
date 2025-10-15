@@ -1,65 +1,187 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { 
-  FiArrowLeft, 
-  FiArrowRight, 
-  FiCheck, 
-  FiUser, 
-  FiScissors, 
-  FiShoppingBag, 
-  FiMapPin, 
-  FiCalendar, 
-  FiDollarSign,
+import React, { useState, useEffect, useMemo } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import {
+  FiArrowLeft,
+  FiArrowRight,
+  FiCheck,
+  FiUser,
+  FiScissors,
+  FiShoppingBag,
   FiPackage,
-  FiClock,
-  FiEdit2,
   FiPlus,
   FiMinus,
-  FiImage,
+  FiHome,
+  FiMail,
+  FiPhone,
+  FiMapPin,
   FiStar,
-  FiX
+  FiClock,
+  FiShield,
+  FiHeart,
+  FiSearch,
+  FiFilter,
+  FiShoppingCart,
+  FiUser as FiUserIcon,
+  FiSettings,
+  FiLogOut,
 } from "react-icons/fi";
 import { apiCall } from "../../config/api";
+import { useBooking } from "../../context/BookingContext";
+import { useCart } from "../../context/CartContext";
+import DesignSelection from "../../components/DesignSelection";
+
+// Header Component
+const Header = ({ onNavigate }) => (
+  <header className="bg-white shadow-lg border-b border-gray-200">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="flex justify-between items-center h-16">
+        <div className="flex items-center">
+          <div className="flex-shrink-0">
+            <h1 className="text-2xl font-bold text-gray-900">SewNova</h1>
+          </div>
+        </div>
+        <nav className="hidden md:flex space-x-8">
+          <button
+            onClick={() => onNavigate('/customer/landing')}
+            className="text-gray-700 hover:text-amber-600 px-3 py-2 rounded-md text-sm font-medium flex items-center"
+          >
+            <FiHome className="mr-2" />
+            Home
+          </button>
+          <button
+            onClick={() => onNavigate('/fabrics')}
+            className="text-gray-700 hover:text-amber-600 px-3 py-2 rounded-md text-sm font-medium flex items-center"
+          >
+            <FiShoppingBag className="mr-2" />
+            Fabrics
+          </button>
+          <button
+            onClick={() => onNavigate('/tailors')}
+            className="text-gray-700 hover:text-amber-600 px-3 py-2 rounded-md text-sm font-medium flex items-center"
+          >
+            <FiScissors className="mr-2" />
+            Tailors
+          </button>
+        </nav>
+        <div className="flex items-center space-x-4">
+          <button className="text-gray-700 hover:text-amber-600 p-2">
+            <FiShoppingCart className="h-5 w-5" />
+          </button>
+          <button className="text-gray-700 hover:text-amber-600 p-2">
+            <FiUserIcon className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+);
+
+// Footer Component
+const Footer = () => (
+  <footer className="bg-gray-900 text-white">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div>
+          <h3 className="text-lg font-semibold mb-4">SewNova</h3>
+          <p className="text-gray-400 mb-4">
+            Your trusted partner for premium fabrics and expert tailoring services.
+          </p>
+          <div className="flex space-x-4">
+            <button className="text-gray-400 hover:text-white">
+              <FiMail className="h-5 w-5" />
+            </button>
+            <button className="text-gray-400 hover:text-white">
+              <FiPhone className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+        <div>
+          <h4 className="text-md font-semibold mb-4">Services</h4>
+          <ul className="space-y-2 text-gray-400">
+            <li>Custom Tailoring</li>
+            <li>Fabric Selection</li>
+            <li>Design Consultation</li>
+            <li>Measurement Services</li>
+          </ul>
+        </div>
+        <div>
+          <h4 className="text-md font-semibold mb-4">Support</h4>
+          <ul className="space-y-2 text-gray-400">
+            <li>Help Center</li>
+            <li>Contact Us</li>
+            <li>Size Guide</li>
+            <li>Returns & Exchanges</li>
+          </ul>
+        </div>
+        <div>
+          <h4 className="text-md font-semibold mb-4">Contact Info</h4>
+          <div className="space-y-2 text-gray-400">
+            <div className="flex items-center">
+              <FiMapPin className="mr-2 h-4 w-4" />
+              <span>123 Fashion Street, Mumbai</span>
+            </div>
+            <div className="flex items-center">
+              <FiPhone className="mr-2 h-4 w-4" />
+              <span>+91 98765 43210</span>
+            </div>
+            <div className="flex items-center">
+              <FiMail className="mr-2 h-4 w-4" />
+              <span>info@sewnova.com</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
+        <p>&copy; 2024 SewNova. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+);
 
 const BookingFlow = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  
+  const { state: bookingState, setServiceType, setCurrentStep: setFlowStep, setSelectedFabric: setCtxSelectedFabric } = useBooking();
+  const { items } = useCart();
+
   // Booking data state
   const [bookingData, setBookingData] = useState({
-    // Service selection
-    serviceType: 'complete', // 'tailor', 'fabric', 'complete'
-    tailorId: searchParams.get('tailorId') || null,
-    fabricId: searchParams.get('fabricId') || null,
+    // Step 1: Fabric Selection
+    selectedFabrics: [],
     
-    // Garment details
-    garmentType: '',
-    quantity: 1,
-    design: '',
-    instructions: '',
+    // Step 2: Cart Review
+    cartItems: [],
     
-    // Measurements
+    // Step 3: Service Type Decision
+    serviceType: null, // 'fabric-only' or 'fabric-tailor'
+    
+    // Step 4: Design Selection (for fabric+tailor)
+    selectedDesign: null,
+    designType: "", // 'custom', 'predefined'
+    designInstructions: "",
+    
+    // Step 5: Tailor Selection (for fabric+tailor)
+    tailorId: searchParams.get("tailorId") || null,
+    
+    // Step 6: Measurements (for fabric+tailor)
     measurementId: null,
     customMeasurements: {},
     
-    // Address
+    // Step 7: Confirmation
+    garmentType: "",
+    quantity: 1,
     addressId: null,
     deliveryAddress: {},
-    
-    // Scheduling
-    preferredDate: '',
-    preferredTime: '',
-    
-    // Pricing
+    preferredDate: "",
+    preferredTime: "",
     fabricCost: 0,
     tailoringCost: 0,
     totalCost: 0,
     advanceAmount: 0,
-    
-    // Additional
-    notes: ''
+    notes: "",
   });
 
   const [availableTailors, setAvailableTailors] = useState([]);
@@ -73,214 +195,178 @@ const BookingFlow = () => {
     fetchInitialData();
   }, []);
 
+  useEffect(() => {
+    if (location.state?.fromCheckout) {
+      setCurrentStep(2);
+      setBookingData((prev) => ({ ...prev, serviceType: "complete" }));
+    }
+  }, [location.state]);
+
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      
-      // Fetch available tailors
+      let fabricsRaw = [];
+
+      // Fetch tailors
       try {
-        const tailorsResponse = await apiCall('TAILOR_SERVICE', '/api/public/tailors?limit=20&isVerified=true', {
-          method: 'GET'
-        });
-        
+        const tailorsResponse = await apiCall(
+          "TAILOR_SERVICE",
+          "/api/public/tailors?limit=20&isVerified=true",
+          { method: "GET" }
+        );
         if (tailorsResponse.success && tailorsResponse.data) {
-          const transformedTailors = tailorsResponse.data.map(tailor => ({
-            _id: tailor._id,
-            firstname: tailor.firstname,
-            lastname: tailor.lastname,
-            shopName: tailor.shopName,
-            rating: tailor.rating || 4.0,
-            experience: tailor.experience || 0,
-            specializations: tailor.specialization || [],
-            location: `${tailor.district || tailor.city || 'Unknown'}, ${tailor.state || 'Unknown'}`,
-            services: tailor.services || [
-              { name: 'Custom Tailoring', price: tailor.basePrice || 2000, duration: '7-10 days' }
-            ]
-          }));
-          setAvailableTailors(transformedTailors);
+          setAvailableTailors(
+            tailorsResponse.data.map((t) => ({
+              _id: t._id,
+              firstname: t.firstname,
+              lastname: t.lastname,
+              shopName: t.shopName,
+              rating: t.rating || 4.0,
+              experience: t.experience || 0,
+              services: t.services || [
+                { name: "Custom Tailoring", price: t.basePrice || 2000 },
+              ],
+            }))
+          );
         }
-      } catch (error) {
-        console.error('Error fetching tailors:', error);
+      } catch {
         setAvailableTailors([]);
       }
-      
-      // Fetch available fabrics
+
+      // Fetch fabrics
       try {
-        const fabricsResponse = await apiCall('SELLER_SERVICE', '/api/public/products?limit=20&isActive=true', {
-          method: 'GET'
-        });
-        
+        const fabricsResponse = await apiCall(
+          "SELLER_SERVICE",
+          "/api/public/products?limit=20&isActive=true",
+          { method: "GET" }
+        );
         if (fabricsResponse.success && fabricsResponse.data) {
-          const transformedFabrics = fabricsResponse.data.map(fabric => ({
-            _id: fabric._id,
-            name: fabric.name,
-            price: fabric.price,
-            color: fabric.color,
-            pattern: fabric.pattern || 'Solid',
-            category: fabric.category,
-            images: fabric.images ? fabric.images.map(img => img.url || img) : [],
-            seller: { 
-              name: fabric.seller?.name || 'Unknown Seller'
-            }
-          }));
-          setAvailableFabrics(transformedFabrics);
+          fabricsRaw = fabricsResponse.data;
+          setAvailableFabrics(
+            fabricsResponse.data.map((f) => ({
+              _id: f._id,
+              name: f.name,
+              price: f.price,
+              color: f.color,
+              category: f.category,
+              images: Array.isArray(f.images) ? f.images.map((img) => (img?.url ? img.url : img)) : [],
+              seller: f.seller?.name || "Unknown",
+            }))
+          );
         }
-      } catch (error) {
-        console.error('Error fetching fabrics:', error);
+      } catch {
         setAvailableFabrics([]);
       }
-      
-      // Fetch measurements
-      try {
-        const measurementsResponse = await apiCall('CUSTOMER_SERVICE', '/api/measurements', {
-          method: 'GET'
-        });
-        
-        if (measurementsResponse.success && measurementsResponse.data) {
-          setMeasurements(measurementsResponse.data);
+
+      // If fabric was preselected (from Cart or Tailor profile), set it
+      const preselectedId = location.state?.preselectedFabricId || bookingState.selectedFabricId || null;
+      if (preselectedId) {
+        const match = fabricsRaw?.find((f) => f._id === preselectedId);
+        if (match) {
+          setSelectedFabric(match);
+          setBookingData((p) => ({ ...p, fabricId: match._id, fabricCost: match.price, serviceType: "fabric-tailor" }));
         } else {
-          // Set default measurements if none available
-          setMeasurements([
-            {
-              _id: 'default',
-              measurementName: 'Standard Measurements',
-              measurements: {
-                chest: 42,
-                waist: 36,
-                shoulder: 18,
-                sleeve: 24
-              }
-            }
-          ]);
+          // Fallback to cart items if available with same id shape
+          const cartFabric = items.find((it) => it.type === "fabric" && (it._id === preselectedId || it.id === preselectedId));
+          if (cartFabric) {
+            const candidate = {
+              _id: cartFabric._id || cartFabric.id,
+              name: cartFabric.name,
+              price: cartFabric.price,
+              color: cartFabric.color,
+              category: cartFabric.category,
+              images: Array.isArray(cartFabric.images)
+                ? cartFabric.images.map((img) => (img?.url ? img.url : img))
+                : cartFabric.image
+                ? [cartFabric.image]
+                : [],
+              seller: cartFabric.seller?.name || cartFabric.seller || "Unknown",
+            };
+            setSelectedFabric(candidate);
+            setBookingData((p) => ({ ...p, fabricId: candidate._id, fabricCost: candidate.price, serviceType: "fabric-tailor" }));
+          }
         }
-      } catch (error) {
-        console.error('Error fetching measurements:', error);
+        setServiceType("fabric-tailor");
+        setFlowStep(1);
+      }
+
+      // Measurements
+      try {
+        const mRes = await apiCall("CUSTOMER_SERVICE", "/api/measurements", {
+          method: "GET",
+        });
+        if (mRes.success && mRes.data) setMeasurements(mRes.data);
+      } catch {
         setMeasurements([
           {
-            _id: 'default',
-            measurementName: 'Standard Measurements',
-            measurements: {
-              chest: 42,
-              waist: 36,
-              shoulder: 18,
-              sleeve: 24
-            }
-          }
+            _id: "default",
+            measurementName: "Standard",
+            measurements: { chest: 42, waist: 36 },
+          },
         ]);
       }
-      
-      // Fetch addresses
+
+      // Addresses
       try {
-        const addressesResponse = await apiCall('CUSTOMER_SERVICE', '/api/addresses', {
-          method: 'GET'
+        const aRes = await apiCall("CUSTOMER_SERVICE", "/api/addresses", {
+          method: "GET",
         });
-        
-        if (addressesResponse.success && addressesResponse.data) {
-          setAddresses(addressesResponse.data);
-        } else {
-          // Set default address if none available
-          setAddresses([
-            {
-              _id: 'default',
-              addressLine: 'Please add your address',
-              city: 'City',
-              state: 'State',
-              pincode: '000000',
-              landmark: 'Landmark',
-              isDefault: true
-            }
-          ]);
-        }
-      } catch (error) {
-        console.error('Error fetching addresses:', error);
+        if (aRes.success && aRes.data) setAddresses(aRes.data);
+      } catch {
         setAddresses([
           {
-            _id: 'default',
-            addressLine: 'Please add your address',
-            city: 'City',
-            state: 'State',
-            pincode: '000000',
-            landmark: 'Landmark',
-            isDefault: true
-          }
+            _id: "default",
+            addressLine: "Add your address",
+            city: "City",
+            state: "State",
+            pincode: "000000",
+            isDefault: true,
+          },
         ]);
       }
-      
-      // Set pre-selected items if coming from product/tailor pages
-      if (bookingData.tailorId) {
-        const tailor = availableTailors.find(t => t._id === bookingData.tailorId);
-        if (tailor) setSelectedTailor(tailor);
-      }
-      
-      if (bookingData.fabricId) {
-        const fabric = availableFabrics.find(f => f._id === bookingData.fabricId);
-        if (fabric) setSelectedFabric(fabric);
-      }
-      
-    } catch (error) {
-      console.error('Error fetching initial data:', error);
     } finally {
       setLoading(false);
     }
   };
 
   const handleNext = () => {
-    if (currentStep < 5) {
-      setCurrentStep(currentStep + 1);
-    }
+    if (currentStep < steps.length) setCurrentStep(currentStep + 1);
   };
 
   const handlePrevious = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-    }
+    if (currentStep > 1) setCurrentStep(currentStep - 1);
   };
 
-  const handleTailorSelect = (tailor) => {
-    setSelectedTailor(tailor);
-    setBookingData(prev => ({
-      ...prev,
-      tailorId: tailor._id,
-      tailoringCost: tailor.services[0]?.price || 0
+  const handleTailorSelect = (t) => {
+    setSelectedTailor(t);
+    setBookingData((p) => ({
+      ...p,
+      tailorId: t._id,
+      tailoringCost: t.services[0]?.price || 0,
     }));
   };
 
-  const handleFabricSelect = (fabric) => {
-    setSelectedFabric(fabric);
-    setBookingData(prev => ({
-      ...prev,
-      fabricId: fabric._id,
-      fabricCost: fabric.price
-    }));
-  };
-
-  const handleMeasurementSelect = (measurement) => {
-    setBookingData(prev => ({
-      ...prev,
-      measurementId: measurement._id
-    }));
-  };
-
-  const handleAddressSelect = (address) => {
-    setBookingData(prev => ({
-      ...prev,
-      addressId: address._id,
-      deliveryAddress: address
+  const handleFabricSelect = (f) => {
+    setSelectedFabric(f);
+    setBookingData((p) => ({
+      ...p,
+      fabricId: f._id,
+      fabricCost: f.price,
     }));
   };
 
   const calculateTotal = () => {
-    const fabricCost = selectedFabric ? selectedFabric.price * bookingData.quantity : 0;
-    const tailoringCost = selectedTailor ? selectedTailor.services[0]?.price || 0 : 0;
+    const fabricCost = selectedFabric
+      ? selectedFabric.price * bookingData.quantity
+      : 0;
+    const tailoringCost = selectedTailor?.services[0]?.price || 0;
     const total = fabricCost + tailoringCost;
-    const advance = Math.round(total * 0.3); // 30% advance
-    
-    setBookingData(prev => ({
-      ...prev,
+    setBookingData((p) => ({
+      ...p,
       fabricCost,
       tailoringCost,
       totalCost: total,
-      advanceAmount: advance
+      advanceAmount: Math.round(total * 0.3),
     }));
   };
 
@@ -288,507 +374,574 @@ const BookingFlow = () => {
     calculateTotal();
   }, [selectedFabric, selectedTailor, bookingData.quantity]);
 
-  const handleSubmitBooking = async () => {
-    try {
-      setLoading(true);
-      
-      const finalBookingData = {
-        bookingType: bookingData.serviceType,
-        tailorId: bookingData.tailorId,
-        fabricId: bookingData.fabricId,
-        measurementId: bookingData.measurementId,
-        addressId: bookingData.addressId,
-        description: bookingData.instructions,
-        preferredDate: bookingData.preferredDate,
-        budget: bookingData.totalCost,
-        status: 'pending',
-        orderDetails: {
-          garmentType: bookingData.garmentType,
-          quantity: bookingData.quantity,
-          design: bookingData.design,
-          instructions: bookingData.instructions
-        },
-        pricing: {
-          fabricCost: bookingData.fabricCost,
-          tailoringCost: bookingData.tailoringCost,
-          totalAmount: bookingData.totalCost,
-          advanceAmount: bookingData.advanceAmount,
-          remainingAmount: bookingData.totalCost - bookingData.advanceAmount,
-          paymentStatus: 'pending'
-        },
-        deliveryAddress: bookingData.deliveryAddress,
-        timeline: {
-          created: new Date().toISOString(),
-          estimatedDelivery: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 14 days from now
-        }
-      };
-      
-      const response = await apiCall('CUSTOMER_SERVICE', '/api/bookings', {
-        method: 'POST',
-        body: finalBookingData
-      });
-      
-      if (response.success) {
-        // Navigate to booking confirmation
-        navigate('/customer/bookings', { 
-          state: { 
-            message: 'Booking created successfully!',
-            bookingId: response.data._id || response.data.id
-          }
-        });
-      } else {
-        console.error('Failed to create booking:', response.message);
-        // Show error message to user
-        alert('Failed to create booking. Please try again.');
-      }
-      
-    } catch (error) {
-      console.error('Error creating booking:', error);
-      alert('An error occurred while creating the booking. Please try again.');
-    } finally {
-      setLoading(false);
+  // Define steps based on the new flow
+  const getSteps = () => {
+    const baseSteps = [
+      { id: 1, title: "Select Fabric", icon: FiShoppingBag, description: "Choose or confirm your fabric" },
+      { id: 2, title: "Review Cart", icon: FiShoppingCart, description: "Review your fabric selection" },
+    ];
+
+    if (bookingData.serviceType === 'fabric-tailor') {
+      return [
+        ...baseSteps,
+        { id: 3, title: "Select Design", icon: FiPackage, description: "Choose your design preference" },
+        { id: 4, title: "Choose Tailor", icon: FiScissors, description: "Select your preferred tailor" },
+        { id: 5, title: "Measurements", icon: FiUser, description: "Provide your measurements" },
+        { id: 6, title: "Confirm Order", icon: FiCheck, description: "Review and confirm your order" },
+      ];
+    } else if (bookingData.serviceType === 'fabric-only') {
+      return [
+        ...baseSteps,
+        { id: 3, title: "Confirm Order", icon: FiCheck, description: "Review and confirm your order" },
+      ];
     }
+
+    return baseSteps;
   };
 
-  const steps = [
-    { id: 1, title: 'Service Type', icon: FiPackage },
-    { id: 2, title: 'Select Tailor', icon: FiScissors },
-    { id: 3, title: 'Choose Fabric', icon: FiShoppingBag },
-    { id: 4, title: 'Measurements', icon: FiUser },
-    { id: 5, title: 'Review & Book', icon: FiCheck }
-  ];
+  const steps = getSteps();
+
+  const cartFabrics = useMemo(() => items.filter((it) => it.type === "fabric"), [items]);
 
   const renderStepContent = () => {
-    switch (currentStep) {
-      case 1:
+    const currentStepTitle = steps[currentStep - 1]?.title;
+    
+    switch (currentStepTitle) {
+      case "Select Fabric":
         return (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-900">What would you like to book?</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <button
-                onClick={() => setBookingData(prev => ({ ...prev, serviceType: 'tailor' }))}
-                className={`p-6 border-2 rounded-lg text-left transition-all ${
-                  bookingData.serviceType === 'tailor'
-                    ? 'border-amber-500 bg-amber-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <FiScissors className="w-8 h-8 text-amber-500 mb-4" />
-                <h3 className="font-semibold text-gray-900 mb-2">Tailor Only</h3>
-                <p className="text-sm text-gray-600">I have my own fabric, just need tailoring services</p>
-              </button>
-              
-              <button
-                onClick={() => setBookingData(prev => ({ ...prev, serviceType: 'fabric' }))}
-                className={`p-6 border-2 rounded-lg text-left transition-all ${
-                  bookingData.serviceType === 'fabric'
-                    ? 'border-amber-500 bg-amber-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <FiShoppingBag className="w-8 h-8 text-amber-500 mb-4" />
-                <h3 className="font-semibold text-gray-900 mb-2">Fabric Only</h3>
-                <p className="text-sm text-gray-600">I need fabric, will find my own tailor</p>
-              </button>
-              
-              <button
-                onClick={() => setBookingData(prev => ({ ...prev, serviceType: 'complete' }))}
-                className={`p-6 border-2 rounded-lg text-left transition-all ${
-                  bookingData.serviceType === 'complete'
-                    ? 'border-amber-500 bg-amber-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <FiPackage className="w-8 h-8 text-amber-500 mb-4" />
-                <h3 className="font-semibold text-gray-900 mb-2">Complete Package</h3>
-                <p className="text-sm text-gray-600">I need both fabric and tailoring services</p>
-              </button>
-            </div>
-            
-            <div className="mt-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Garment Type
-              </label>
-              <select
-                value={bookingData.garmentType}
-                onChange={(e) => setBookingData(prev => ({ ...prev, garmentType: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-              >
-                <option value="">Select garment type</option>
-                <option value="shirt">Shirt</option>
-                <option value="pants">Pants</option>
-                <option value="suit">Suit</option>
-                <option value="dress">Dress</option>
-                <option value="saree">Saree</option>
-                <option value="kurta">Kurta</option>
-              </select>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Quantity
-                </label>
-                <div className="flex items-center border border-gray-300 rounded-lg">
-                  <button
-                    onClick={() => setBookingData(prev => ({ ...prev, quantity: Math.max(1, prev.quantity - 1) }))}
-                    className="p-2 hover:bg-gray-100"
-                  >
-                    <FiMinus className="w-4 h-4" />
-                  </button>
-                  <span className="px-4 py-2 border-x border-gray-300">{bookingData.quantity}</span>
-                  <button
-                    onClick={() => setBookingData(prev => ({ ...prev, quantity: prev.quantity + 1 }))}
-                    className="p-2 hover:bg-gray-100"
-                  >
-                    <FiPlus className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Design Description
-                </label>
-                <input
-                  type="text"
-                  value={bookingData.design}
-                  onChange={(e) => setBookingData(prev => ({ ...prev, design: e.target.value }))}
-                  placeholder="Describe your design requirements"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
-              </div>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Special Instructions
-              </label>
-              <textarea
-                value={bookingData.instructions}
-                onChange={(e) => setBookingData(prev => ({ ...prev, instructions: e.target.value }))}
-                placeholder="Any special requirements or instructions..."
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-              />
-            </div>
-          </div>
-        );
-
-      case 2:
-        return (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-900">Select a Tailor</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {availableTailors && availableTailors.length > 0 ? availableTailors.map((tailor) => (
-                <div
-                  key={tailor._id}
-                  onClick={() => handleTailorSelect(tailor)}
-                  className={`p-6 border-2 rounded-lg cursor-pointer transition-all ${
-                    selectedTailor?._id === tailor._id
-                      ? 'border-amber-500 bg-amber-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
+            <div className="text-center">
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">Choose Your Fabric</h2>
+              {selectedFabric ? (
+                <p className="text-gray-700">
+                  Fabric Selected: <span className="font-semibold">{selectedFabric.name}</span>
+                </p>
+              ) : (
+                <p className="text-gray-600">Select the fabric to continue</p>
+              )}
+              {selectedFabric && (
+                <button
+                  onClick={() => { setSelectedFabric(null); setCtxSelectedFabric(null); setBookingData((p) => ({ ...p, fabricId: null, fabricCost: 0 })); }}
+                  className="mt-3 inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
                 >
-                  <div className="flex items-start space-x-4">
-                    <div className="w-16 h-16 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
-                      <FiUser className="w-8 h-8 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900">{tailor.firstname} {tailor.lastname}</h3>
-                      <p className="text-sm text-gray-600">{tailor.shopName}</p>
-                      <div className="flex items-center mt-2">
-                        <div className="flex items-center">
-                          {[...Array(5)].map((_, i) => (
-                            <FiStar
-                              key={i}
-                              className={`w-4 h-4 ${
-                                i < Math.floor(tailor.rating)
-                                  ? 'text-yellow-400 fill-current'
-                                  : 'text-gray-300'
-                              }`}
-                            />
-                          ))}
-                        </div>
-                        <span className="ml-2 text-sm text-gray-600">{tailor.rating} ({tailor.experience} years exp)</span>
-                      </div>
-                      <p className="text-sm text-gray-500 mt-1">{tailor.location}</p>
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {tailor.specializations.slice(0, 2).map((spec, index) => (
-                          <span key={index} className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
-                            {spec}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )) : (
-                <div className="col-span-2 text-center py-8">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <FiScissors className="w-8 h-8 text-gray-400" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No tailors found</h3>
-                  <p className="text-gray-600 mb-4">No verified tailors are available at the moment</p>
-                </div>
+                  Change Fabric
+                </button>
               )}
             </div>
-          </div>
-        );
+            
+            {!selectedFabric && (
+            <>
+            {cartFabrics.length > 0 && (
+              <div className="bg-white rounded-lg shadow-md p-4">
+                <h3 className="text-lg font-semibold mb-3">Your Cart Fabrics</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {cartFabrics.map((cf) => (
+                    <div key={cf.id} className="border rounded-lg p-3 cursor-pointer hover:shadow" onClick={() => {
+                      const candidate = { _id: cf._id || cf.id, name: cf.name, price: cf.price, color: cf.color, category: cf.category, images: Array.isArray(cf.images) ? cf.images.map((img) => (img?.url ? img.url : img)) : (cf.image ? [cf.image] : []) };
+                      setSelectedFabric(candidate);
+                      setCtxSelectedFabric(candidate._id);
+                      setBookingData((p) => ({ ...p, fabricId: candidate._id, fabricCost: candidate.price }));
+                    }}>
+                      <div className="aspect-w-16 aspect-h-12 mb-2">
+                        <img src={(Array.isArray(cf.images) && (cf.images[0]?.url || cf.images[0])) || cf.image || '/placeholder-fabric.jpg'} alt={cf.name} className="w-full h-32 object-cover rounded" />
+                      </div>
+                      <div className="font-medium">{cf.name}</div>
+                      <div className="text-sm text-gray-600">₹{cf.price}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-      case 3:
-        return (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-900">Choose Fabric</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {availableFabrics && availableFabrics.length > 0 ? availableFabrics.map((fabric) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-2">
+              {availableFabrics.map((fabric) => (
                 <div
                   key={fabric._id}
-                  onClick={() => handleFabricSelect(fabric)}
-                  className={`border-2 rounded-lg cursor-pointer transition-all ${
-                    selectedFabric?._id === fabric._id
-                      ? 'border-amber-500 bg-amber-50'
-                      : 'border-gray-200 hover:border-gray-300'
+                  className={`bg-white rounded-lg shadow-md border-2 transition-all duration-200 cursor-pointer hover:shadow-lg ${
+                    bookingData.selectedFabrics.some(f => f._id === fabric._id)
+                      ? "border-amber-500 shadow-lg"
+                      : "border-gray-200"
                   }`}
+                  onClick={() => {
+                    setSelectedFabric(fabric);
+                    setCtxSelectedFabric(fabric._id);
+                    setBookingData(prev => ({ ...prev, fabricId: fabric._id, fabricCost: fabric.price }));
+                  }}
                 >
-                  <div className="aspect-square bg-gray-100 rounded-t-lg overflow-hidden">
-                    <img
-                      src={fabric.images[0]}
-                      alt={fabric.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
                   <div className="p-4">
-                    <h3 className="font-semibold text-gray-900">{fabric.name}</h3>
-                    <p className="text-sm text-gray-600">{fabric.category} • {fabric.pattern}</p>
-                    <div className="flex items-center justify-between mt-2">
-                      <div className="flex items-center space-x-2">
-                        <div
-                          className="w-4 h-4 rounded-full border border-gray-300"
-                          style={{ backgroundColor: fabric.color }}
-                        ></div>
-                        <span className="text-sm text-gray-600">{fabric.color}</span>
-                      </div>
-                      <span className="font-bold text-gray-900">₹{fabric.price}/m</span>
+                    <div className="aspect-w-16 aspect-h-12 mb-4">
+                      <img
+                        src={(Array.isArray(fabric.images) && fabric.images[0]) || fabric.image || '/placeholder-fabric.jpg'}
+                        alt={fabric.name}
+                        className="w-full h-48 object-cover rounded-lg"
+                      />
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">by {fabric.seller.name}</p>
-                  </div>
-                </div>
-              )) : (
-                <div className="col-span-3 text-center py-8">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <FiShoppingBag className="w-8 h-8 text-gray-400" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No fabrics found</h3>
-                  <p className="text-gray-600 mb-4">No fabrics are available at the moment</p>
-                </div>
-              )}
-            </div>
-          </div>
-        );
-
-      case 4:
-        return (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-900">Select Measurements</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {measurements && measurements.length > 0 ? measurements.map((measurement) => (
-                <div
-                  key={measurement._id}
-                  onClick={() => handleMeasurementSelect(measurement)}
-                  className={`p-6 border-2 rounded-lg cursor-pointer transition-all ${
-                    bookingData.measurementId === measurement._id
-                      ? 'border-amber-500 bg-amber-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <h3 className="font-semibold text-gray-900 mb-4">{measurement.measurementName || 'Measurement'}</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    {measurement.measurements && Object.entries(measurement.measurements).map(([key, value]) => (
-                      <div key={key} className="text-sm">
-                        <span className="text-gray-600 capitalize">{key}:</span>
-                        <span className="ml-2 font-medium text-gray-900">{value}"</span>
-                      </div>
-                    ))}
-                    {(!measurement.measurements || Object.keys(measurement.measurements).length === 0) && (
-                      <div className="col-span-2 text-sm text-gray-500">
-                        No measurements available
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )) : (
-                <div className="col-span-2 text-center py-8">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <FiUser className="w-8 h-8 text-gray-400" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No measurements found</h3>
-                  <p className="text-gray-600 mb-4">Please add your measurements first</p>
-                  <button
-                    onClick={() => navigate('/customer/measurements')}
-                    className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors"
-                  >
-                    Add Measurements
-                  </button>
-                </div>
-              )}
-            </div>
-            
-            <div className="mt-8">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Delivery Address</h3>
-              <div className="space-y-4">
-                {addresses && addresses.length > 0 ? addresses.map((address) => (
-                  <div
-                    key={address._id}
-                    onClick={() => handleAddressSelect(address)}
-                    className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                      bookingData.addressId === address._id
-                        ? 'border-amber-500 bg-amber-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="font-medium text-gray-900">{address.addressLine}</p>
-                        <p className="text-sm text-gray-600">
-                          {address.city}, {address.state} - {address.pincode}
-                        </p>
-                        <p className="text-sm text-gray-500">{address.landmark}</p>
-                      </div>
-                      {address.isDefault && (
-                        <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">
-                          Default
-                        </span>
+                    <h3 className="font-semibold text-lg text-gray-900 mb-2">{fabric.name}</h3>
+                    <p className="text-gray-600 text-sm mb-2">Color: {fabric.color}</p>
+                    <p className="text-gray-600 text-sm mb-2">Category: {fabric.category}</p>
+                    <p className="text-gray-600 text-sm mb-3">Seller: {fabric.seller}</p>
+                    <div className="flex justify-between items-center">
+                      <span className="text-2xl font-bold text-amber-600">₹{fabric.price}</span>
+                      {bookingData.fabricId === fabric._id && (
+                        <div className="bg-amber-100 text-amber-800 px-2 py-1 rounded-full text-sm font-medium">Selected</div>
                       )}
                     </div>
                   </div>
-                )) : (
-                  <div className="text-center py-8">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <FiMapPin className="w-8 h-8 text-gray-400" />
+                </div>
+              ))}
+            </div>
+            </>) }
+          </div>
+        );
+
+      case "Review Cart":
+        return (
+          <div className="space-y-6">
+            <div className="text-center">
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">Review Your Cart</h2>
+              <p className="text-gray-600">Review your fabric selection and choose your service type</p>
+            </div>
+            
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h3 className="text-xl font-semibold mb-4">Selected Fabrics</h3>
+              {selectedFabric ? (
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center space-x-4">
+                    <img
+                      src={(Array.isArray(selectedFabric.images) && (selectedFabric.images[0]?.url || selectedFabric.images[0])) || selectedFabric.image || '/placeholder-fabric.jpg'}
+                      alt={selectedFabric.name}
+                      className="w-16 h-16 object-cover rounded"
+                    />
+                    <div>
+                      <h4 className="font-medium">{selectedFabric.name}</h4>
+                      <p className="text-gray-600 text-sm">{selectedFabric.color} • {selectedFabric.category}</p>
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No addresses found</h3>
-                    <p className="text-gray-600 mb-4">Please add your delivery address first</p>
-                    <button
-                      onClick={() => navigate('/customer/addresses')}
-                      className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors"
-                    >
-                      Add Address
-                    </button>
                   </div>
-                )}
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => {
+                          if (bookingData.quantity > 1) {
+                            setBookingData(prev => ({ ...prev, quantity: prev.quantity - 1 }));
+                          }
+                        }}
+                        className="p-1 rounded-full hover:bg-gray-100"
+                      >
+                        <FiMinus className="h-4 w-4" />
+                      </button>
+                      <span className="min-w-[3rem] text-center">{bookingData.quantity} m</span>
+                      <button
+                        onClick={() => setBookingData(prev => ({ ...prev, quantity: prev.quantity + 1 }))}
+                        className="p-1 rounded-full hover:bg-gray-100"
+                      >
+                        <FiPlus className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <span className="font-semibold">₹{(selectedFabric.price || 0) * (bookingData.quantity || 1)}</span>
+                  </div>
+                </div>
+              ) : bookingData.selectedFabrics.length === 0 ? (
+                <p className="text-gray-500">No fabrics selected</p>
+              ) : (
+                <div className="space-y-4">
+                  {bookingData.selectedFabrics.map((fabric, index) => (
+                    <div key={fabric._id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center space-x-4">
+                        <img
+                          src={(Array.isArray(fabric.images) && (fabric.images[0]?.url || fabric.images[0])) || fabric.image || '/placeholder-fabric.jpg'}
+                          alt={fabric.name}
+                          className="w-16 h-16 object-cover rounded"
+                        />
+                        <div>
+                          <h4 className="font-medium">{fabric.name}</h4>
+                          <p className="text-gray-600 text-sm">{fabric.color} • {fabric.category}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-4">
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => {
+                              if (fabric.quantity > 1) {
+                                const updatedFabrics = [...bookingData.selectedFabrics];
+                                updatedFabrics[index].quantity -= 1;
+                                setBookingData(prev => ({ ...prev, selectedFabrics: updatedFabrics }));
+                              }
+                            }}
+                            className="p-1 rounded-full hover:bg-gray-100"
+                          >
+                            <FiMinus className="h-4 w-4" />
+                          </button>
+                          <span className="min-w-[3rem] text-center">{fabric.quantity} m</span>
+                          <button
+                            onClick={() => {
+                              const updatedFabrics = [...bookingData.selectedFabrics];
+                              updatedFabrics[index].quantity += 1;
+                              setBookingData(prev => ({ ...prev, selectedFabrics: updatedFabrics }));
+                            }}
+                            className="p-1 rounded-full hover:bg-gray-100"
+                          >
+                            <FiPlus className="h-4 w-4" />
+                          </button>
+                        </div>
+                        <span className="font-semibold">₹{fabric.price * fabric.quantity}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h3 className="text-xl font-semibold mb-4">Choose Service Type</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button
+                  onClick={() => setBookingData(prev => ({ ...prev, serviceType: 'fabric-only' }))}
+                  className={`p-6 border-2 rounded-lg text-left transition-all duration-200 ${
+                    bookingData.serviceType === 'fabric-only'
+                      ? 'border-amber-500 bg-amber-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <FiShoppingBag className="h-8 w-8 text-amber-600" />
+                    <div>
+                      <h4 className="font-semibold text-lg">Fabric Only</h4>
+                      <p className="text-gray-600">Just the fabrics, no tailoring</p>
+                    </div>
+                  </div>
+                </button>
+                
+                <button
+                  onClick={() => setBookingData(prev => ({ ...prev, serviceType: 'fabric-tailor' }))}
+                  className={`p-6 border-2 rounded-lg text-left transition-all duration-200 ${
+                    bookingData.serviceType === 'fabric-tailor'
+                      ? 'border-amber-500 bg-amber-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <FiScissors className="h-8 w-8 text-amber-600" />
+                    <div>
+                      <h4 className="font-semibold text-lg">Fabric + Tailoring</h4>
+                      <p className="text-gray-600">Fabrics with custom tailoring</p>
+                    </div>
+                  </div>
+                </button>
               </div>
             </div>
           </div>
         );
 
-      case 5:
+      case "Select Design":
         return (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-900">Review Your Booking</h2>
+            <div className="text-center">
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">Choose Your Design</h2>
+              <p className="text-gray-600">Select from our curated collection of designs from the database</p>
+            </div>
             
-            {/* Service Summary */}
-            <div className="bg-gray-50 rounded-lg p-6">
-              <h3 className="font-semibold text-gray-900 mb-4">Service Summary</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Service Type:</span>
-                  <span className="font-medium text-gray-900 capitalize">{bookingData.serviceType}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Garment:</span>
-                  <span className="font-medium text-gray-900 capitalize">{bookingData.garmentType}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Quantity:</span>
-                  <span className="font-medium text-gray-900">{bookingData.quantity}</span>
-                </div>
-              </div>
+            {/* Design Type Selection */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              <button
+                onClick={() => setBookingData(prev => ({ ...prev, designType: 'predefined' }))}
+                className={`p-6 border-2 rounded-lg text-left transition-all duration-200 ${
+                  bookingData.designType === 'predefined'
+                    ? 'border-amber-500 bg-amber-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <h3 className="text-xl font-semibold mb-2">Predefined Designs</h3>
+                <p className="text-gray-600">Choose from our curated collection of designs</p>
+              </button>
+              
+              <button
+                onClick={() => setBookingData(prev => ({ ...prev, designType: 'custom' }))}
+                className={`p-6 border-2 rounded-lg text-left transition-all duration-200 ${
+                  bookingData.designType === 'custom'
+                    ? 'border-amber-500 bg-amber-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <h3 className="text-xl font-semibold mb-2">Custom Design</h3>
+                <p className="text-gray-600">Describe your custom design requirements</p>
+              </button>
             </div>
 
-            {/* Tailor Info */}
-            {selectedTailor && (
-              <div className="bg-blue-50 rounded-lg p-6">
-                <h3 className="font-semibold text-gray-900 mb-4">Selected Tailor</h3>
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
-                    <FiUser className="w-6 h-6 text-white" />
+            {/* Predefined Design Selection */}
+            {bookingData.designType === 'predefined' && (
+              <div className="space-y-6">
+                <DesignSelection 
+                  onDesignSelect={(design) => {
+                    console.log('Selected design in booking flow:', design);
+                    setBookingData(prev => ({ 
+                      ...prev, 
+                      selectedDesign: design,
+                      designType: 'predefined'
+                    }));
+                  }}
+                  selectedDesignId={bookingData.selectedDesign?._id}
+                />
+                
+                {bookingData.selectedDesign && (
+                  <div className="bg-white rounded-lg shadow-md p-6 border-2 border-amber-500">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        Selected Design
+                      </h3>
+                      <button
+                        onClick={() => setBookingData(prev => ({ ...prev, selectedDesign: null }))}
+                        className="text-sm text-amber-600 hover:text-amber-800 transition-colors"
+                      >
+                        Change Selection
+                      </button>
+                    </div>
+                    
+                    <div className="flex items-start space-x-4">
+                      <img
+                        src={bookingData.selectedDesign.image}
+                        alt={bookingData.selectedDesign.name}
+                        className="w-24 h-32 object-cover rounded-lg"
+                        onError={(e) => {
+                          e.target.src = 'https://via.placeholder.com/96x128?text=Design+Image';
+                        }}
+                      />
+                      
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-gray-900 mb-2">
+                          {bookingData.selectedDesign.name}
+                        </h4>
+                        <p className="text-sm text-gray-600 mb-2">
+                          {bookingData.selectedDesign.description}
+                        </p>
+                        <div className="flex items-center space-x-4 text-sm text-gray-500">
+                          <span className="capitalize">{bookingData.selectedDesign.category}</span>
+                          <span className="capitalize">{bookingData.selectedDesign.difficulty}</span>
+                          {bookingData.selectedDesign.price && (
+                            <span className="font-medium text-green-600">
+                              ${bookingData.selectedDesign.price}
+                            </span>
+                          )}
+                        </div>
+                        {bookingData.selectedDesign.sizeCriteria && bookingData.selectedDesign.sizeCriteria.length > 0 && (
+                          <div className="mt-2">
+                            <span className="text-xs text-blue-600">
+                              Size criteria: {bookingData.selectedDesign.sizeCriteria.join(', ')}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-medium text-gray-900">{selectedTailor.firstname} {selectedTailor.lastname}</h4>
-                    <p className="text-sm text-gray-600">{selectedTailor.shopName}</p>
-                    <p className="text-sm text-gray-500">{selectedTailor.location}</p>
-                  </div>
-                </div>
+                )}
               </div>
             )}
 
-            {/* Fabric Info */}
-            {selectedFabric && (
-              <div className="bg-green-50 rounded-lg p-6">
-                <h3 className="font-semibold text-gray-900 mb-4">Selected Fabric</h3>
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden">
-                    <img
-                      src={selectedFabric.images[0]}
-                      alt={selectedFabric.name}
-                      className="w-full h-full object-cover"
-                    />
+            {/* Custom Design Input */}
+            {bookingData.designType === 'custom' && (
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Design Instructions
+                </label>
+                <textarea
+                  value={bookingData.designInstructions}
+                  onChange={(e) => setBookingData(prev => ({ ...prev, designInstructions: e.target.value }))}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  rows={4}
+                  placeholder="Describe your custom design requirements..."
+                />
+              </div>
+            )}
+          </div>
+        );
+
+      case "Choose Tailor":
+        return (
+          <div className="space-y-6">
+            <div className="text-center">
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">Select Your Tailor</h2>
+              <p className="text-gray-600">Choose from our verified and experienced tailors</p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {availableTailors.map((tailor) => (
+                <div
+                  key={tailor._id}
+                  className={`bg-white rounded-lg shadow-md border-2 transition-all duration-200 cursor-pointer hover:shadow-lg ${
+                    bookingData.tailorId === tailor._id
+                      ? "border-amber-500 shadow-lg"
+                      : "border-gray-200"
+                  }`}
+                  onClick={() => setBookingData(prev => ({ ...prev, tailorId: tailor._id }))}
+                >
+                  <div className="p-6">
+                    <div className="flex items-center space-x-3 mb-4">
+                      <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
+                        <FiScissors className="h-6 w-6 text-amber-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-lg">{tailor.shopName}</h3>
+                        <p className="text-gray-600">{tailor.firstname} {tailor.lastname}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center space-x-2">
+                        <FiStar className="h-4 w-4 text-yellow-500" />
+                        <span className="text-sm text-gray-600">{tailor.rating}/5.0</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <FiClock className="h-4 w-4 text-gray-400" />
+                        <span className="text-sm text-gray-600">{tailor.experience} years experience</span>
+                      </div>
+                    </div>
+                    
+                    <div className="border-t pt-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-2xl font-bold text-amber-600">₹{tailor.services[0]?.price}</span>
+                        {bookingData.tailorId === tailor._id && (
+                          <div className="bg-amber-100 text-amber-800 px-2 py-1 rounded-full text-sm font-medium">
+                            Selected
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-medium text-gray-900">{selectedFabric.name}</h4>
-                    <p className="text-sm text-gray-600">{selectedFabric.category} • {selectedFabric.pattern}</p>
-                    <p className="text-sm text-gray-500">by {selectedFabric.seller.name}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+
+      case "Measurements":
+        return (
+          <div className="space-y-6">
+            <div className="text-center">
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">Your Measurements</h2>
+              <p className="text-gray-600">Select your measurements or add custom ones</p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {measurements.map((measurement) => (
+                <div
+                  key={measurement._id}
+                  className={`p-6 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
+                    bookingData.measurementId === measurement._id
+                      ? "border-amber-500 bg-amber-50"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                  onClick={() => setBookingData(prev => ({ ...prev, measurementId: measurement._id }))}
+                >
+                  <h3 className="font-semibold text-lg mb-2">{measurement.measurementName}</h3>
+                  <div className="space-y-1">
+                    {Object.entries(measurement.measurements || {}).map(([key, value]) => (
+                      <div key={key} className="flex justify-between text-sm text-gray-600">
+                        <span className="capitalize">{key}:</span>
+                        <span>{value}"</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+
+      case "Confirm Order":
+        return (
+          <div className="space-y-6">
+            <div className="text-center">
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">Confirm Your Order</h2>
+              <p className="text-gray-600">Review all details before placing your order</p>
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="space-y-6">
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <h3 className="text-xl font-semibold mb-4">Order Summary</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-medium">Fabrics</h4>
+                      {bookingData.selectedFabrics.map((fabric) => (
+                        <div key={fabric._id} className="flex justify-between text-sm text-gray-600 ml-4">
+                          <span>{fabric.name} x {fabric.quantity} m</span>
+                          <span>₹{fabric.price * fabric.quantity}</span>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {bookingData.serviceType === 'fabric-tailor' && (
+                      <>
+                        <div>
+                          <h4 className="font-medium">Tailoring</h4>
+                          <div className="flex justify-between text-sm text-gray-600 ml-4">
+                            <span>Custom tailoring</span>
+                            <span>₹{selectedTailor?.services[0]?.price || 0}</span>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <h4 className="font-medium">Design</h4>
+                          <div className="text-sm text-gray-600 ml-4">
+                            {bookingData.designType === 'custom' ? (
+                              <div>
+                                <div>Custom Design</div>
+                                {bookingData.designInstructions && (
+                                  <div className="mt-1 text-xs text-gray-500">
+                                    "{bookingData.designInstructions.substring(0, 50)}..."
+                                  </div>
+                                )}
+                              </div>
+                            ) : bookingData.selectedDesign ? (
+                              <div>
+                                <div>Predefined Design: {bookingData.selectedDesign.name}</div>
+                                <div className="text-xs text-gray-500 mt-1">
+                                  {bookingData.selectedDesign.category} • {bookingData.selectedDesign.difficulty}
+                                </div>
+                                {bookingData.selectedDesign.sizeCriteria && bookingData.selectedDesign.sizeCriteria.length > 0 && (
+                                  <div className="text-xs text-blue-600 mt-1">
+                                    Size criteria: {bookingData.selectedDesign.sizeCriteria.join(', ')}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              'No design selected'
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
-            )}
-
-            {/* Pricing */}
-            <div className="bg-amber-50 rounded-lg p-6">
-              <h3 className="font-semibold text-gray-900 mb-4">Pricing Breakdown</h3>
-              <div className="space-y-2">
-                {selectedFabric && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Fabric ({bookingData.quantity}m):</span>
-                    <span className="font-medium text-gray-900">₹{bookingData.fabricCost}</span>
-                  </div>
-                )}
-                {selectedTailor && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Tailoring:</span>
-                    <span className="font-medium text-gray-900">₹{bookingData.tailoringCost}</span>
-                  </div>
-                )}
-                <div className="border-t border-amber-200 pt-2">
-                  <div className="flex justify-between">
-                    <span className="font-semibold text-gray-900">Total:</span>
-                    <span className="font-bold text-gray-900">₹{bookingData.totalCost}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Advance (30%):</span>
-                    <span className="font-medium text-gray-900">₹{bookingData.advanceAmount}</span>
+              
+              <div className="space-y-6">
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <h3 className="text-xl font-semibold mb-4">Order Total</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span>Fabric Cost:</span>
+                      <span>₹{bookingData.fabricCost}</span>
+                    </div>
+                    {bookingData.serviceType === 'fabric-tailor' && (
+                      <div className="flex justify-between">
+                        <span>Tailoring Cost:</span>
+                        <span>₹{bookingData.tailoringCost}</span>
+                      </div>
+                    )}
+                    <div className="border-t pt-2">
+                      <div className="flex justify-between font-semibold text-lg">
+                        <span>Total:</span>
+                        <span>₹{bookingData.totalCost}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
+                
+                <button className="w-full bg-amber-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-amber-700 transition-colors">
+                  Place Order
+                </button>
               </div>
             </div>
-
-            {/* Delivery Address */}
-            {bookingData.deliveryAddress && (
-              <div className="bg-gray-50 rounded-lg p-6">
-                <h3 className="font-semibold text-gray-900 mb-4">Delivery Address</h3>
-                <div className="flex items-start space-x-2">
-                  <FiMapPin className="w-5 h-5 text-gray-500 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-gray-900">{bookingData.deliveryAddress.addressLine}</p>
-                    <p className="text-sm text-gray-600">
-                      {bookingData.deliveryAddress.city}, {bookingData.deliveryAddress.state} - {bookingData.deliveryAddress.pincode}
-                    </p>
-                    <p className="text-sm text-gray-500">{bookingData.deliveryAddress.landmark}</p>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         );
 
@@ -797,133 +950,93 @@ const BookingFlow = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading booking form...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <button
-              onClick={() => navigate(-1)}
-              className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              <FiArrowLeft className="w-5 h-5 mr-2" />
-              Back
-            </button>
-            
-            <h1 className="text-xl font-semibold text-gray-900">Create Booking</h1>
-            
-            <div className="text-sm text-gray-500">
-              Step {currentStep} of 5
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Progress Steps */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between py-4">
-            {steps.map((step, index) => {
-              const Icon = step.icon;
-              const isActive = currentStep === step.id;
-              const isCompleted = currentStep > step.id;
-              
-              return (
-                <div key={step.id} className="flex items-center">
-                  <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
-                    isCompleted
-                      ? 'bg-amber-500 border-amber-500 text-white'
-                      : isActive
-                      ? 'border-amber-500 text-amber-500'
-                      : 'border-gray-300 text-gray-400'
-                  }`}>
-                    {isCompleted ? (
-                      <FiCheck className="w-5 h-5" />
+      <Header onNavigate={navigate} />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Progress Steps */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            {steps.map((step, index) => (
+              <div key={step.id} className="flex items-center">
+                <div className="flex flex-col items-center">
+                  <div
+                    className={`w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all duration-200 ${
+                      currentStep > step.id
+                        ? "bg-amber-600 border-amber-600 text-white"
+                        : currentStep === step.id
+                        ? "bg-amber-100 border-amber-600 text-amber-600"
+                        : "bg-white border-gray-300 text-gray-400"
+                    }`}
+                  >
+                    {currentStep > step.id ? (
+                      <FiCheck className="h-6 w-6" />
                     ) : (
-                      <Icon className="w-5 h-5" />
+                      <step.icon className="h-6 w-6" />
                     )}
                   </div>
-                  <div className="ml-3">
+                  <div className="mt-2 text-center">
                     <p className={`text-sm font-medium ${
-                      isActive ? 'text-amber-600' : 'text-gray-500'
+                      currentStep >= step.id ? "text-gray-900" : "text-gray-400"
                     }`}>
                       {step.title}
                     </p>
+                    <p className="text-xs text-gray-500 mt-1">{step.description}</p>
                   </div>
-                  {index < steps.length - 1 && (
-                    <div className={`w-16 h-0.5 mx-4 ${
-                      isCompleted ? 'bg-amber-500' : 'bg-gray-300'
-                    }`} />
-                  )}
                 </div>
-              );
-            })}
+                {index < steps.length - 1 && (
+                  <div className={`flex-1 h-0.5 mx-4 ${
+                    currentStep > step.id ? "bg-amber-600" : "bg-gray-300"
+                  }`} />
+                )}
+              </div>
+            ))}
           </div>
         </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-          {renderStepContent()}
-        </div>
-
-        {/* Navigation Buttons */}
-        <div className="flex items-center justify-between mt-8">
-          <button
-            onClick={handlePrevious}
-            disabled={currentStep === 1}
-            className={`flex items-center px-6 py-3 rounded-lg font-medium transition-colors ${
-              currentStep === 1
-                ? 'text-gray-400 cursor-not-allowed'
-                : 'text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            <FiArrowLeft className="w-4 h-4 mr-2" />
-            Previous
-          </button>
-
-          {currentStep < 5 ? (
-            <button
-              onClick={handleNext}
-              className="flex items-center px-6 py-3 bg-amber-500 text-white rounded-lg font-medium hover:bg-amber-600 transition-colors"
-            >
-              Next
-              <FiArrowRight className="w-4 h-4 ml-2" />
-            </button>
+        {/* Main Content */}
+        <div className="bg-white rounded-lg shadow-lg p-8">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600"></div>
+            </div>
           ) : (
-            <button
-              onClick={handleSubmitBooking}
-              disabled={loading}
-              className="flex items-center px-6 py-3 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition-colors disabled:opacity-50"
-            >
-              {loading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Creating Booking...
-                </>
-              ) : (
-                <>
-                  <FiCheck className="w-4 h-4 mr-2" />
-                  Confirm Booking
-                </>
-              )}
-            </button>
+            <>
+              {renderStepContent()}
+
+              {/* Navigation Buttons */}
+              <div className="flex justify-between mt-8 pt-6 border-t border-gray-200">
+                <div>
+                  {currentStep > 1 && (
+                    <button
+                      onClick={handlePrevious}
+                      className="flex items-center px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                    >
+                      <FiArrowLeft className="mr-2" />
+                      Back
+                    </button>
+                  )}
+                </div>
+                
+                <div className="flex space-x-4">
+                  {currentStep < steps.length && (
+                    <button
+                      onClick={handleNext}
+                      className="flex items-center px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+                    >
+                      Next
+                      <FiArrowRight className="ml-2" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </>
           )}
         </div>
       </div>
+      
+      <Footer />
     </div>
   );
 };

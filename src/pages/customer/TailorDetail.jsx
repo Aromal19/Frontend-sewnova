@@ -14,18 +14,35 @@ import {
   FiAward,
   FiMessageCircle,
   FiCalendar,
-  FiDollarSign,
+  FiTrendingUp,
   FiScissors,
   FiImage,
   FiX,
   FiFilter,
-  FiSearch
+  FiSearch,
+  FiEye,
+  FiDownload,
+  FiThumbsUp,
+  FiShield,
+  FiZap,
+  FiTarget,
+  FiLayers,
+  FiTool,
+  FiGlobe,
+  FiBookOpen,
+  FiBriefcase,
+  FiUsers,
+  FiTrendingUp as FiStats
 } from "react-icons/fi";
 import { apiCall } from "../../config/api";
+import { useCart } from "../../context/CartContext";
+import { useBooking } from "../../context/BookingContext";
 
 const TailorDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { items } = useCart();
+  const { setSelectedFabric, setSelectedTailor, setServiceType, setCurrentStep } = useBooking();
   const [tailor, setTailor] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -146,6 +163,8 @@ const TailorDetail = () => {
     setShowBookingModal(true);
   };
 
+  const cartFabrics = items.filter((it) => it.type === 'fabric');
+
   const handleContact = (method) => {
     if (method === 'phone') {
       window.open(`tel:${tailor.phone}`);
@@ -156,10 +175,12 @@ const TailorDetail = () => {
 
   const getAvailabilityStatus = () => {
     const now = new Date();
-    const day = now.toLocaleLowerCase().slice(0, 3);
+    const dayIndex = now.getDay(); // 0 (Sun) - 6 (Sat)
+    const dayKeys = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+    const day = dayKeys[dayIndex];
     const currentTime = now.toTimeString().slice(0, 5);
     
-    const todaySchedule = tailor.availability[day];
+    const todaySchedule = tailor.availability && tailor.availability[day];
     if (!todaySchedule || !todaySchedule.available) {
       return { status: 'closed', message: 'Closed today' };
     }
@@ -365,17 +386,189 @@ const TailorDetail = () => {
 
             {/* Portfolio */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6">Portfolio</h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {portfolio.map((image, index) => (
-                  <div key={index} className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
-                    <img
-                      src={image}
-                      alt={`Portfolio ${index + 1}`}
-                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
-                    />
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-gray-900">Portfolio & Works</h2>
+                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                  <FiEye className="w-4 h-4" />
+                  <span>{portfolio.length} works showcased</span>
+                </div>
+              </div>
+              
+              {portfolio.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {portfolio.map((work, index) => (
+                    <div key={index} className="group relative bg-gray-100 rounded-lg overflow-hidden hover:shadow-lg transition-all duration-200">
+                      <div className="aspect-square">
+                        <img
+                          src={work.image || work}
+                          alt={`${work.title || `Work ${index + 1}`}`}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                        />
+                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center">
+                          <button className="opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-200 bg-white bg-opacity-90 rounded-full p-2 hover:bg-opacity-100">
+                            <FiEye className="w-5 h-5 text-gray-700" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="p-4">
+                        <h3 className="font-medium text-gray-900 mb-1">
+                          {work.title || `Work ${index + 1}`}
+                        </h3>
+                        <p className="text-sm text-gray-600 mb-2">
+                          {work.description || 'Custom tailoring work'}
+                        </p>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-500">{work.category || 'Custom'}</span>
+                          <span className="text-amber-600 font-medium">{work.year || '2024'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <FiImage className="w-8 h-8 text-gray-400" />
                   </div>
-                ))}
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Portfolio Yet</h3>
+                  <p className="text-gray-600">This tailor hasn't uploaded their work portfolio yet.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Tailor Specifications & Expertise */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-6">Specifications & Expertise</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Technical Skills */}
+                <div>
+                  <h3 className="font-medium text-gray-900 mb-4 flex items-center">
+                    <FiTool className="w-5 h-5 mr-2 text-blue-500" />
+                    Technical Skills
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Pattern Making</span>
+                      <div className="flex items-center">
+                        {[...Array(5)].map((_, i) => (
+                          <FiStar key={i} className="w-4 h-4 text-yellow-400 fill-current" />
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Fitting & Alterations</span>
+                      <div className="flex items-center">
+                        {[...Array(5)].map((_, i) => (
+                          <FiStar key={i} className="w-4 h-4 text-yellow-400 fill-current" />
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Fabric Knowledge</span>
+                      <div className="flex items-center">
+                        {[...Array(4)].map((_, i) => (
+                          <FiStar key={i} className="w-4 h-4 text-yellow-400 fill-current" />
+                        ))}
+                        <FiStar className="w-4 h-4 text-gray-300" />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Design Consultation</span>
+                      <div className="flex items-center">
+                        {[...Array(5)].map((_, i) => (
+                          <FiStar key={i} className="w-4 h-4 text-yellow-400 fill-current" />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Field Expertise */}
+                <div>
+                  <h3 className="font-medium text-gray-900 mb-4 flex items-center">
+                    <FiTarget className="w-5 h-5 mr-2 text-green-500" />
+                    Field Expertise
+                  </h3>
+                  <div className="space-y-3">
+                    {tailor.specializations.map((spec, index) => (
+                      <div key={index} className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">{spec}</span>
+                        <div className="flex items-center">
+                          <div className="w-20 bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-green-500 h-2 rounded-full" 
+                              style={{ width: `${85 + (index * 3)}%` }}
+                            ></div>
+                          </div>
+                          <span className="ml-2 text-xs text-gray-500">
+                            {85 + (index * 3)}%
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Work Process */}
+              <div className="mt-8">
+                <h3 className="font-medium text-gray-900 mb-4 flex items-center">
+                  <FiLayers className="w-5 h-5 mr-2 text-purple-500" />
+                  Work Process
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="text-center">
+                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                      <FiUser className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <h4 className="font-medium text-gray-900 text-sm">Consultation</h4>
+                    <p className="text-xs text-gray-600 mt-1">Initial discussion & measurements</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                      <FiScissors className="w-6 h-6 text-green-600" />
+                    </div>
+                    <h4 className="font-medium text-gray-900 text-sm">Design & Pattern</h4>
+                    <p className="text-xs text-gray-600 mt-1">Creating patterns & design</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                      <FiTool className="w-6 h-6 text-purple-600" />
+                    </div>
+                    <h4 className="font-medium text-gray-900 text-sm">Tailoring</h4>
+                    <p className="text-xs text-gray-600 mt-1">Cutting & stitching work</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                      <FiCheckCircle className="w-6 h-6 text-amber-600" />
+                    </div>
+                    <h4 className="font-medium text-gray-900 text-sm">Final Fitting</h4>
+                    <p className="text-xs text-gray-600 mt-1">Adjustments & delivery</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quality Assurance */}
+              <div className="mt-8 p-4 bg-gray-50 rounded-lg">
+                <h3 className="font-medium text-gray-900 mb-3 flex items-center">
+                  <FiShield className="w-5 h-5 mr-2 text-green-500" />
+                  Quality Assurance
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  <div className="flex items-center">
+                    <FiCheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                    <span className="text-gray-700">Premium materials only</span>
+                  </div>
+                  <div className="flex items-center">
+                    <FiCheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                    <span className="text-gray-700">Multiple fitting sessions</span>
+                  </div>
+                  <div className="flex items-center">
+                    <FiCheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                    <span className="text-gray-700">Satisfaction guarantee</span>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -415,7 +608,10 @@ const TailorDetail = () => {
           <div className="space-y-6">
             {/* Quick Stats */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-900 mb-4">Quick Stats</h3>
+              <h3 className="font-semibold text-gray-900 mb-4 flex items-center">
+                <FiStats className="w-5 h-5 mr-2 text-blue-500" />
+                Performance Stats
+              </h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Response Time</span>
@@ -428,6 +624,41 @@ const TailorDetail = () => {
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Experience</span>
                   <span className="font-medium text-gray-900">{tailor.experience} years</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Total Orders</span>
+                  <span className="font-medium text-gray-900">{tailor.totalReviews}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Rating</span>
+                  <div className="flex items-center">
+                    <FiStar className="w-4 h-4 text-yellow-400 fill-current mr-1" />
+                    <span className="font-medium text-gray-900">{tailor.rating}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Business Information */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h3 className="font-semibold text-gray-900 mb-4 flex items-center">
+                <FiBriefcase className="w-5 h-5 mr-2 text-green-500" />
+                Business Info
+              </h3>
+              <div className="space-y-3">
+                <div>
+                  <span className="text-sm font-medium text-gray-700">Shop Name</span>
+                  <p className="text-sm text-gray-600">{tailor.shopName}</p>
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-gray-700">Location</span>
+                  <p className="text-sm text-gray-600">{tailor.location.address}</p>
+                  <p className="text-sm text-gray-600">{tailor.location.city}, {tailor.location.state}</p>
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-gray-700">Contact</span>
+                  <p className="text-sm text-gray-600">{tailor.phone}</p>
+                  <p className="text-sm text-gray-600">{tailor.email}</p>
                 </div>
               </div>
             </div>
@@ -497,17 +728,35 @@ const TailorDetail = () => {
             </div>
             
             <div className="p-6">
-              <div className="text-center py-8">
-                <div className="w-16 h-16 bg-gradient-to-r from-amber-100 to-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <FiCalendar className="w-8 h-8 text-amber-500" />
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Select Fabric to Proceed</h3>
+                {cartFabrics.length > 0 && (
+                  <div className="mb-4">
+                    <div className="text-sm text-gray-600 mb-2">From your cart</div>
+                    <div className="grid grid-cols-1 gap-3">
+                      {cartFabrics.map((cf) => (
+                        <button key={cf.id} onClick={() => {
+                          setServiceType('fabric-tailor');
+                          setSelectedTailor(id);
+                          setSelectedFabric(cf.id);
+                          setCurrentStep(1);
+                          setShowBookingModal(false);
+                          navigate('/customer/booking/create', { state: { preselectedFabricId: cf.id, tailorId: id } });
+                        }} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
+                          <span className="font-medium">{cf.name}</span>
+                          <span className="text-sm text-gray-600">₹{cf.price}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="border-t pt-4">
+                  <div className="text-sm text-gray-600 mb-2">Or browse fabrics</div>
+                  <button onClick={() => {
+                    setShowBookingModal(false);
+                    navigate('/customer/fabrics', { state: { returnToTailorId: id } });
+                  }} className="w-full px-4 py-2 border-2 border-amber-600 text-amber-700 rounded-lg hover:bg-amber-50">Browse Fabric Catalog</button>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Booking Form</h3>
-                <p className="text-gray-600">
-                  This will integrate with the booking system to schedule your appointment.
-                </p>
-                <p className="text-sm text-gray-500 mt-2">
-                  Service: {selectedService.name} - ₹{selectedService.price}
-                </p>
               </div>
             </div>
           </div>

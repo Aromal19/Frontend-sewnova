@@ -190,9 +190,7 @@ const TailorBrowse = () => {
     // TODO: API call to update favorites
   };
 
-  const handleBookTailor = (tailorId) => {
-    navigate(`/customer/booking/create?tailorId=${tailorId}`);
-  };
+  // Booking from tailor discovery is disabled in new flow
 
   const handleViewDetails = (tailorId) => {
     navigate(`/customer/tailor/${tailorId}`);
@@ -218,10 +216,12 @@ const TailorBrowse = () => {
 
   const getAvailabilityStatus = (tailor) => {
     const now = new Date();
-    const day = now.toLocaleLowerCase().slice(0, 3);
+    const dayIndex = now.getDay(); // 0 (Sun) - 6 (Sat)
+    const dayKeys = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+    const day = dayKeys[dayIndex];
     const currentTime = now.toTimeString().slice(0, 5);
     
-    const todaySchedule = tailor.availability[day];
+    const todaySchedule = tailor.availability && tailor.availability[day];
     if (!todaySchedule || !todaySchedule.available) {
       return { status: 'closed', message: 'Closed today' };
     }
@@ -527,11 +527,15 @@ const TailorBrowse = () => {
                         View Details
                       </button>
                       <button
-                        onClick={() => handleBookTailor(tailor._id)}
-                        className="flex-1 px-3 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors"
+                        onClick={() => handleFavoriteToggle(tailor._id)}
+                        className={`flex-1 px-3 py-2 rounded-lg transition-colors ${
+                          favoritedItems.has(tailor._id)
+                            ? 'bg-red-100 text-red-600 border border-red-200'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
                       >
-                        <FiScissors className="w-4 h-4 inline mr-1" />
-                        Book
+                        <FiHeart className={`w-4 h-4 inline mr-1 ${favoritedItems.has(tailor._id) ? 'fill-current' : ''}`} />
+                        {favoritedItems.has(tailor._id) ? 'Shortlisted' : 'Shortlist'}
                       </button>
                     </div>
 

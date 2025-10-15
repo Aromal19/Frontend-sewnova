@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { FiEye, FiEyeOff, FiUser, FiMail, FiPhone, FiLock, FiArrowRight, FiCheck, FiBriefcase, FiGlobe } from "react-icons/fi";
+import { FiEye, FiEyeOff, FiUser, FiMail, FiPhone, FiLock, FiArrowRight, FiCheck, FiBriefcase } from "react-icons/fi";
 import PhoneNumberInput from "../../components/PhoneNumberInput";
 import axios from "axios";
 import EmailVerificationPending from "../../components/EmailVerificationPending";
@@ -13,7 +13,6 @@ const SellerSignup = () => {
     phone: "",
     businessName: "",
     businessType: "",
-    website: "",
     password: "",
     confirmPassword: ""
   });
@@ -30,6 +29,31 @@ const SellerSignup = () => {
     return emailRegex.test(email);
   };
 
+  // Debounced email availability check
+  useEffect(() => {
+    const email = (formData.email || "").toLowerCase().trim();
+    if (!email) return; // nothing to check
+    if (!validateEmail(email)) return; // wait until format is valid
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await axios.get("http://localhost:3000/api/auth/check-email", {
+          params: { email }
+        });
+        const available = res?.data?.available;
+        if (available === false) {
+          setErrors(prev => ({ ...prev, email: res?.data?.message || "Email is already registered" }));
+        } else {
+          setErrors(prev => ({ ...prev, email: "" }));
+        }
+      } catch {
+        // ignore network errors for availability check
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [formData.email]);
+
   const validateIndianPhone = (phone) => {
     const phoneRegex = /^(\+91[\-\s]?)?[789]\d{9}$/;
     return phoneRegex.test(phone.replace(/\s/g, ""));
@@ -37,34 +61,92 @@ const SellerSignup = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    
+    // Block numbers in name fields
+    if ((name === "firstName" || name === "lastName") && /[0-9]/.test(value)) {
+      return; // Don't update state if numbers are entered
+    }
+    
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
-    if (errors[name]) {
+
+    // Real-time validation on keyup
+    if (value.trim() !== "" || errors[name]) {
+      const error = validateField(name, value);
       setErrors(prev => ({
         ...prev,
-        [name]: ""
+        [name]: error,
       }));
+    }
+  };
+
+  const validateField = (name, value) => {
+    switch (name) {
+      case "firstName":
+        if (!value.trim()) return "*Required";
+        if (value.trim().length < 2) return "First name must be at least 2 characters";
+        if (!/^[a-zA-Z\s]+$/.test(value.trim())) return "First name can only contain letters and spaces";
+        if (value.trim().length > 50) return "First name must be less than 50 characters";
+        return "";
+
+      case "lastName":
+        if (!value.trim()) return "*Required";
+        if (value.trim().length < 2) return "Last name must be at least 2 characters";
+        if (!/^[a-zA-Z\s]+$/.test(value.trim())) return "Last name can only contain letters and spaces";
+        if (value.trim().length > 50) return "Last name must be less than 50 characters";
+        return "";
+
+      case "email":
+        if (!value.trim()) return "*Required";
+        if (!validateEmail(value.trim())) return "Please enter a valid email address";
+        if (value.trim().length > 100) return "Email must be less than 100 characters";
+        return "";
+
+      case "phone":
+        if (!value.trim()) return "*Required";
+        if (!validateIndianPhone(value.trim())) return "Please enter a valid Indian phone number";
+        return "";
+
+      case "businessName":
+        if (!value.trim()) return "*Required";
+        if (value.trim().length < 2) return "Business name must be at least 2 characters";
+        if (value.trim().length > 100) return "Business name must be less than 100 characters";
+        return "";
+
+      case "businessType":
+        if (!value.trim()) return "*Required";
+        return "";
+
+      case "password":
+        if (!value) return "*Required";
+        if (value.length < 8) return "Password must be at least 8 characters";
+        if (value.length > 128) return "Password must be less than 128 characters";
+        if (!/[a-z]/.test(value)) return "Password must contain at least one lowercase letter";
+        if (!/[A-Z]/.test(value)) return "Password must contain at least one uppercase letter";
+        if (!/[0-9]/.test(value)) return "Password must contain at least one number";
+        if (!/[^A-Za-z0-9]/.test(value)) return "Password must contain at least one special character";
+        return "";
+
+      case "confirmPassword":
+        if (!value) return "*Required";
+        if (value !== formData.password) return "Passwords do not match";
+        return "";
+
+      default:
+        return "";
     }
   };
 
   const validateForm = () => {
     const newErrors = {};
-    
-    if (!formData.firstName.trim()) newErrors.firstName = "First name is required";
-    if (!formData.lastName.trim()) newErrors.lastName = "Last name is required";
-    if (!formData.email.trim()) newErrors.email = "Email is required";
-    else if (!validateEmail(formData.email)) newErrors.email = "Please enter a valid email address";
-    if (!formData.phone.trim()) newErrors.phone = "Phone number is required";
-    else if (!validateIndianPhone(formData.phone)) newErrors.phone = "Please enter a valid Indian phone number";
-    if (!formData.businessName.trim()) newErrors.businessName = "Business name is required";
-    if (!formData.businessType.trim()) newErrors.businessType = "Business type is required";
-    if (formData.website && !/^https?:\/\/.+/.test(formData.website)) newErrors.website = "Website must be a valid URL";
-    if (!formData.password) newErrors.password = "Password is required";
-    else if (formData.password.length < 8) newErrors.password = "Password must be at least 8 characters";
-    if (!formData.confirmPassword) newErrors.confirmPassword = "Please confirm your password";
-    else if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = "Passwords do not match";
+    Object.keys(formData).forEach((field) => {
+      const error = validateField(field, formData[field]);
+      if (error) {
+        newErrors[field] = error;
+      }
+    });
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -83,7 +165,6 @@ const SellerSignup = () => {
         phone: formData.phone.trim(),
         businessName: formData.businessName.trim(),
         businessType: formData.businessType.trim(),
-        website: formData.website.trim(),
         password: formData.password,
       });
 
@@ -272,25 +353,6 @@ const SellerSignup = () => {
               </div>
             </div>
 
-            {/* Website */}
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <FiGlobe className="text-gray-400 text-lg" />
-              </div>
-              <input
-                type="url"
-                name="website"
-                className={`w-full pl-12 pr-4 py-4 rounded-2xl bg-gray-50 text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all duration-300 text-sm placeholder-gray-500 border ${
-                  errors.website ? 'border-red-300' : 'border-gray-200'
-                }`}
-                value={formData.website}
-                onChange={handleChange}
-                placeholder="Website (Optional)"
-              />
-              {errors.website && (
-                <p className="text-red-500 text-xs mt-2 ml-1">{errors.website}</p>
-              )}
-            </div>
 
             {/* Password Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { FiEye, FiEdit, FiTrash2, FiBox, FiTag, FiTrendingUp, FiTrendingDown, FiDollarSign } from "react-icons/fi";
+import { FiEye, FiEdit, FiTrash2, FiBox, FiTag, FiTrendingUp, FiTrendingDown } from "react-icons/fi";
 
 const SellerProductsTable = () => {
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -10,10 +10,10 @@ const SellerProductsTable = () => {
       id: 1,
       name: "Premium Silk Fabric",
       category: "Silk",
-      price: "$45.00",
+      price: "₹45.00",
       stock: 25,
       sold: 45,
-      revenue: "$2,025",
+      revenue: "₹2,025",
       status: "active",
       image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=100&h=100&fit=crop"
     },
@@ -21,10 +21,10 @@ const SellerProductsTable = () => {
       id: 2,
       name: "Cotton Blend Fabric",
       category: "Cotton",
-      price: "$32.00",
+      price: "₹32.00",
       stock: 50,
       sold: 38,
-      revenue: "$1,216",
+      revenue: "₹1,216",
       status: "active",
       image: "https://images.unsplash.com/photo-1582735689369-4fe89db7114c?w=100&h=100&fit=crop"
     },
@@ -32,10 +32,10 @@ const SellerProductsTable = () => {
       id: 3,
       name: "Wool Blend Fabric",
       category: "Wool",
-      price: "$28.00",
+      price: "₹28.00",
       stock: 30,
       sold: 32,
-      revenue: "$896",
+      revenue: "₹896",
       status: "active",
       image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=100&h=100&fit=crop"
     },
@@ -43,10 +43,10 @@ const SellerProductsTable = () => {
       id: 4,
       name: "Linen Fabric",
       category: "Linen",
-      price: "$35.00",
+      price: "₹35.00",
       stock: 15,
       sold: 28,
-      revenue: "$980",
+      revenue: "₹980",
       status: "low-stock",
       image: "https://images.unsplash.com/photo-1582735689369-4fe89db7114c?w=100&h=100&fit=crop"
     },
@@ -54,10 +54,10 @@ const SellerProductsTable = () => {
       id: 5,
       name: "Polyester Blend",
       category: "Synthetic",
-      price: "$18.00",
+      price: "₹18.00",
       stock: 0,
       sold: 55,
-      revenue: "$990",
+      revenue: "₹990",
       status: "out-of-stock",
       image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=100&h=100&fit=crop"
     },
@@ -65,10 +65,10 @@ const SellerProductsTable = () => {
       id: 6,
       name: "Velvet Fabric",
       category: "Velvet",
-      price: "$55.00",
+      price: "₹55.00",
       stock: 12,
       sold: 18,
-      revenue: "$990",
+      revenue: "₹990",
       status: "active",
       image: "https://images.unsplash.com/photo-1582735689369-4fe89db7114c?w=100&h=100&fit=crop"
     }
@@ -143,7 +143,7 @@ const SellerProductsTable = () => {
               <th className="text-left py-4 px-6 font-medium text-gray-700">Sold</th>
               <th className="text-left py-4 px-6 font-medium text-gray-700">
                 <div className="flex items-center">
-                  <FiDollarSign className="w-4 h-4 mr-2" />
+                  <FiTrendingUp className="w-4 h-4 mr-2" />
                   Price
                 </div>
               </th>

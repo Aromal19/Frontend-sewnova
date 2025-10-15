@@ -12,6 +12,12 @@ const API_CONFIG = {
   // Auth Service (running on port 3000)
   AUTH_SERVICE: import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:3000',
   
+  // Admin Service (running on port 3007)
+  ADMIN_SERVICE: import.meta.env.VITE_ADMIN_SERVICE_URL || 'http://localhost:3007',
+  
+  // Design Service (running on port 3006)
+  DESIGN_SERVICE: import.meta.env.VITE_DESIGN_SERVICE_URL || 'http://localhost:3006',
+  
   // Other services can be added here
   TAILOR_SERVICE: import.meta.env.VITE_TAILOR_SERVICE_URL || 'http://localhost:3003',
   SELLER_SERVICE: import.meta.env.VITE_SELLER_SERVICE_URL || 'http://localhost:3004',

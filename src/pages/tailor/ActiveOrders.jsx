@@ -7,13 +7,12 @@ import {
   FiAlertCircle, 
   FiUser, 
   FiCalendar,
-  FiDollarSign,
+  FiTrendingUp,
   FiEdit,
   FiEye,
   FiMessageSquare,
   FiFilter,
   FiSearch,
-  FiTrendingUp,
   FiTrendingDown
 } from "react-icons/fi";
 
@@ -28,7 +27,7 @@ const ActiveOrders = () => {
       id: "#ORD-001",
       customer: "Sarah Johnson",
       service: "Wedding Dress Alteration",
-      amount: "$450",
+      amount: "₹450",
       status: "in-progress",
       priority: "high",
       deadline: "2024-01-20",
@@ -45,7 +44,7 @@ const ActiveOrders = () => {
       id: "#ORD-002",
       customer: "Mike Chen",
       service: "Suit Fitting & Alteration",
-      amount: "$320",
+      amount: "₹320",
       status: "pending",
       priority: "medium",
       deadline: "2024-01-22",
@@ -62,7 +61,7 @@ const ActiveOrders = () => {
       id: "#ORD-003",
       customer: "Emma Davis",
       service: "Dress Hemming",
-      amount: "$180",
+      amount: "₹180",
       status: "in-progress",
       priority: "low",
       deadline: "2024-01-18",
@@ -79,7 +78,7 @@ const ActiveOrders = () => {
       id: "#ORD-004",
       customer: "Alex Wilson",
       service: "Blouse Alteration",
-      amount: "$120",
+      amount: "₹120",
       status: "in-progress",
       priority: "medium",
       deadline: "2024-01-25",
@@ -96,7 +95,7 @@ const ActiveOrders = () => {
       id: "#ORD-005",
       customer: "Lisa Brown",
       service: "Pants Tailoring",
-      amount: "$280",
+      amount: "₹280",
       status: "pending",
       priority: "low",
       deadline: "2024-01-19",
@@ -398,7 +397,7 @@ const ActiveOrders = () => {
               <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
                 <div className="flex items-center">
                   <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center">
-                    <FiDollarSign className="w-6 h-6 text-white" />
+                    <FiTrendingUp className="w-6 h-6 text-white" />
                   </div>
                   <div className="ml-4">
                     <p className="text-sm text-gray-600">Total Value</p>

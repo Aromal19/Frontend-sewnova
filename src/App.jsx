@@ -14,6 +14,8 @@ import CustomerMeasurements from "./pages/customer/CustomerMeasurements";
 import CustomerAddresses from "./pages/customer/CustomerAddresses";
 import CustomerBookings from "./pages/customer/CustomerBookings";
 import AdminInsights from "./pages/admin/AdminInsights";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import ManageUsers from "./pages/admin/ManageUsers";
 import AddFabric from "./pages/seller/AddFabric";
 import ActiveOrders from "./pages/tailor/ActiveOrders";
 import EmailVerification from "./pages/EmailVerification";
@@ -28,6 +30,11 @@ import TailorBrowse from "./pages/customer/TailorBrowse";
 import ProductDetail from "./pages/customer/ProductDetail";
 import TailorDetail from "./pages/customer/TailorDetail";
 import BookingFlow from "./pages/customer/BookingFlow";
+import Cart from "./pages/customer/Cart";
+import Checkout from "./pages/customer/Checkout";
+import DesignPage from "./pages/DesignPage";
+// Protected route component
+import ProtectedRoute from "./components/ProtectedRoute";
 
 const Orders = () => (
   <div className="p-8 text-gray-100">Your Orders (Customer View)</div>
@@ -48,49 +55,195 @@ function App() {
         <Route path="/signup/tailor" element={<TailorSignup />} />
         <Route path="/verify-email" element={<EmailVerification />} />
         
-        {/* Dashboard Routes */}
-        <Route path="/customer/landing" element={<CustomerLandingPage />} />
-        <Route path="/dashboard/customer" element={<CustomerLandingPage />} />
-        <Route path="/dashboard/seller" element={<SellerDashboard />} />
-        <Route path="/dashboard/tailor" element={<TailorDashboard />} />
-        
-        {/* Customer Service Routes */}
-        <Route path="/customer/dashboard" element={<CustomerDashboard />} />
-        <Route path="/customer/measurements" element={<CustomerMeasurements />} />
-        <Route path="/customer/addresses" element={<CustomerAddresses />} />
-        <Route path="/customer/bookings" element={<CustomerBookings />} />
-        
-        {/* Customer Flow Routes */}
-        <Route path="/customer/fabrics" element={<FabricBrowse />} />
-        <Route path="/customer/tailors" element={<TailorBrowse />} />
-        <Route path="/customer/fabric/:id" element={<ProductDetail />} />
-        <Route path="/customer/tailor/:id" element={<TailorDetail />} />
-        <Route path="/customer/booking/create" element={<BookingFlow />} />
-        
-        {/* Profile Routes */}
-        <Route path="/customer/profile" element={<CustomerProfile />} />
-        <Route path="/seller/profile" element={<SellerProfile />} />
-        <Route path="/tailor/profile" element={<TailorProfile />} />
-        
         {/* Admin Routes */}
-        <Route path="/insights" element={<AdminInsights />} />
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route path="/admin/users" element={<ManageUsers />} />
         
-        {/* Seller Routes */}
-        <Route path="/add-fabric" element={<AddFabric />} />
-        <Route path="/fabrics" element={<Fabrics />} />
-        <Route path="/inventory" element={<Inventory />} />
-        <Route path="/analytics" element={<SellerDashboard />} />
-        <Route path="/earnings" element={<SellerDashboard />} />
-        <Route path="/customers" element={<SellerDashboard />} />
-        <Route path="/reviews" element={<SellerDashboard />} />
+        {/* Dashboard Routes - Protected */}
+        <Route path="/customer/landing" element={
+          <ProtectedRoute requiredRole="customer">
+            <CustomerLandingPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard/customer" element={
+          <ProtectedRoute requiredRole="customer">
+            <CustomerLandingPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard/seller" element={
+          <ProtectedRoute requiredRole="seller">
+            <SellerDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard/tailor" element={
+          <ProtectedRoute requiredRole="tailor">
+            <TailorDashboard />
+          </ProtectedRoute>
+        } />
         
-        {/* Tailor Routes */}
-        <Route path="/active-orders" element={<ActiveOrders />} />
-        <Route path="/completed-orders" element={<TailorDashboard />} />
-        <Route path="/pending-orders" element={<TailorDashboard />} />
-        <Route path="/workflow" element={<TailorDashboard />} />
-        <Route path="/schedule" element={<TailorDashboard />} />
-        <Route path="/appointments" element={<TailorDashboard />} />
+        {/* Customer Service Routes - Protected */}
+        <Route path="/customer/dashboard" element={
+          <ProtectedRoute requiredRole="customer">
+            <CustomerDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/customer/measurements" element={
+          <ProtectedRoute requiredRole="customer">
+            <CustomerMeasurements />
+          </ProtectedRoute>
+        } />
+        <Route path="/customer/addresses" element={
+          <ProtectedRoute requiredRole="customer">
+            <CustomerAddresses />
+          </ProtectedRoute>
+        } />
+        <Route path="/customer/bookings" element={
+          <ProtectedRoute requiredRole="customer">
+            <CustomerBookings />
+          </ProtectedRoute>
+        } />
+        
+        {/* Customer Flow Routes - Protected */}
+        <Route path="/customer/fabrics" element={
+          <ProtectedRoute requiredRole="customer">
+            <FabricBrowse />
+          </ProtectedRoute>
+        } />
+        <Route path="/customer/tailors" element={
+          <ProtectedRoute requiredRole="customer">
+            <TailorBrowse />
+          </ProtectedRoute>
+        } />
+        <Route path="/customer/fabric/:id" element={
+          <ProtectedRoute requiredRole="customer">
+            <ProductDetail />
+          </ProtectedRoute>
+        } />
+        <Route path="/customer/tailor/:id" element={
+          <ProtectedRoute requiredRole="customer">
+            <TailorDetail />
+          </ProtectedRoute>
+        } />
+        <Route path="/customer/booking/create" element={
+          <ProtectedRoute requiredRole="customer">
+            <BookingFlow />
+          </ProtectedRoute>
+        } />
+        <Route path="/customer/cart" element={
+          <ProtectedRoute requiredRole="customer">
+            <Cart />
+          </ProtectedRoute>
+        } />
+        <Route path="/customer/checkout" element={
+          <ProtectedRoute requiredRole="customer">
+            <Checkout />
+          </ProtectedRoute>
+        } />
+        
+        {/* Design Selection Routes - Protected */}
+        <Route path="/designs" element={
+          <ProtectedRoute requiredRole="customer">
+            <DesignPage />
+          </ProtectedRoute>
+        } />
+        
+        {/* Profile Routes - Protected */}
+        <Route path="/customer/profile" element={
+          <ProtectedRoute requiredRole="customer">
+            <CustomerProfile />
+          </ProtectedRoute>
+        } />
+        <Route path="/seller/profile" element={
+          <ProtectedRoute requiredRole="seller">
+            <SellerProfile />
+          </ProtectedRoute>
+        } />
+        <Route path="/tailor/profile" element={
+          <ProtectedRoute requiredRole="tailor">
+            <TailorProfile />
+          </ProtectedRoute>
+        } />
+        
+        {/* Admin Routes - Protected */}
+        <Route path="/admin/dashboard" element={
+          <ProtectedRoute requiredRole="admin">
+            <AdminDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/insights" element={
+          <ProtectedRoute requiredRole="admin">
+            <AdminInsights />
+          </ProtectedRoute>
+        } />
+        
+        {/* Seller Routes - Protected */}
+        <Route path="/add-fabric" element={
+          <ProtectedRoute requiredRole="seller">
+            <AddFabric />
+          </ProtectedRoute>
+        } />
+        <Route path="/fabrics" element={
+          <ProtectedRoute requiredRole="seller">
+            <Fabrics />
+          </ProtectedRoute>
+        } />
+        <Route path="/inventory" element={
+          <ProtectedRoute requiredRole="seller">
+            <Inventory />
+          </ProtectedRoute>
+        } />
+        <Route path="/analytics" element={
+          <ProtectedRoute requiredRole="seller">
+            <SellerDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/earnings" element={
+          <ProtectedRoute requiredRole="seller">
+            <SellerDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/customers" element={
+          <ProtectedRoute requiredRole="seller">
+            <SellerDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/reviews" element={
+          <ProtectedRoute requiredRole="seller">
+            <SellerDashboard />
+          </ProtectedRoute>
+        } />
+        
+        {/* Tailor Routes - Protected */}
+        <Route path="/active-orders" element={
+          <ProtectedRoute requiredRole="tailor">
+            <ActiveOrders />
+          </ProtectedRoute>
+        } />
+        <Route path="/completed-orders" element={
+          <ProtectedRoute requiredRole="tailor">
+            <TailorDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/pending-orders" element={
+          <ProtectedRoute requiredRole="tailor">
+            <TailorDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/workflow" element={
+          <ProtectedRoute requiredRole="tailor">
+            <TailorDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/schedule" element={
+          <ProtectedRoute requiredRole="tailor">
+            <TailorDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/appointments" element={
+          <ProtectedRoute requiredRole="tailor">
+            <TailorDashboard />
+          </ProtectedRoute>
+        } />
         
         {/* Legacy Routes */}
         <Route path="/orders" element={<Orders />} />

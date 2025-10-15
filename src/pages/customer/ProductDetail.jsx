@@ -21,6 +21,7 @@ import {
   FiMail
 } from "react-icons/fi";
 import { apiCall } from "../../config/api";
+import { useCart } from "../../context/CartContext";
 
 const ProductDetail = () => {
   const { id } = useParams();
@@ -34,6 +35,7 @@ const ProductDetail = () => {
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [selectedTailor, setSelectedTailor] = useState(null);
   const [showTailorModal, setShowTailorModal] = useState(false);
+  const { addFabricToCart } = useCart();
 
   useEffect(() => {
     fetchProduct();
@@ -114,8 +116,10 @@ const ProductDetail = () => {
     }
   };
 
-  const handleBookWithTailor = () => {
-    setShowTailorModal(true);
+  const handleAddToCart = () => {
+    if (!product) return;
+    addFabricToCart({ id: product._id, name: product.name, price: product.price, image: product.images?.[0], quantity });
+    navigate('/customer/cart');
   };
 
   const handleSelectTailor = (tailor) => {
@@ -305,11 +309,11 @@ const ProductDetail = () => {
             {/* Action Buttons */}
             <div className="flex space-x-4">
               <button
-                onClick={handleBookWithTailor}
+                onClick={handleAddToCart}
                 className="flex-1 flex items-center justify-center px-6 py-3 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-medium hover:from-amber-500 hover:to-orange-600 transition-all duration-200"
               >
                 <FiShoppingCart className="w-5 h-5 mr-2" />
-                Book with Tailor
+                Add to Cart
               </button>
               <button
                 onClick={handleAddToWishlist}

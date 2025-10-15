@@ -10,16 +10,10 @@ import {
   FiTrendingUp, 
   FiTrendingDown, 
   FiPackage, 
-  FiDollarSign, 
-  FiUsers, 
-  FiStar,
   FiPlus,
   FiFilter,
-  FiSearch,
   FiDownload,
-  FiEye,
-  FiEdit,
-  FiTrash2
+  FiEye
 } from "react-icons/fi";
 
 const SellerDashboard = () => {
@@ -29,32 +23,32 @@ const SellerDashboard = () => {
   const [timeRange, setTimeRange] = useState("7d");
 
   // Mock data for charts and analytics
-  const salesData = {
+  const productsData = {
     labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
     datasets: [{
-      label: 'Sales',
-      data: [1200, 1900, 3000, 5000, 2000, 3000],
+      label: 'Products Added',
+      data: [2, 4, 6, 8, 3, 5],
       borderColor: '#F26A8D',
       backgroundColor: 'rgba(242, 106, 141, 0.1)',
       tension: 0.4
     }]
   };
 
-  const ordersData = {
-    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+  const categoryData = {
+    labels: ['Silk', 'Cotton', 'Wool', 'Linen', 'Polyester', 'Rayon'],
     datasets: [{
-      label: 'Orders',
-      data: [12, 19, 3, 5, 2, 3, 8],
+      label: 'Products by Category',
+      data: [8, 12, 6, 4, 10, 7],
       backgroundColor: '#CDB4DB',
       borderColor: '#CDB4DB',
       borderWidth: 1
     }]
   };
 
-  const revenueData = {
-    labels: ['Fabric A', 'Fabric B', 'Fabric C', 'Fabric D'],
+  const stockData = {
+    labels: ['Silk', 'Cotton', 'Wool', 'Linen'],
     datasets: [{
-      data: [300, 50, 100, 200],
+      data: [45, 32, 18, 28],
       backgroundColor: ['#F26A8D', '#CDB4DB', '#F6E7D7', '#EDFDF6'],
       borderWidth: 0
     }]
@@ -62,70 +56,70 @@ const SellerDashboard = () => {
 
   const stats = [
     {
-      title: "Total Revenue",
-      value: "$12,450",
-      change: "+12.5%",
-      trend: "up",
-      icon: FiDollarSign,
-      color: "from-coralblush to-pink-500"
-    },
-    {
-      title: "Total Orders",
-      value: "156",
-      change: "+8.2%",
+      title: "Total Products",
+      value: "24",
+      change: "+3",
       trend: "up",
       icon: FiPackage,
       color: "from-lilac to-purple-500"
     },
     {
-      title: "Active Customers",
-      value: "89",
-      change: "+15.3%",
+      title: "Active Products",
+      value: "22",
+      change: "+2",
       trend: "up",
-      icon: FiUsers,
+      icon: FiPackage,
       color: "from-champagne to-yellow-500"
     },
     {
-      title: "Average Rating",
-      value: "4.8",
-      change: "+0.2",
+      title: "Categories",
+      value: "8",
+      change: "+1",
       trend: "up",
-      icon: FiStar,
+      icon: FiPackage,
       color: "from-mint to-green-500"
+    },
+    {
+      title: "Low Stock",
+      value: "3",
+      change: "-1",
+      trend: "down",
+      icon: FiPackage,
+      color: "from-coralblush to-pink-500"
     }
   ];
 
-  const recentOrders = [
+  const recentProducts = [
     {
-      id: "#ORD-001",
-      customer: "Sarah Johnson",
-      product: "Silk Fabric",
-      amount: "$450",
-      status: "completed",
+      id: "FAB-001",
+      name: "Premium Silk Fabric",
+      category: "Silk",
+      stock: "45",
+      status: "active",
       date: "2024-01-15"
     },
     {
-      id: "#ORD-002",
-      customer: "Mike Chen",
-      product: "Cotton Blend",
-      amount: "$320",
-      status: "processing",
+      id: "FAB-002",
+      name: "Cotton Blend Fabric",
+      category: "Cotton",
+      stock: "32",
+      status: "active",
       date: "2024-01-14"
     },
     {
-      id: "#ORD-003",
-      customer: "Emma Davis",
-      product: "Wool Fabric",
-      amount: "$280",
-      status: "shipped",
+      id: "FAB-003",
+      name: "Wool Fabric",
+      category: "Wool",
+      stock: "18",
+      status: "low stock",
       date: "2024-01-13"
     },
     {
-      id: "#ORD-004",
-      customer: "Alex Wilson",
-      product: "Linen Fabric",
-      amount: "$190",
-      status: "pending",
+      id: "FAB-004",
+      name: "Linen Fabric",
+      category: "Linen",
+      stock: "28",
+      status: "active",
       date: "2024-01-12"
     }
   ];
@@ -134,35 +128,35 @@ const SellerDashboard = () => {
     {
       name: "Premium Silk Fabric",
       sales: 45,
-      revenue: "$2,250",
+      revenue: "₹2,250",
       growth: "+12%"
     },
     {
       name: "Cotton Blend Fabric",
       sales: 38,
-      revenue: "$1,900",
+      revenue: "₹1,900",
       growth: "+8%"
     },
     {
       name: "Wool Blend Fabric",
       sales: 32,
-      revenue: "$1,600",
+      revenue: "₹1,600",
       growth: "+15%"
     },
     {
       name: "Linen Fabric",
       sales: 28,
-      revenue: "$1,400",
+      revenue: "₹1,400",
       growth: "+5%"
     }
   ];
 
   const getStatusColor = (status) => {
     switch (status) {
-      case "completed": return "bg-green-100 text-green-800";
-      case "processing": return "bg-blue-100 text-blue-800";
-      case "shipped": return "bg-purple-100 text-purple-800";
-      case "pending": return "bg-yellow-100 text-yellow-800";
+      case "active": return "bg-green-100 text-green-800";
+      case "low stock": return "bg-yellow-100 text-yellow-800";
+      case "out of stock": return "bg-red-100 text-red-800";
+      case "inactive": return "bg-gray-100 text-gray-800";
       default: return "bg-gray-100 text-gray-800";
     }
   };
@@ -241,9 +235,7 @@ const SellerDashboard = () => {
               <nav className="-mb-px flex space-x-8">
                 {[
                   { id: "overview", label: "Overview" },
-                  { id: "orders", label: "Orders" },
-                  { id: "products", label: "Products" },
-                  { id: "analytics", label: "Analytics" }
+                  { id: "products", label: "Products" }
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -266,10 +258,10 @@ const SellerDashboard = () => {
             <div className="space-y-6">
               {/* Charts Row */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Sales Chart */}
+                {/* Products Added Chart */}
                 <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-charcoal">Sales Trend</h3>
+                    <h3 className="text-lg font-semibold text-charcoal">Products Added Trend</h3>
                     <div className="flex items-center space-x-2">
                       <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                         <FiDownload className="w-4 h-4 text-gray-600" />
@@ -282,7 +274,7 @@ const SellerDashboard = () => {
                   <div className="h-64 bg-gradient-to-br from-coralblush/5 to-lilac/5 rounded-lg p-4">
                     <SimpleChart
                       type="line"
-                      data={[1200, 1900, 3000, 5000, 2000, 3000]}
+                      data={[2, 4, 6, 8, 3, 5]}
                       labels={['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']}
                       height={200}
                       color="#F26A8D"
@@ -291,10 +283,10 @@ const SellerDashboard = () => {
                   </div>
                 </div>
 
-                {/* Orders Chart */}
+                {/* Category Distribution Chart */}
                 <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-charcoal">Weekly Orders</h3>
+                    <h3 className="text-lg font-semibold text-charcoal">Products by Category</h3>
                     <div className="flex items-center space-x-2">
                       <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                         <FiFilter className="w-4 h-4 text-gray-600" />
@@ -304,8 +296,8 @@ const SellerDashboard = () => {
                   <div className="h-64 bg-gradient-to-br from-lilac/5 to-champagne/5 rounded-lg p-4">
                     <SimpleChart
                       type="bar"
-                      data={[12, 19, 3, 5, 2, 3, 8]}
-                      labels={['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']}
+                      data={[8, 12, 6, 4, 10, 7]}
+                      labels={['Silk', 'Cotton', 'Wool', 'Linen', 'Polyester', 'Rayon']}
                       height={200}
                       color="#CDB4DB"
                       title=""
@@ -314,13 +306,13 @@ const SellerDashboard = () => {
                 </div>
               </div>
 
-              {/* Recent Orders & Top Products */}
+              {/* Recent Products & Top Products */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Recent Orders */}
+                {/* Recent Products */}
                 <div className="bg-white rounded-xl shadow-lg border border-gray-100">
                   <div className="p-6 border-b border-gray-100">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-semibold text-charcoal">Recent Orders</h3>
+                      <h3 className="text-lg font-semibold text-charcoal">Recent Products</h3>
                       <button className="text-coralblush hover:text-pink-500 text-sm font-medium">
                         View All
                       </button>
@@ -328,21 +320,21 @@ const SellerDashboard = () => {
                   </div>
                   <div className="p-6">
                     <div className="space-y-4">
-                      {recentOrders.map((order, index) => (
+                      {recentProducts.map((product, index) => (
                         <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                           <div className="flex items-center space-x-4">
                             <div className="w-10 h-10 bg-gradient-to-r from-coralblush to-pink-500 rounded-lg flex items-center justify-center">
                               <FiPackage className="w-5 h-5 text-white" />
                             </div>
                             <div>
-                              <p className="font-medium text-charcoal">{order.id}</p>
-                              <p className="text-sm text-gray-600">{order.customer}</p>
+                              <p className="font-medium text-charcoal">{product.id}</p>
+                              <p className="text-sm text-gray-600">{product.name}</p>
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="font-medium text-charcoal">{order.amount}</p>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                              {order.status}
+                            <p className="font-medium text-charcoal">Stock: {product.stock}</p>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(product.status)}`}>
+                              {product.status}
                             </span>
                           </div>
                         </div>
@@ -387,31 +379,6 @@ const SellerDashboard = () => {
             </div>
           )}
 
-          {activeTab === "orders" && (
-            <div className="bg-white rounded-xl shadow-lg border border-gray-100">
-              <div className="p-6 border-b border-gray-100">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-charcoal">All Orders</h3>
-                  <div className="flex items-center space-x-4">
-                    <div className="relative">
-                      <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                      <input
-                        type="text"
-                        placeholder="Search orders..."
-                        className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-coralblush focus:border-transparent"
-                      />
-                    </div>
-                    <button className="px-4 py-2 bg-gradient-to-r from-coralblush to-pink-500 text-white rounded-lg font-medium hover:from-pink-500 hover:to-coralblush transition-all duration-300">
-                      Export
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <div className="p-6">
-                <SellerOrdersTable />
-              </div>
-            </div>
-          )}
 
           {activeTab === "products" && (
             <div className="bg-white rounded-xl shadow-lg border border-gray-100">
@@ -430,38 +397,6 @@ const SellerDashboard = () => {
             </div>
           )}
 
-          {activeTab === "analytics" && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
-                  <h3 className="text-lg font-semibold text-charcoal mb-4">Revenue Distribution</h3>
-                  <div className="h-64 bg-gradient-to-br from-mint/5 to-green-500/5 rounded-lg p-4">
-                    <SimpleChart
-                      type="pie"
-                      data={[300, 50, 100, 200]}
-                      labels={['Fabric A', 'Fabric B', 'Fabric C', 'Fabric D']}
-                      height={200}
-                      color="#EDFDF6"
-                      title=""
-                    />
-                  </div>
-                </div>
-                <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
-                  <h3 className="text-lg font-semibold text-charcoal mb-4">Customer Analytics</h3>
-                  <div className="h-64 bg-gradient-to-br from-champagne/5 to-yellow-500/5 rounded-lg p-4">
-                    <SimpleChart
-                      type="bar"
-                      data={[25, 30, 15, 20, 10]}
-                      labels={['New', 'Returning', 'VIP', 'Regular', 'Inactive']}
-                      height={200}
-                      color="#F6E7D7"
-                      title=""
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </main>
     </div>

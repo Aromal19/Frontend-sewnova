@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { FiEye, FiEdit, FiTrash2, FiPackage, FiUser, FiCalendar, FiDollarSign, FiClock, FiAlertCircle } from "react-icons/fi";
+import { FiEye, FiEdit, FiTrash2, FiPackage, FiUser, FiCalendar, FiTrendingUp, FiClock, FiAlertCircle } from "react-icons/fi";
 
 const TailorOrdersTable = () => {
   const [selectedStatus, setSelectedStatus] = useState("all");
@@ -10,7 +10,7 @@ const TailorOrdersTable = () => {
       id: "#ORD-001",
       customer: "Sarah Johnson",
       service: "Wedding Dress Alteration",
-      amount: "$450",
+      amount: "₹450",
       status: "in-progress",
       priority: "high",
       deadline: "2024-01-20",
@@ -22,7 +22,7 @@ const TailorOrdersTable = () => {
       id: "#ORD-002",
       customer: "Mike Chen",
       service: "Suit Fitting & Alteration",
-      amount: "$320",
+      amount: "₹320",
       status: "pending",
       priority: "medium",
       deadline: "2024-01-22",
@@ -34,7 +34,7 @@ const TailorOrdersTable = () => {
       id: "#ORD-003",
       customer: "Emma Davis",
       service: "Dress Hemming",
-      amount: "$180",
+      amount: "₹180",
       status: "completed",
       priority: "low",
       deadline: "2024-01-18",
@@ -46,7 +46,7 @@ const TailorOrdersTable = () => {
       id: "#ORD-004",
       customer: "Alex Wilson",
       service: "Blouse Alteration",
-      amount: "$120",
+      amount: "₹120",
       status: "in-progress",
       priority: "medium",
       deadline: "2024-01-25",
@@ -58,7 +58,7 @@ const TailorOrdersTable = () => {
       id: "#ORD-005",
       customer: "Lisa Brown",
       service: "Pants Tailoring",
-      amount: "$280",
+      amount: "₹280",
       status: "cancelled",
       priority: "low",
       deadline: "2024-01-19",
@@ -70,7 +70,7 @@ const TailorOrdersTable = () => {
       id: "#ORD-006",
       customer: "John Smith",
       service: "Jacket Alteration",
-      amount: "$350",
+      amount: "₹350",
       status: "pending",
       priority: "high",
       deadline: "2024-01-24",
@@ -169,7 +169,7 @@ const TailorOrdersTable = () => {
               <th className="text-left py-4 px-6 font-medium text-gray-700">Deadline</th>
               <th className="text-left py-4 px-6 font-medium text-gray-700">
                 <div className="flex items-center">
-                  <FiDollarSign className="w-4 h-4 mr-2" />
+                  <FiTrendingUp className="w-4 h-4 mr-2" />
                   Amount
                 </div>
               </th>
