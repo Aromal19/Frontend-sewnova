@@ -8,7 +8,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "tailwind:init": "tailwindcss init -p"
+    "tailwind:init": "tailwindcss init -p",
+    "vercel-build": "vite build"
   },
   "dependencies": {
     "@react-oauth/google": "^0.12.2",
