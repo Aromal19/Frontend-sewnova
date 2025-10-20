@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCurrentUser, isAuthenticated, logout } from '../../utils/api';
-import { FiUser, FiMail, FiPhone, FiMapPin, FiEdit, FiCheckCircle, FiXCircle, FiLogOut, FiArrowLeft, FiScissors, FiFileText, FiAward, FiClock, FiStar, FiCamera, FiUpload, FiX } from 'react-icons/fi';
+import { FiUser, FiMail, FiPhone, FiMapPin, FiEdit, FiCheckCircle, FiXCircle, FiLogOut, FiArrowLeft, FiScissors, FiFileText, FiClock, FiStar, FiCamera, FiUpload, FiX, FiLoader, FiSearch } from 'react-icons/fi';
 import Sidebar from '../../components/Sidebar';
 import PhoneNumberInput from '../../components/PhoneNumberInput';
 import Swal from 'sweetalert2';
@@ -19,6 +19,10 @@ const TailorProfile = () => {
   const [verifying, setVerifying] = useState(false);
   const [verifyResult, setVerifyResult] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [pincodeLoading, setPincodeLoading] = useState(false);
+  const [pincodeError, setPincodeError] = useState('');
+  const [localities, setLocalities] = useState([]);
+  const [showLocalityDropdown, setShowLocalityDropdown] = useState(false);
   const navigate = useNavigate();
 
   // Fetch latest user data from database
@@ -50,10 +54,18 @@ const TailorProfile = () => {
             phone: data.tailor.phone || '',
             countryCode: data.tailor.countryCode || '+91',
             shopName: data.tailor.shopName || '',
-            shopAddress: data.tailor.address || '',
+            addressLine: data.tailor.addressLine || '',
+            landmark: data.tailor.landmark || '',
+            locality: data.tailor.locality || '',
+            city: data.tailor.city || '',
+            district: data.tailor.district || '',
+            state: data.tailor.state || '',
+            pincode: data.tailor.pincode || '',
+            country: data.tailor.country || 'India',
             experience: String(data.tailor.experience || ''),
-            speciality: data.tailor.specialization || '',
-            skills: data.tailor.specialization || [],
+            speciality: Array.isArray(data.tailor.specialization) 
+              ? data.tailor.specialization 
+              : (data.tailor.specialization ? [data.tailor.specialization] : []),
             workingHours: data.tailor.workingHours || '',
             about: data.tailor.about || '',
             portfolio: data.tailor.portfolio || [],
@@ -85,10 +97,18 @@ const TailorProfile = () => {
           phone: currentUser.phone || '',
           countryCode: currentUser.countryCode || '+91',
           shopName: currentUser.shopName || '',
-          shopAddress: currentUser.address || '',
+          addressLine: currentUser.addressLine || '',
+          landmark: currentUser.landmark || '',
+          locality: currentUser.locality || '',
+          city: currentUser.city || '',
+          district: currentUser.district || '',
+          state: currentUser.state || '',
+          pincode: currentUser.pincode || '',
+          country: currentUser.country || 'India',
           experience: String(currentUser.experience || ''),
-          speciality: currentUser.specialization || '',
-          skills: currentUser.specialization || [],
+          speciality: Array.isArray(currentUser.specialization) 
+            ? currentUser.specialization 
+            : (currentUser.specialization ? [currentUser.specialization] : []),
           workingHours: currentUser.workingHours || '',
           about: currentUser.about || '',
           portfolio: currentUser.portfolio || [],
@@ -231,17 +251,6 @@ const TailorProfile = () => {
   };
 
 
-  const handleSkillChange = (skill) => {
-    const currentSkills = formData.skills || [];
-    const updatedSkills = currentSkills.includes(skill)
-      ? currentSkills.filter(s => s !== skill)
-      : [...currentSkills, skill];
-    
-    setFormData(prev => ({
-      ...prev,
-      skills: updatedSkills
-    }));
-  };
 
   const validateForm = () => {
     const newErrors = {};
@@ -251,9 +260,17 @@ const TailorProfile = () => {
     if (!formData.email?.trim()) newErrors.email = 'Email is required';
     if (!formData.phone?.trim()) newErrors.phone = 'Phone number is required';
     if (!formData.shopName?.trim()) newErrors.shopName = 'Shop name is required';
-    if (!formData.shopAddress?.trim()) newErrors.shopAddress = 'Shop address is required';
+    if (!formData.addressLine?.trim()) newErrors.addressLine = 'Address line is required';
+    if (!formData.locality?.trim()) newErrors.locality = 'Locality is required';
+    if (!formData.city?.trim()) newErrors.city = 'City is required';
+    if (!formData.district?.trim()) newErrors.district = 'District is required';
+    if (!formData.state?.trim()) newErrors.state = 'State is required';
+    if (!formData.pincode?.trim()) newErrors.pincode = 'Pincode is required';
     if (!formData.experience?.trim()) newErrors.experience = 'Experience is required';
-    if (!formData.speciality?.trim()) newErrors.speciality = 'Speciality is required';
+    
+    // Validate speciality array
+    const specialities = Array.isArray(formData.speciality) ? formData.speciality : [];
+    if (specialities.length === 0) newErrors.speciality = 'At least one speciality is required';
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -261,15 +278,49 @@ const TailorProfile = () => {
 
 
   const handleSaveProfile = async () => {
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      console.error('❌ Validation failed:', errors);
+      return;
+    }
     
     setLoading(true);
     try {
-      // Convert experience back to number for backend
+      // Prepare profile data with all fields
       const profileData = {
-        ...formData,
-        experience: Number(formData.experience) || 0
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        countryCode: formData.countryCode,
+        shopName: formData.shopName,
+        addressLine: formData.addressLine,
+        landmark: formData.landmark,
+        locality: formData.locality,
+        city: formData.city,
+        district: formData.district,
+        state: formData.state,
+        pincode: formData.pincode,
+        country: formData.country,
+        experience: Number(formData.experience) || 0,
+        speciality: formData.speciality, // Array of specialities
+        workingHours: formData.workingHours,
+        about: formData.about
       };
+      
+      console.log('━'.repeat(60));
+      console.log('📤 SENDING PROFILE UPDATE');
+      console.log('━'.repeat(60));
+      console.log('Shop Name:', profileData.shopName);
+      console.log('Address Line:', profileData.addressLine);
+      console.log('Landmark:', profileData.landmark);
+      console.log('Locality:', profileData.locality);
+      console.log('City:', profileData.city);
+      console.log('District:', profileData.district);
+      console.log('State:', profileData.state);
+      console.log('Pincode:', profileData.pincode);
+      console.log('Country:', profileData.country);
+      console.log('━'.repeat(60));
+      console.log('Full Data:', JSON.stringify(profileData, null, 2));
       
       const response = await fetch('http://localhost:3000/api/tailors/update-profile', {
         method: 'PUT',
@@ -280,20 +331,108 @@ const TailorProfile = () => {
         body: JSON.stringify(profileData)
       });
       
+      console.log('📥 Response Status:', response.status, response.statusText);
+      
       const data = await response.json();
       
-      if (data.success) {
-        const updatedUser = { ...user, ...formData };
+      console.log('━'.repeat(60));
+      console.log('📥 BACKEND RESPONSE');
+      console.log('━'.repeat(60));
+      console.log('Success:', data.success);
+      console.log('Message:', data.message);
+      if (data.tailor) {
+        console.log('Returned Address Line:', data.tailor.addressLine);
+        console.log('Returned Locality:', data.tailor.locality);
+        console.log('Returned City:', data.tailor.city);
+        console.log('Returned State:', data.tailor.state);
+        console.log('Returned Pincode:', data.tailor.pincode);
+        console.log('Old address field:', data.tailor.address);
+      }
+      console.log('━'.repeat(60));
+      
+      if (data.success && data.tailor) {
+        // Update user object with the response from backend
+        const updatedUser = {
+          ...user,
+          firstname: data.tailor.firstname,
+          lastname: data.tailor.lastname,
+          email: data.tailor.email,
+          phone: data.tailor.phone,
+          countryCode: data.tailor.countryCode,
+          shopName: data.tailor.shopName,
+          addressLine: data.tailor.addressLine,
+          landmark: data.tailor.landmark,
+          locality: data.tailor.locality,
+          city: data.tailor.city,
+          district: data.tailor.district,
+          state: data.tailor.state,
+          pincode: data.tailor.pincode,
+          country: data.tailor.country,
+          experience: data.tailor.experience,
+          specialization: data.tailor.specialization,
+          workingHours: data.tailor.workingHours,
+          about: data.tailor.about,
+          profileImage: data.tailor.profileImage || user.profileImage,
+          shopImage: data.tailor.shopImage || user.shopImage
+        };
+        
         localStorage.setItem('user', JSON.stringify(updatedUser));
         setUser(updatedUser);
+        
+        // Update form data with backend response
+        setFormData({
+          firstName: data.tailor.firstname || '',
+          lastName: data.tailor.lastname || '',
+          email: data.tailor.email || '',
+          phone: data.tailor.phone || '',
+          countryCode: data.tailor.countryCode || '+91',
+          shopName: data.tailor.shopName || '',
+          addressLine: data.tailor.addressLine || '',
+          landmark: data.tailor.landmark || '',
+          locality: data.tailor.locality || '',
+          city: data.tailor.city || '',
+          district: data.tailor.district || '',
+          state: data.tailor.state || '',
+          pincode: data.tailor.pincode || '',
+          country: data.tailor.country || 'India',
+          experience: String(data.tailor.experience || ''),
+          speciality: Array.isArray(data.tailor.specialization) 
+            ? data.tailor.specialization 
+            : (data.tailor.specialization ? [data.tailor.specialization] : []),
+          workingHours: data.tailor.workingHours || '',
+          about: data.tailor.about || '',
+          portfolio: data.tailor.portfolio || [],
+          profileImage: data.tailor.profileImage || '',
+          shopImage: data.tailor.shopImage || ''
+        });
+        
         setIsEditing(false);
-        alert('Profile updated successfully!');
+        
+        // Use SweetAlert for better UX
+        await Swal.fire({
+          icon: 'success',
+          title: 'Profile Updated!',
+          text: 'Your profile has been updated successfully.',
+          confirmButtonColor: '#7c3aed'
+        });
+        
+        console.log('Profile updated successfully:', data.tailor);
       } else {
-        alert(data.message || 'Failed to update profile');
+        await Swal.fire({
+          icon: 'error',
+          title: 'Update Failed',
+          text: data.message || 'Failed to update profile. Please try again.',
+          confirmButtonColor: '#7c3aed'
+        });
       }
     } catch (error) {
       console.error('Error updating profile:', error);
-      alert('Failed to update profile. Please try again.');
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to update profile. Please check your connection and try again.',
+        confirmButtonColor: '#7c3aed'
+      });
     } finally {
       setLoading(false);
     }
@@ -401,11 +540,148 @@ const TailorProfile = () => {
     }
   };
 
-  const availableSkills = [
-    'Formal Wear', 'Casual Wear', 'Bridal Wear', 'Western Wear', 'Traditional Wear',
-    'Alterations', 'Custom Fitting', 'Design Consultation', 'Fabric Selection',
-    'Pattern Making', 'Embroidery', 'Beading', 'Sequins Work', 'Zari Work'
+  const availableSpecialities = [
+    'Formal Wear',
+    'Casual Wear',
+    'Bridal Wear',
+    'Western Wear',
+    'Traditional Wear'
   ];
+
+  const handleSpecialityChange = (speciality) => {
+    const currentSpecialities = Array.isArray(formData.speciality) 
+      ? formData.speciality 
+      : (formData.speciality ? [formData.speciality] : []);
+    
+    const updatedSpecialities = currentSpecialities.includes(speciality)
+      ? currentSpecialities.filter(s => s !== speciality)
+      : [...currentSpecialities, speciality];
+    
+    setFormData(prev => ({
+      ...prev,
+      speciality: updatedSpecialities
+    }));
+
+    // Clear error if user has selected at least one speciality
+    if (updatedSpecialities.length > 0 && errors.speciality) {
+      setErrors(prev => ({
+        ...prev,
+        speciality: ''
+      }));
+    }
+  };
+
+  // Function to fetch address details from pincode
+  const fetchAddressFromPincode = async (pincode) => {
+    if (!pincode || pincode.length !== 6) {
+      return;
+    }
+
+    setPincodeLoading(true);
+    setPincodeError('');
+
+    try {
+      const response = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch pincode data');
+      }
+
+      const data = await response.json();
+      
+      if (data && data[0] && data[0].Status === 'Success' && data[0].PostOffice && data[0].PostOffice.length > 0) {
+        const postOffices = data[0].PostOffice;
+        
+        // Extract unique localities from post offices
+        const uniqueLocalities = [...new Set(postOffices.map(po => po.Name).filter(Boolean))];
+        setLocalities(uniqueLocalities);
+        
+        // If only one locality, auto-select it
+        if (uniqueLocalities.length === 1) {
+          setFormData(prev => ({
+            ...prev,
+            locality: uniqueLocalities[0],
+            city: postOffices[0].Division || postOffices[0].Block || '',
+            district: postOffices[0].District || '',
+            state: postOffices[0].State || '',
+            country: 'India'
+          }));
+          setShowLocalityDropdown(false);
+        } else if (uniqueLocalities.length > 1) {
+          // If multiple localities, show dropdown
+          setFormData(prev => ({
+            ...prev,
+            locality: '',
+            city: postOffices[0].Division || postOffices[0].Block || '',
+            district: postOffices[0].District || '',
+            state: postOffices[0].State || '',
+            country: 'India'
+          }));
+          setShowLocalityDropdown(true);
+        }
+        
+        setPincodeError('');
+      } else {
+        setPincodeError('Pincode not found. Please check and try again.');
+        // Clear the fields if pincode is invalid
+        setFormData(prev => ({
+          ...prev,
+          locality: '',
+          city: '',
+          district: '',
+          state: ''
+        }));
+        setLocalities([]);
+        setShowLocalityDropdown(false);
+      }
+    } catch (error) {
+      console.error('Error fetching pincode data:', error);
+      setPincodeError('Failed to fetch address details. Please try again.');
+      // Clear the fields on error
+      setFormData(prev => ({
+        ...prev,
+        locality: '',
+        city: '',
+        district: '',
+        state: ''
+      }));
+      setLocalities([]);
+      setShowLocalityDropdown(false);
+    } finally {
+      setPincodeLoading(false);
+    }
+  };
+
+  // Handle pincode input with debouncing
+  const handlePincodeChange = (e) => {
+    const { value } = e.target;
+    
+    // Update the pincode field
+    setFormData(prev => ({
+      ...prev,
+      pincode: value
+    }));
+
+    // Clear error when user starts typing
+    setPincodeError('');
+
+    // Fetch address details when pincode is 6 digits
+    if (value.length === 6 && /^\d{6}$/.test(value)) {
+      fetchAddressFromPincode(value);
+    } else if (value.length < 6) {
+      // Clear fields if pincode is incomplete
+      setFormData(prev => ({
+        ...prev,
+        locality: '',
+        city: '',
+        district: '',
+        state: ''
+      }));
+      setLocalities([]);
+      setShowLocalityDropdown(false);
+    }
+  };
+
 
   if (!isLoggedIn || !user) {
     return (
@@ -536,8 +812,7 @@ const TailorProfile = () => {
                 <nav className="flex space-x-8 px-6">
                   {[
                     { key: 'profile', label: 'Profile', icon: FiUser },
-                    { key: 'shop', label: 'Shop', icon: FiScissors },
-                    { key: 'skills', label: 'Skills', icon: FiAward }
+                    { key: 'shop', label: 'Shop', icon: FiScissors }
                   ].map((tab) => {
                     const IconComponent = tab.icon;
                     return (
@@ -742,6 +1017,27 @@ const TailorProfile = () => {
                           placeholder="Tell customers about your experience, expertise, and what makes you unique..."
                         />
                       </div>
+
+                      {/* Display Selected Specialities */}
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          My Specialities
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {(Array.isArray(formData.speciality) ? formData.speciality : []).length > 0 ? (
+                            (Array.isArray(formData.speciality) ? formData.speciality : []).map((spec) => (
+                              <span
+                                key={spec}
+                                className="px-3 py-1.5 bg-purple-100 text-purple-700 rounded-full text-sm font-medium"
+                              >
+                                {spec}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-gray-400 text-sm">No specialities selected</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
 
                     {/* Aadhaar Details (if available) */}
@@ -857,163 +1153,426 @@ const TailorProfile = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
+                    {/* Display Mode - Show saved data in nice format */}
+                    {!isEditing && (
+                      <div className="space-y-6">
+                        {/* Shop Details Display */}
+                        <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                          <h3 className="text-md font-semibold text-gray-900 mb-4 flex items-center">
+                            <FiScissors className="w-5 h-5 mr-2 text-purple-500" />
+                            Shop Details
+                          </h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-xs text-gray-500 mb-1">Shop Name</p>
+                              <p className="text-sm font-medium text-gray-900">{formData.shopName || '—'}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500 mb-1">Experience</p>
+                              <p className="text-sm font-medium text-gray-900">
+                                {formData.experience ? `${formData.experience} ${formData.experience === '1' ? 'Year' : 'Years'}` : '—'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Specialities Display */}
+                        <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                          <h3 className="text-md font-semibold text-gray-900 mb-4 flex items-center">
+                            <FiStar className="w-5 h-5 mr-2 text-purple-500" />
+                            Specialities
+                          </h3>
+                          <div className="flex flex-wrap gap-2">
+                            {(Array.isArray(formData.speciality) ? formData.speciality : []).length > 0 ? (
+                              (Array.isArray(formData.speciality) ? formData.speciality : []).map((spec) => (
+                                <span
+                                  key={spec}
+                                  className="px-3 py-1.5 bg-purple-100 text-purple-700 rounded-full text-sm font-medium"
+                                >
+                                  {spec}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-gray-400 text-sm">No specialities selected</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Complete Address Display */}
+                        <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                          <h3 className="text-md font-semibold text-gray-900 mb-4 flex items-center">
+                            <FiMapPin className="w-5 h-5 mr-2 text-purple-500" />
+                            Shop Address
+                          </h3>
+                          
+                          {formData.addressLine || formData.locality || formData.city ? (
+                            <div className="space-y-3">
+                              {/* Formatted Address */}
+                              <div className="text-sm text-gray-900">
+                                {formData.addressLine && (
+                                  <p className="font-medium">{formData.addressLine}</p>
+                                )}
+                                {formData.landmark && (
+                                  <p className="text-gray-600">Landmark: {formData.landmark}</p>
+                                )}
+                                {formData.locality && (
+                                  <p className="mt-1">{formData.locality}</p>
+                                )}
+                                {(formData.city || formData.district || formData.state || formData.pincode) && (
+                                  <p className="mt-1">
+                                    {[formData.city, formData.district, formData.state, formData.pincode]
+                                      .filter(Boolean)
+                                      .join(', ')}
+                                  </p>
+                                )}
+                                {formData.country && formData.country !== 'India' && (
+                                  <p className="mt-1">{formData.country}</p>
+                                )}
+                              </div>
+
+                              {/* Detailed View */}
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3 border-t border-gray-200">
+                                <div>
+                                  <p className="text-xs text-gray-500">City</p>
+                                  <p className="text-sm font-medium text-gray-900">{formData.city || '—'}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-500">District</p>
+                                  <p className="text-sm font-medium text-gray-900">{formData.district || '—'}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-500">State</p>
+                                  <p className="text-sm font-medium text-gray-900">{formData.state || '—'}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-500">Pincode</p>
+                                  <p className="text-sm font-medium text-gray-900">{formData.pincode || '—'}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-500">Locality</p>
+                                  <p className="text-sm font-medium text-gray-900">{formData.locality || '—'}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-500">Country</p>
+                                  <p className="text-sm font-medium text-gray-900">{formData.country || 'India'}</p>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-gray-400 text-sm">No address information available. Click "Edit Shop" to add your shop address.</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Edit Mode - Show input fields */}
+                    {isEditing && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Shop Name
+                          </label>
+                          <input
+                            type="text"
+                            name="shopName"
+                            value={formData.shopName}
+                            onChange={handleInputChange}
+                            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 border-gray-300 ${errors.shopName ? 'border-red-300' : ''}`}
+                          />
+                          {errors.shopName && (
+                            <p className="text-red-500 text-xs mt-1">{errors.shopName}</p>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Experience (Years)
+                          </label>
+                          <input
+                            type="number"
+                            name="experience"
+                            value={formData.experience}
+                            onChange={handleInputChange}
+                            min="0"
+                            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 border-gray-300 ${errors.experience ? 'border-red-300' : ''}`}
+                          />
+                          {errors.experience && (
+                            <p className="text-red-500 text-xs mt-1">{errors.experience}</p>
+                          )}
+                        </div>
+
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-3">
+                          Specialities
+                        </label>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          {availableSpecialities.map((speciality) => (
+                            <label
+                              key={speciality}
+                              className={`flex items-center p-3 border rounded-lg cursor-pointer transition-all duration-200 ${
+                                (Array.isArray(formData.speciality) ? formData.speciality : []).includes(speciality)
+                                  ? 'border-purple-500 bg-purple-50 text-purple-700'
+                                  : 'border-gray-200 hover:border-gray-300'
+                              } ${!isEditing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={(Array.isArray(formData.speciality) ? formData.speciality : []).includes(speciality)}
+                                onChange={() => handleSpecialityChange(speciality)}
+                                disabled={!isEditing}
+                                className="mr-3 text-purple-600 focus:ring-purple-500"
+                              />
+                              <span className="text-sm font-medium">{speciality}</span>
+                            </label>
+                          ))}
+                        </div>
+                        {errors.speciality && (
+                          <p className="text-red-500 text-xs mt-2">{errors.speciality}</p>
+                        )}
+                      </div>
+
+                      {/* Pincode Field - First to trigger auto-fill */}
+                      <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Shop Name
+                          Pincode
+                        </label>
+                        <p className="text-xs text-gray-500 mb-2">
+                          Enter a 6-digit pincode to automatically fetch city, district, and state details
+                        </p>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            name="pincode"
+                            value={formData.pincode}
+                            onChange={handlePincodeChange}
+                          disabled={!isEditing}
+                            placeholder="6-digit pincode"
+                            pattern="[0-9]{6}"
+                            maxLength="6"
+                          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 ${
+                              isEditing ? (pincodeError ? 'border-red-300' : 'border-gray-300') : 'border-gray-200 bg-gray-50'
+                            } ${errors.pincode ? 'border-red-300' : ''}`}
+                          />
+                          {pincodeLoading && (
+                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                              <FiLoader className="w-4 h-4 text-purple-500 animate-spin" />
+                            </div>
+                          )}
+                          {formData.pincode.length === 6 && !pincodeLoading && !pincodeError && (
+                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                              <FiSearch className="w-4 h-4 text-green-500" />
+                            </div>
+                          )}
+                        </div>
+                        {pincodeError && (
+                          <p className="text-red-500 text-xs mt-1">{pincodeError}</p>
+                        )}
+                        {formData.pincode.length === 6 && !pincodeLoading && !pincodeError && (
+                          <p className="text-green-500 text-xs mt-1">✓ Address details fetched successfully</p>
+                        )}
+                        {errors.pincode && (
+                          <p className="text-red-500 text-xs mt-1">{errors.pincode}</p>
+                        )}
+                      </div>
+
+                      {/* Address Line */}
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Address Line
                         </label>
                         <input
                           type="text"
-                          name="shopName"
-                          value={formData.shopName}
+                          name="addressLine"
+                          value={formData.addressLine}
                           onChange={handleInputChange}
                           disabled={!isEditing}
+                          placeholder="House/Shop number, Street name"
                           className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 ${
                             isEditing ? 'border-gray-300' : 'border-gray-200 bg-gray-50'
-                          } ${errors.shopName ? 'border-red-300' : ''}`}
+                          } ${errors.addressLine ? 'border-red-300' : ''}`}
                         />
-                        {errors.shopName && (
-                          <p className="text-red-500 text-xs mt-1">{errors.shopName}</p>
+                        {errors.addressLine && (
+                          <p className="text-red-500 text-xs mt-1">{errors.addressLine}</p>
                         )}
                       </div>
 
+                      {/* Landmark */}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Experience (Years)
+                          Landmark (Optional)
                         </label>
                         <input
-                          type="number"
-                          name="experience"
-                          value={formData.experience}
+                          type="text"
+                          name="landmark"
+                          value={formData.landmark}
                           onChange={handleInputChange}
                           disabled={!isEditing}
-                          min="0"
+                          placeholder="Near hospital, school, etc."
                           className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 ${
                             isEditing ? 'border-gray-300' : 'border-gray-200 bg-gray-50'
-                          } ${errors.experience ? 'border-red-300' : ''}`}
+                          }`}
                         />
-                        {errors.experience && (
-                          <p className="text-red-500 text-xs mt-1">{errors.experience}</p>
-                        )}
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Speciality
-                        </label>
-                        <select
-                          name="speciality"
-                          value={formData.speciality}
-                          onChange={handleInputChange}
-                          disabled={!isEditing}
-                          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 ${
-                            isEditing ? 'border-gray-300' : 'border-gray-200 bg-gray-50'
-                          } ${errors.speciality ? 'border-red-300' : ''}`}
-                        >
-                          <option value="">Select Speciality</option>
-                          <option value="Formal Wear">Formal Wear</option>
-                          <option value="Casual Wear">Casual Wear</option>
-                          <option value="Bridal Wear">Bridal Wear</option>
-                          <option value="Western Wear">Western Wear</option>
-                          <option value="Traditional Wear">Traditional Wear</option>
-                          <option value="Alterations">Alterations</option>
-                        </select>
-                        {errors.speciality && (
-                          <p className="text-red-500 text-xs mt-1">{errors.speciality}</p>
-                        )}
-                      </div>
-
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Shop Address
-                        </label>
-                        <textarea
-                          name="shopAddress"
-                          value={formData.shopAddress}
-                          onChange={handleInputChange}
-                          disabled={!isEditing}
-                          rows={3}
-                          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 ${
-                            isEditing ? 'border-gray-300' : 'border-gray-200 bg-gray-50'
-                          } ${errors.shopAddress ? 'border-red-300' : ''}`}
-                        />
-                        {errors.shopAddress && (
-                          <p className="text-red-500 text-xs mt-1">{errors.shopAddress}</p>
-                        )}
-                      </div>
                     </div>
  
-                    {isEditing && (
-                      <div className="flex justify-end space-x-3">
-                        <button
-                          onClick={() => setIsEditing(false)}
-                          className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg text-sm font-medium hover:bg-gray-200 transition-all duration-200"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={handleSaveProfile}
-                          disabled={loading}
-                          className="px-6 py-2 bg-purple-500 text-white rounded-lg text-sm font-medium hover:bg-purple-600 transition-all duration-200 disabled:opacity-50"
-                        >
-                          {loading ? 'Saving...' : 'Save Changes'}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Skills Tab */}
-                {activeTab === 'skills' && (
-                  <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                      <h2 className="text-xl font-semibold text-gray-900">Skills & Expertise</h2>
-                      <button
-                        onClick={() => setIsEditing(!isEditing)}
-                        className="flex items-center space-x-2 px-4 py-2 bg-purple-500 text-white rounded-lg text-sm font-medium hover:bg-purple-600 transition-all duration-200"
-                      >
-                        <FiEdit className="w-4 h-4" />
-                        <span>{isEditing ? 'Cancel' : 'Edit Skills'}</span>
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {availableSkills.map((skill) => (
-                        <label
-                          key={skill}
-                          className={`flex items-center p-3 border rounded-lg cursor-pointer transition-all duration-200 ${
-                            (formData.skills || []).includes(skill)
-                              ? 'border-purple-500 bg-purple-50 text-purple-700'
-                              : 'border-gray-200 hover:border-gray-300'
-                          } ${!isEditing ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={(formData.skills || []).includes(skill)}
-                            onChange={() => handleSkillChange(skill)}
-                            disabled={!isEditing}
-                            className="mr-3 text-purple-600 focus:ring-purple-500"
-                          />
-                          <span className="text-sm font-medium">{skill}</span>
+                      {/* Locality */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Locality
                         </label>
-                      ))}
+                        {showLocalityDropdown && localities.length > 1 ? (
+                          <select
+                            name="locality"
+                            value={formData.locality}
+                            onChange={handleInputChange}
+                            disabled={!isEditing}
+                            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 ${
+                              isEditing ? 'border-gray-300' : 'border-gray-200 bg-gray-50'
+                            } ${errors.locality ? 'border-red-300' : ''}`}
+                          >
+                            <option value="">Select Locality</option>
+                            {localities.map(locality => (
+                              <option key={locality} value={locality}>{locality}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            type="text"
+                            name="locality"
+                            value={formData.locality}
+                            onChange={handleInputChange}
+                            disabled={!isEditing}
+                            placeholder="Enter locality name"
+                            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 ${
+                              isEditing ? (formData.pincode.length === 6 && !pincodeError && formData.locality ? 'bg-green-50 border-green-300' : 'border-gray-300') : 'border-gray-200 bg-gray-50'
+                            } ${errors.locality ? 'border-red-300' : ''}`}
+                          />
+                        )}
+                        {formData.pincode.length === 6 && !pincodeError && formData.locality && (
+                          <p className="text-green-500 text-xs mt-1">
+                            {showLocalityDropdown && localities.length > 1 ? 'Please select from available localities' : 'Auto-filled from pincode'}
+                          </p>
+                        )}
+                        {errors.locality && (
+                          <p className="text-red-500 text-xs mt-1">{errors.locality}</p>
+                        )}
+                      </div>
+
+                      {/* City */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          City
+                        </label>
+                        <input
+                          type="text"
+                          name="city"
+                          value={formData.city}
+                          onChange={handleInputChange}
+                          disabled={!isEditing}
+                          placeholder="Enter city name"
+                          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 ${
+                            isEditing ? (formData.pincode.length === 6 && !pincodeError ? 'bg-green-50 border-green-300' : 'border-gray-300') : 'border-gray-200 bg-gray-50'
+                          } ${errors.city ? 'border-red-300' : ''}`}
+                        />
+                        {formData.pincode.length === 6 && !pincodeError && formData.city && (
+                          <p className="text-green-500 text-xs mt-1">Auto-filled from pincode</p>
+                        )}
+                        {errors.city && (
+                          <p className="text-red-500 text-xs mt-1">{errors.city}</p>
+                        )}
                     </div>
 
-                    {isEditing && (
-                      <div className="flex justify-end space-x-3">
-                        <button
-                          onClick={() => setIsEditing(false)}
-                          className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg text-sm font-medium hover:bg-gray-200 transition-all duration-200"
+                      {/* District */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          District
+                        </label>
+                          <input
+                          type="text"
+                          name="district"
+                          value={formData.district}
+                          onChange={handleInputChange}
+                            disabled={!isEditing}
+                          placeholder="Enter district name"
+                          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 ${
+                            isEditing ? (formData.pincode.length === 6 && !pincodeError ? 'bg-green-50 border-green-300' : 'border-gray-300') : 'border-gray-200 bg-gray-50'
+                          } ${errors.district ? 'border-red-300' : ''}`}
+                        />
+                        {formData.pincode.length === 6 && !pincodeError && formData.district && (
+                          <p className="text-green-500 text-xs mt-1">Auto-filled from pincode</p>
+                        )}
+                        {errors.district && (
+                          <p className="text-red-500 text-xs mt-1">{errors.district}</p>
+                        )}
+                      </div>
+
+                      {/* State */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          State
+                        </label>
+                        <select
+                          name="state"
+                          value={formData.state}
+                          onChange={handleInputChange}
+                          disabled={!isEditing}
+                          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 ${
+                            isEditing ? (formData.pincode.length === 6 && !pincodeError ? 'bg-green-50 border-green-300' : 'border-gray-300') : 'border-gray-200 bg-gray-50'
+                          } ${errors.state ? 'border-red-300' : ''}`}
                         >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={handleSaveProfile}
-                          disabled={loading}
-                          className="px-6 py-2 bg-purple-500 text-white rounded-lg text-sm font-medium hover:bg-purple-600 transition-all duration-200 disabled:opacity-50"
-                        >
-                          {loading ? 'Saving...' : 'Save Changes'}
-                        </button>
+                          <option value="">Select State</option>
+                          <option value="Andhra Pradesh">Andhra Pradesh</option>
+                          <option value="Arunachal Pradesh">Arunachal Pradesh</option>
+                          <option value="Assam">Assam</option>
+                          <option value="Bihar">Bihar</option>
+                          <option value="Chhattisgarh">Chhattisgarh</option>
+                          <option value="Goa">Goa</option>
+                          <option value="Gujarat">Gujarat</option>
+                          <option value="Haryana">Haryana</option>
+                          <option value="Himachal Pradesh">Himachal Pradesh</option>
+                          <option value="Jharkhand">Jharkhand</option>
+                          <option value="Karnataka">Karnataka</option>
+                          <option value="Kerala">Kerala</option>
+                          <option value="Madhya Pradesh">Madhya Pradesh</option>
+                          <option value="Maharashtra">Maharashtra</option>
+                          <option value="Manipur">Manipur</option>
+                          <option value="Meghalaya">Meghalaya</option>
+                          <option value="Mizoram">Mizoram</option>
+                          <option value="Nagaland">Nagaland</option>
+                          <option value="Odisha">Odisha</option>
+                          <option value="Punjab">Punjab</option>
+                          <option value="Rajasthan">Rajasthan</option>
+                          <option value="Sikkim">Sikkim</option>
+                          <option value="Tamil Nadu">Tamil Nadu</option>
+                          <option value="Telangana">Telangana</option>
+                          <option value="Tripura">Tripura</option>
+                          <option value="Uttar Pradesh">Uttar Pradesh</option>
+                          <option value="Uttarakhand">Uttarakhand</option>
+                          <option value="West Bengal">West Bengal</option>
+                        </select>
+                        {formData.pincode.length === 6 && !pincodeError && formData.state && (
+                          <p className="text-green-500 text-xs mt-1">Auto-filled from pincode</p>
+                        )}
+                        {errors.state && (
+                          <p className="text-red-500 text-xs mt-1">{errors.state}</p>
+                        )}
+                      </div>
+
+                        {/* Save/Cancel Buttons for Edit Mode */}
+                        <div className="flex justify-end space-x-3 mt-6">
+                          <button
+                            onClick={() => setIsEditing(false)}
+                            className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg text-sm font-medium hover:bg-gray-200 transition-all duration-200"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={handleSaveProfile}
+                            disabled={loading}
+                            className="px-6 py-2 bg-purple-500 text-white rounded-lg text-sm font-medium hover:bg-purple-600 transition-all duration-200 disabled:opacity-50"
+                          >
+                            {loading ? 'Saving...' : 'Save Changes'}
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>

@@ -24,11 +24,17 @@ import {
   FiUser as FiUserIcon,
   FiSettings,
   FiLogOut,
+  FiCamera,
 } from "react-icons/fi";
 import { apiCall } from "../../config/api";
 import { useBooking } from "../../context/BookingContext";
 import { useCart } from "../../context/CartContext";
+import { loadRazorpayScript, createRazorpayInstance, createRazorpayOptions, handleRazorpayError } from "../../utils/razorpay";
+import Swal from 'sweetalert2';
+import AIMeasurementCapture from "../../components/AIMeasurementCapture";
 import DesignSelection from "../../components/DesignSelection";
+import EnhancedMeasurementForm from "../../components/EnhancedMeasurementForm";
+import BookingCacheService from "../../utils/bookingCache";
 
 // Header Component
 const Header = ({ onNavigate }) => (
@@ -190,9 +196,210 @@ const BookingFlow = () => {
   const [addresses, setAddresses] = useState([]);
   const [selectedTailor, setSelectedTailor] = useState(null);
   const [selectedFabric, setSelectedFabric] = useState(null);
+  const [showAIMeasurement, setShowAIMeasurement] = useState(false);
+  const [showEnhancedMeasurementForm, setShowEnhancedMeasurementForm] = useState(false);
+  const [bookingCache] = useState(new BookingCacheService());
+  const [isPaying, setIsPaying] = useState(false);
+  const [paymentCompleted, setPaymentCompleted] = useState(false);
+
+  const loadScript = (src) => {
+    return new Promise((resolve) => {
+      if (document.querySelector(`script[src="${src}"]`)) {
+        return resolve(true);
+      }
+      const script = document.createElement('script');
+      script.src = src;
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const initiatePayment = async () => {
+    try {
+      if (!bookingData.addressId && !bookingData.deliveryAddress?._id) {
+        alert('Please select a delivery address first.');
+        return;
+      }
+
+      if (!bookingData.measurementId && (!bookingData.customMeasurements || Object.keys(bookingData.customMeasurements || {}).length === 0)) {
+        alert('Please confirm your measurements first.');
+        return;
+      }
+
+      setIsPaying(true);
+
+      const loaded = await loadScript('https://checkout.razorpay.com/v1/checkout.js');
+      if (!loaded) {
+        alert('Failed to load payment SDK. Please check your internet connection.');
+        setIsPaying(false);
+        return;
+      }
+
+      const amountToPay = Number(bookingData.totalCost || bookingData.advanceAmount || 0);
+      if (!amountToPay || amountToPay <= 0) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Invalid Amount',
+          text: 'Please check the payment amount and try again.',
+          confirmButtonText: 'OK'
+        });
+        setIsPaying(false);
+        return;
+      }
+
+      // 1) Create Razorpay order (without creating booking first)
+      const computedBookingType = (bookingData.serviceType === 'fabric-tailor' && bookingData.tailorId) ? 'complete' : 'fabric';
+      
+      const orderRes = await apiCall(
+        "PAYMENT_SERVICE",
+        "/api/payments/create-order",
+        {
+          method: "POST",
+          body: { 
+            amount: amountToPay, 
+            currency: "INR", 
+            notes: { 
+              source: "booking-flow",
+              bookingData: {
+                bookingType: computedBookingType,
+                tailorId: bookingData.tailorId || undefined,
+                fabricId: bookingData.fabricId || undefined,
+                measurementId: bookingData.measurementId || undefined,
+                measurementSnapshot: (bookingData.customMeasurements && Object.keys(bookingData.customMeasurements).length > 0) ? bookingData.customMeasurements : undefined,
+                addressId: bookingData.addressId || bookingData.deliveryAddress?._id,
+                orderDetails: {
+                  garmentType: bookingData.garmentType || 'other',
+                  quantity: bookingData.quantity || 1,
+                  designDescription: bookingData.designInstructions || bookingData.selectedDesign?.name || '',
+                  specialInstructions: bookingData.notes || '',
+                  deliveryDate: bookingData.preferredDate || new Date().toISOString()
+                },
+                pricing: {
+                  fabricCost: bookingData.fabricCost || 0,
+                  tailoringCost: bookingData.tailoringCost || 0,
+                  totalAmount: amountToPay,
+                  advanceAmount: amountToPay
+                }
+              }
+            },
+            userId: bookingData.customerId || "507f1f77bcf86cd799439012"
+          }
+        }
+      );
+
+      if (!orderRes?.success || !orderRes?.order?.id || !orderRes?.key) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Payment Order Failed',
+          text: 'Could not create payment order. Please try again.',
+          confirmButtonText: 'OK'
+        });
+        setIsPaying(false);
+        return;
+      }
+
+      // Load Razorpay script and create instance
+      try {
+        await loadRazorpayScript();
+        
+        const options = createRazorpayOptions(
+          orderRes,
+          async function (response) {
+            try {
+              const verifyRes = await apiCall(
+                "PAYMENT_SERVICE",
+                "/api/payments/verify",
+                {
+                  method: "POST",
+                  body: {
+                    razorpay_order_id: response.razorpay_order_id,
+                    razorpay_payment_id: response.razorpay_payment_id,
+                    razorpay_signature: response.razorpay_signature
+                  }
+                }
+              );
+
+              if (verifyRes?.success) {
+                // Clear booking cache and update UI
+                clearBookingCache();
+                setPaymentCompleted(true);
+                setBookingData(prev => ({
+                  ...prev,
+                  paymentStatus: 'paid',
+                  orderId: verifyRes.paymentId
+                }));
+                
+                // Show success message and redirect
+                Swal.fire({
+                  icon: 'success',
+                  title: 'Payment Successful!',
+                  text: 'Your order has been placed successfully.',
+                  confirmButtonText: 'View Dashboard',
+                  showConfirmButton: true,
+                  allowOutsideClick: false
+                }).then(() => {
+                  // Navigate to success page or dashboard
+                  navigate('/dashboard/customer', { 
+                    state: { 
+                      paymentSuccess: true, 
+                      orderId: verifyRes.paymentId,
+                      message: 'Payment completed successfully!' 
+                    }
+                  });
+                });
+              } else {
+                Swal.fire({
+                  icon: 'error',
+                  title: 'Payment Verification Failed',
+                  text: 'Your payment could not be verified. Please try again.',
+                  confirmButtonText: 'OK'
+                });
+              }
+            } catch (e) {
+              console.error('Payment verification error:', e);
+              Swal.fire({
+                icon: 'error',
+                title: 'Payment Error',
+                text: 'There was an error verifying payment. Please try again.',
+                confirmButtonText: 'OK'
+              });
+            } finally {
+              setIsPaying(false);
+            }
+          },
+          (error) => {
+            console.error('Payment error:', error);
+            Swal.fire({
+              icon: 'error',
+              title: 'Payment Failed',
+              text: handleRazorpayError(error),
+              confirmButtonText: 'OK'
+            });
+            setIsPaying(false);
+          },
+          () => {
+            console.log('Payment modal dismissed');
+            setIsPaying(false);
+          }
+        );
+
+        const rzp = await createRazorpayInstance(options);
+        rzp.open();
+      } catch (error) {
+        console.error('Razorpay initialization error:', error);
+        alert('Payment system is not available. Please refresh the page and try again.');
+        setIsPaying(false);
+      }
+    } catch (err) {
+      alert('Unable to start payment. Please try again.');
+      setIsPaying(false);
+    }
+  };
 
   useEffect(() => {
     fetchInitialData();
+    loadBookingProgress();
   }, []);
 
   useEffect(() => {
@@ -200,7 +407,48 @@ const BookingFlow = () => {
       setCurrentStep(2);
       setBookingData((prev) => ({ ...prev, serviceType: "complete" }));
     }
+    
+    // Handle resume from cart
+    if (location.state?.resume) {
+      loadBookingProgress();
+    }
   }, [location.state]);
+
+  // Load saved booking progress
+  const loadBookingProgress = () => {
+    const savedProgress = bookingCache.getBookingProgress();
+    if (savedProgress) {
+      setBookingData(savedProgress);
+      setCurrentStep(savedProgress.currentStep || 1);
+      
+      // Restore selected items
+      if (savedProgress.selectedFabric) {
+        setSelectedFabric(savedProgress.selectedFabric);
+      }
+      if (savedProgress.selectedTailor) {
+        setSelectedTailor(savedProgress.selectedTailor);
+      }
+    }
+  };
+
+  // Save booking progress
+  const saveBookingProgress = () => {
+    const progressData = {
+      ...bookingData,
+      currentStep,
+      selectedFabric,
+      selectedTailor
+    };
+    
+    bookingCache.saveBookingProgress(progressData);
+  };
+
+  // Auto-save on data changes
+  useEffect(() => {
+    if (bookingData.selectedFabric || bookingData.serviceType) {
+      saveBookingProgress();
+    }
+  }, [bookingData, currentStep, selectedFabric, selectedTailor]);
 
   const fetchInitialData = async () => {
     try {
@@ -330,11 +578,22 @@ const BookingFlow = () => {
   };
 
   const handleNext = () => {
-    if (currentStep < steps.length) setCurrentStep(currentStep + 1);
+    if (currentStep < steps.length) {
+      setCurrentStep(currentStep + 1);
+      saveBookingProgress();
+    }
   };
 
   const handlePrevious = () => {
-    if (currentStep > 1) setCurrentStep(currentStep - 1);
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+      saveBookingProgress();
+    }
+  };
+
+  // Clear booking cache when order is confirmed
+  const clearBookingCache = () => {
+    bookingCache.clearBookingProgress();
   };
 
   const handleTailorSelect = (t) => {
@@ -387,12 +646,14 @@ const BookingFlow = () => {
         { id: 3, title: "Select Design", icon: FiPackage, description: "Choose your design preference" },
         { id: 4, title: "Choose Tailor", icon: FiScissors, description: "Select your preferred tailor" },
         { id: 5, title: "Measurements", icon: FiUser, description: "Provide your measurements" },
-        { id: 6, title: "Confirm Order", icon: FiCheck, description: "Review and confirm your order" },
+        { id: 6, title: "Delivery Address", icon: FiHome, description: "Select delivery address" },
+        { id: 7, title: "Confirm Order", icon: FiCheck, description: "Review and confirm your order" },
       ];
     } else if (bookingData.serviceType === 'fabric-only') {
       return [
         ...baseSteps,
-        { id: 3, title: "Confirm Order", icon: FiCheck, description: "Review and confirm your order" },
+        { id: 3, title: "Delivery Address", icon: FiHome, description: "Select delivery address" },
+        { id: 4, title: "Confirm Order", icon: FiCheck, description: "Review and confirm your order" },
       ];
     }
 
@@ -813,11 +1074,69 @@ const BookingFlow = () => {
         );
 
       case "Measurements":
+        // If we have a selected design with measurement requirements, show enhanced form
+        if (bookingData.selectedDesign && bookingData.selectedDesign.measurementDetails && bookingData.selectedDesign.measurementDetails.length > 0) {
+          return (
+            <div className="space-y-6">
+              <div className="text-center">
+                <h2 className="text-3xl font-bold text-gray-900 mb-2">Your Measurements</h2>
+                <p className="text-gray-600">Provide your measurements for the selected design</p>
+              </div>
+
+              <EnhancedMeasurementForm
+                design={bookingData.selectedDesign}
+                onMeasurementSubmit={(measurementData, savedMeasurement) => {
+                  console.log('Measurements submitted:', measurementData);
+                  console.log('Saved measurement:', savedMeasurement);
+                  
+                  // Update booking data with measurements
+                  setBookingData(prev => ({
+                    ...prev,
+                    measurementId: savedMeasurement?._id || savedMeasurement?.id,
+                    customMeasurements: measurementData
+                  }));
+                  
+                  // Move to next step
+                  handleNext();
+                }}
+                onCancel={() => {
+                  setShowEnhancedMeasurementForm(false);
+                  // Go back to design selection
+                  setCurrentStep(3); // Design selection step
+                }}
+              />
+            </div>
+          );
+        }
+
+        // Fallback to simple measurement selection for designs without specific requirements
         return (
           <div className="space-y-6">
             <div className="text-center">
               <h2 className="text-3xl font-bold text-gray-900 mb-2">Your Measurements</h2>
-              <p className="text-gray-600">Select your measurements or add custom ones</p>
+              <p className="text-gray-600">Select your measurements or use AI to generate them</p>
+            </div>
+
+            {/* AI Measurement Option */}
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="bg-blue-100 p-3 rounded-full">
+                    <FiCamera className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">AI Body Measurement</h3>
+                    <p className="text-sm text-gray-600">Get accurate measurements using AI technology</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowAIMeasurement(true)}
+                  className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors flex items-center space-x-2"
+                >
+                  <FiCamera className="w-4 h-4" />
+                  <span>Start AI Measurement</span>
+                </button>
+              </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -839,6 +1158,69 @@ const BookingFlow = () => {
                         <span>{value}"</span>
                       </div>
                     ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* AI Measurement Modal */}
+            {showAIMeasurement && (
+              <AIMeasurementCapture
+                onMeasurementsGenerated={(measurements, savedMeasurement) => {
+                  if (savedMeasurement) {
+                    // Refresh measurements list
+                    fetchInitialData();
+                    setBookingData(prev => ({ 
+                      ...prev, 
+                      measurementId: savedMeasurement._id || savedMeasurement.id 
+                    }));
+                  }
+                  setShowAIMeasurement(false);
+                }}
+                onClose={() => setShowAIMeasurement(false)}
+                customerId={null} // TODO: Get from auth context when available
+              />
+            )}
+          </div>
+        );
+
+      case "Delivery Address":
+        return (
+          <div className="space-y-6">
+            <div className="text-center">
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">Delivery Address</h2>
+              <p className="text-gray-600">Choose an address for delivery</p>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                onClick={() => navigate('/customer/addresses')}
+                className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm"
+              >
+                Manage Addresses
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {addresses.map((addr) => (
+                <div
+                  key={addr._id}
+                  className={`p-6 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
+                    bookingData.addressId === addr._id
+                      ? "border-amber-500 bg-amber-50"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                  onClick={() => setBookingData(prev => ({ ...prev, addressId: addr._id, deliveryAddress: addr }))}
+                >
+                  <div className="flex items-start space-x-3">
+                    <FiMapPin className="mt-1 h-5 w-5 text-amber-600" />
+                    <div>
+                      <div className="font-semibold text-gray-900">{addr.addressLine || addr.name || 'Address'}</div>
+                      <div className="text-sm text-gray-600">{addr.city}, {addr.state} - {addr.pincode}</div>
+                      {addr.isDefault && (
+                        <div className="mt-1 inline-block text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">Default</div>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -936,10 +1318,43 @@ const BookingFlow = () => {
                     </div>
                   </div>
                 </div>
+
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <h3 className="text-xl font-semibold mb-4">Delivery Address</h3>
+                  {bookingData.deliveryAddress && bookingData.deliveryAddress._id ? (
+                    <div className="text-sm text-gray-700">
+                      <div className="font-medium">{bookingData.deliveryAddress.addressLine || 'Address'}</div>
+                      <div>{bookingData.deliveryAddress.city}, {bookingData.deliveryAddress.state} - {bookingData.deliveryAddress.pincode}</div>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-500">No address selected. Please go back and select an address.</div>
+                  )}
+                </div>
                 
-                <button className="w-full bg-amber-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-amber-700 transition-colors">
-                  Place Order
-                </button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {paymentCompleted ? (
+                    <div className="w-full py-3 px-6 rounded-lg font-semibold bg-green-100 text-green-800 border border-green-200 text-center">
+                      ✅ Payment Completed
+                    </div>
+                  ) : (
+                    <button 
+                      onClick={initiatePayment}
+                      disabled={isPaying}
+                      className={`w-full py-3 px-6 rounded-lg font-semibold transition-colors ${isPaying ? 'bg-amber-300 text-white' : 'bg-amber-600 text-white hover:bg-amber-700'}`}
+                    >
+                      {isPaying ? 'Processing...' : 'Pay Now'}
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => {
+                      console.log('Placing order without upfront payment:', bookingData);
+                      clearBookingCache();
+                    }}
+                    className="w-full bg-gray-100 text-gray-800 py-3 px-6 rounded-lg font-semibold hover:bg-gray-200 transition-colors"
+                  >
+                    Place Order
+                  </button>
+                </div>
               </div>
             </div>
           </div>

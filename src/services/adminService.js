@@ -129,6 +129,54 @@ export const adminService = {
       console.error('Error fetching design stats:', error);
       throw error;
     }
+  },
+
+  // Create new design
+  async createDesign(designData) {
+    try {
+      return await apiCall('ADMIN_SERVICE', '/api/designs', {
+        method: 'POST',
+        body: JSON.stringify(designData)
+      });
+    } catch (error) {
+      console.error('Error creating design:', error);
+      throw error;
+    }
+  },
+
+  // Update design
+  async updateDesign(designId, designData) {
+    try {
+      return await apiCall('ADMIN_SERVICE', `/api/designs/${designId}`, {
+        method: 'PUT',
+        body: JSON.stringify(designData)
+      });
+    } catch (error) {
+      console.error('Error updating design:', error);
+      throw error;
+    }
+  },
+
+  // Delete design
+  async deleteDesign(designId) {
+    try {
+      return await apiCall('ADMIN_SERVICE', `/api/designs/${designId}`, {
+        method: 'DELETE'
+      });
+    } catch (error) {
+      console.error('Error deleting design:', error);
+      throw error;
+    }
+  },
+
+  // Get design categories
+  async getDesignCategories() {
+    try {
+      return await apiCall('ADMIN_SERVICE', '/api/designs/categories');
+    } catch (error) {
+      console.error('Error fetching design categories:', error);
+      throw error;
+    }
   }
 };
 

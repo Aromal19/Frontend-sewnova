@@ -4,6 +4,7 @@
 // VITE_AUTH_SERVICE_URL=http://localhost:3002
 // VITE_TAILOR_SERVICE_URL=http://localhost:3003
 // VITE_SELLER_SERVICE_URL=http://localhost:3004
+// VITE_PAYMENT_SERVICE_URL=http://localhost:3010
 
 const API_CONFIG = {
   // Customer Service (running on port 3002)
@@ -21,6 +22,7 @@ const API_CONFIG = {
   // Other services can be added here
   TAILOR_SERVICE: import.meta.env.VITE_TAILOR_SERVICE_URL || 'http://localhost:3003',
   SELLER_SERVICE: import.meta.env.VITE_SELLER_SERVICE_URL || 'http://localhost:3004',
+  PAYMENT_SERVICE: import.meta.env.VITE_PAYMENT_SERVICE_URL || 'http://localhost:3010',
 };
 
 // Helper function to get full API URL
@@ -77,7 +79,7 @@ export const apiCall = async (service, endpoint, options = {}) => {
       },
     };
 
-    let response = await fetch(url, {
+    const fetchInit = {
       ...defaultOptions,
       ...options,
       headers: {
@@ -85,7 +87,13 @@ export const apiCall = async (service, endpoint, options = {}) => {
         ...options.headers,
       },
       credentials: 'include',
-    });
+    };
+
+    if (fetchInit.body && typeof fetchInit.body !== 'string') {
+      fetchInit.body = JSON.stringify(fetchInit.body);
+    }
+
+    let response = await fetch(url, fetchInit);
 
     // If unauthorized, try to refresh access token once and retry
     if (response.status === 401) {
@@ -115,7 +123,14 @@ export const apiCall = async (service, endpoint, options = {}) => {
     }
 
     if (!response.ok) {
-      throw new Error(`API call failed: ${response.status} ${response.statusText}`);
+      let msg;
+      try {
+        const errJson = await response.json();
+        msg = errJson?.message || errJson?.error || `${response.status} ${response.statusText}`;
+      } catch {
+        msg = `${response.status} ${response.statusText}`;
+      }
+      throw new Error(`API call failed: ${msg}`);
     }
 
     return response.json();

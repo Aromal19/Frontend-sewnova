@@ -13,6 +13,16 @@ export const customerAPI = {
     }
   },
 
+  // Get customer orders
+  getOrders: async () => {
+    try {
+      return await apiCall('CUSTOMER_SERVICE', '/api/orders');
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      throw error;
+    }
+  },
+
   // Create a new booking
   createBooking: async (bookingData) => {
     try {
@@ -206,6 +216,72 @@ export const tailorAPI = {
       return await apiCall('TAILOR_SERVICE', `/api/tailors/search?${queryString}`);
     } catch (error) {
       console.error('Error searching tailors:', error);
+      throw error;
+    }
+  },
+
+  // Get tailor orders
+  getTailorOrders: async () => {
+    try {
+      return await apiCall('CUSTOMER_SERVICE', '/api/tailor/orders');
+    } catch (error) {
+      console.error('Error fetching tailor orders:', error);
+      throw error;
+    }
+  },
+
+  // Get active orders for tailor
+  getActiveOrders: async () => {
+    try {
+      return await apiCall('CUSTOMER_SERVICE', '/api/tailor/orders/active');
+    } catch (error) {
+      console.error('Error fetching active orders:', error);
+      throw error;
+    }
+  },
+
+  // Get order by ID
+  getOrderById: async (orderId) => {
+    try {
+      return await apiCall('CUSTOMER_SERVICE', `/api/tailor/orders/${orderId}`);
+    } catch (error) {
+      console.error('Error fetching order:', error);
+      throw error;
+    }
+  },
+
+  // Update order status
+  updateOrderStatus: async (orderId, status) => {
+    try {
+      return await apiCall('CUSTOMER_SERVICE', `/api/tailor/orders/${orderId}/status`, {
+        method: 'PUT',
+        body: { status }
+      });
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      throw error;
+    }
+  },
+
+  // Add message to order
+  addOrderMessage: async (orderId, message) => {
+    try {
+      return await apiCall('CUSTOMER_SERVICE', `/api/tailor/orders/${orderId}/messages`, {
+        method: 'POST',
+        body: { message }
+      });
+    } catch (error) {
+      console.error('Error adding order message:', error);
+      throw error;
+    }
+  },
+
+  // Get order statistics
+  getOrderStatistics: async () => {
+    try {
+      return await apiCall('CUSTOMER_SERVICE', '/api/tailor/orders/statistics');
+    } catch (error) {
+      console.error('Error fetching order statistics:', error);
       throw error;
     }
   }

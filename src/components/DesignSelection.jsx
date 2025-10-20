@@ -195,7 +195,7 @@ const DesignSelection = ({ onDesignSelect, selectedDesignId = null }) => {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
           {designs.map((design) => (
             <div
               key={design._id}
@@ -207,43 +207,43 @@ const DesignSelection = ({ onDesignSelect, selectedDesignId = null }) => {
               {/* Design Image */}
               <div className="relative aspect-[3/4] overflow-hidden rounded-t-xl">
                 <img
-                  src={design.image}
+                  src={design.image || (design.images && design.images.length > 0 ? (design.images[0].url || design.images[0]) : null)}
                   alt={design.name}
                   className="w-full h-full object-cover transition-transform duration-300 hover:scale-110"
                   onError={(e) => {
-                    e.target.src = 'https://via.placeholder.com/300x400?text=Design+Image';
+                    e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjI2NyIgdmlld0JveD0iMCAwIDIwMCAyNjciIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjY3IiBmaWxsPSIjRjNGNEY2Ii8+Cjx0ZXh0IHg9IjEwMCIgeT0iMTM0IiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM2QjcyODAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkRlc2lnbiBJbWFnZTwvdGV4dD4KPC9zdmc+';
                   }}
                 />
                 
                 {/* Category Badge */}
-                <div className="absolute top-3 left-3">
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${getCategoryColor(design.category)}`}>
+                <div className="absolute top-2 left-2">
+                  <span className={`px-1.5 py-0.5 text-xs font-medium rounded-full ${getCategoryColor(design.category)}`}>
                     {design.category}
                   </span>
                 </div>
                 
                 {/* Difficulty Badge */}
-                <div className="absolute top-3 right-3">
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${getDifficultyColor(design.difficulty)}`}>
+                <div className="absolute top-2 right-2">
+                  <span className={`px-1.5 py-0.5 text-xs font-medium rounded-full ${getDifficultyColor(design.difficulty)}`}>
                     {design.difficulty}
                   </span>
                 </div>
               </div>
 
               {/* Design Info */}
-              <div className="p-4">
-                <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2">
+              <div className="p-3">
+                <h3 className="font-semibold text-gray-900 mb-1 line-clamp-1 text-sm">
                   {design.name}
                 </h3>
                 
                 {design.description && (
-                  <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                  <p className="text-xs text-gray-600 mb-2 line-clamp-1">
                     {design.description}
                   </p>
                 )}
 
                 {/* Price and Time */}
-                <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
+                <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
                   {design.price && (
                     <span className="font-medium text-green-600">
                       ${design.price}
@@ -258,18 +258,18 @@ const DesignSelection = ({ onDesignSelect, selectedDesignId = null }) => {
 
                 {/* Tags */}
                 {design.tags && design.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mb-2">
-                    {design.tags.slice(0, 3).map((tag, index) => (
+                  <div className="flex flex-wrap gap-1 mb-1">
+                    {design.tags.slice(0, 2).map((tag, index) => (
                       <span
                         key={index}
-                        className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded-full"
+                        className="px-1.5 py-0.5 text-xs bg-gray-100 text-gray-700 rounded-full"
                       >
                         {tag}
                       </span>
                     ))}
-                    {design.tags.length > 3 && (
-                      <span className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded-full">
-                        +{design.tags.length - 3}
+                    {design.tags.length > 2 && (
+                      <span className="px-1.5 py-0.5 text-xs bg-gray-100 text-gray-700 rounded-full">
+                        +{design.tags.length - 2}
                       </span>
                     )}
                   </div>
@@ -278,12 +278,12 @@ const DesignSelection = ({ onDesignSelect, selectedDesignId = null }) => {
                 {/* Database indicator */}
                 <div className="flex items-center justify-between text-xs text-gray-500">
                   <span className="flex items-center">
-                    <span className="w-2 h-2 bg-green-500 rounded-full mr-1"></span>
-                    From Database
+                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1"></span>
+                    DB
                   </span>
                   {design.sizeCriteria && design.sizeCriteria.length > 0 && (
-                    <span className="text-blue-600">
-                      {design.sizeCriteria.length} size criteria
+                    <span className="text-blue-600 text-xs">
+                      {design.sizeCriteria.length} sizes
                     </span>
                   )}
                 </div>

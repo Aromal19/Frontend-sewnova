@@ -13,9 +13,12 @@ import CustomerDashboard from "./pages/customer/CustomerDashboard";
 import CustomerMeasurements from "./pages/customer/CustomerMeasurements";
 import CustomerAddresses from "./pages/customer/CustomerAddresses";
 import CustomerBookings from "./pages/customer/CustomerBookings";
+import CustomerOrders from "./pages/customer/CustomerOrders";
 import AdminInsights from "./pages/admin/AdminInsights";
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminSettings from "./pages/admin/AdminSettings";
 import ManageUsers from "./pages/admin/ManageUsers";
+import DesignManagement from "./pages/admin/DesignManagement";
 import AddFabric from "./pages/seller/AddFabric";
 import ActiveOrders from "./pages/tailor/ActiveOrders";
 import EmailVerification from "./pages/EmailVerification";
@@ -35,6 +38,8 @@ import Checkout from "./pages/customer/Checkout";
 import DesignPage from "./pages/DesignPage";
 // Protected route component
 import ProtectedRoute from "./components/ProtectedRoute";
+import AdminProtectedRoute from "./components/AdminProtectedRoute";
+import AdminLogin from "./pages/admin/AdminLogin";
 
 const Orders = () => (
   <div className="p-8 text-gray-100">Your Orders (Customer View)</div>
@@ -56,8 +61,27 @@ function App() {
         <Route path="/verify-email" element={<EmailVerification />} />
         
         {/* Admin Routes */}
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
-        <Route path="/admin/users" element={<ManageUsers />} />
+        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route path="/admin/dashboard" element={
+          <AdminProtectedRoute>
+            <AdminDashboard />
+          </AdminProtectedRoute>
+        } />
+        <Route path="/admin/users" element={
+          <AdminProtectedRoute>
+            <ManageUsers />
+          </AdminProtectedRoute>
+        } />
+        <Route path="/admin/designs" element={
+          <AdminProtectedRoute>
+            <DesignManagement />
+          </AdminProtectedRoute>
+        } />
+        <Route path="/admin/settings" element={
+          <AdminProtectedRoute>
+            <AdminSettings />
+          </AdminProtectedRoute>
+        } />
         
         {/* Dashboard Routes - Protected */}
         <Route path="/customer/landing" element={
@@ -100,6 +124,11 @@ function App() {
         <Route path="/customer/bookings" element={
           <ProtectedRoute requiredRole="customer">
             <CustomerBookings />
+          </ProtectedRoute>
+        } />
+        <Route path="/customer/orders" element={
+          <ProtectedRoute requiredRole="customer">
+            <CustomerOrders />
           </ProtectedRoute>
         } />
         
@@ -242,6 +271,13 @@ function App() {
         <Route path="/appointments" element={
           <ProtectedRoute requiredRole="tailor">
             <TailorDashboard />
+          </ProtectedRoute>
+        } />
+        
+        {/* Tailor-specific routes with /tailor prefix */}
+        <Route path="/tailor/active-orders" element={
+          <ProtectedRoute requiredRole="tailor">
+            <ActiveOrders />
           </ProtectedRoute>
         } />
         

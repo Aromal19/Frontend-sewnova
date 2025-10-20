@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   FiTrash2, 
@@ -28,6 +28,7 @@ import {
 } from "react-icons/fi";
 import { useCart } from "../../context/CartContext";
 import { useBooking } from "../../context/BookingContext";
+import BookingCacheService from "../../utils/bookingCache";
 
 // Header Component
 const Header = ({ onNavigate }) => (
@@ -141,6 +142,13 @@ const Cart = () => {
   const navigate = useNavigate();
   const { items, removeItem, updateQuantity, totals } = useCart();
   const { setSelectedFabric, setServiceType, setCurrentStep } = useBooking();
+  const [bookingCache] = useState(new BookingCacheService());
+  const [pendingBooking, setPendingBooking] = useState(null);
+
+  useEffect(() => {
+    const pending = bookingCache.getPendingBooking();
+    setPendingBooking(pending);
+  }, []);
 
   const proceedToCheckout = () => {
     navigate("/customer/checkout");
@@ -206,6 +214,48 @@ const Cart = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Cart Items */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Pending Booking */}
+            {pendingBooking && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start space-x-4">
+                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <FiScissors className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-blue-900 mb-1">
+                        {pendingBooking.name}
+                      </h3>
+                      <p className="text-sm text-blue-700 mb-2">
+                        {pendingBooking.description}
+                      </p>
+                      <div className="flex items-center space-x-4 text-xs text-blue-600">
+                        <span>Status: Pending</span>
+                        <span>₹{pendingBooking.price}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col space-y-2">
+                    <button
+                      onClick={() => navigate('/customer/booking/create', { state: { resume: true } })}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                    >
+                      Continue Order
+                    </button>
+                    <button
+                      onClick={() => {
+                        bookingCache.clearBookingProgress();
+                        setPendingBooking(null);
+                      }}
+                      className="px-4 py-2 border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {items.map((item) => (
               <div key={`${item.type}-${item.id}`} className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
                 <div className="flex items-start space-x-4">

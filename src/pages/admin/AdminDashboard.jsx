@@ -29,11 +29,13 @@ import {
   FiGrid,
   FiUserPlus,
   FiUserMinus,
-  FiLoader
+  FiLoader,
+  FiTag,
+  FiUser
 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
-import { isAuthenticated, logout } from "../../utils/api";
-import { adminService, fetchUsersFromServices } from "../../services/adminService";
+import { isAdminAuthenticated, logout } from "../../utils/api";
+import { adminApiService } from "../../services/adminApiService";
 
 const AdminDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -44,6 +46,8 @@ const AdminDashboard = () => {
   const [analytics, setAnalytics] = useState(null);
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
+  const [designs, setDesigns] = useState([]);
+  const [filteredDesigns, setFilteredDesigns] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
@@ -52,12 +56,18 @@ const AdminDashboard = () => {
   const [selectedRole, setSelectedRole] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [usersPerPage] = useState(10);
+  
+  // Design management states
+  const [designSearchTerm, setDesignSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [designCurrentPage, setDesignCurrentPage] = useState(1);
+  const [designsPerPage] = useState(12);
 
   const navigate = useNavigate();
 
   useEffect(() => {
     // Check if user is authenticated and has admin role
-    if (!isAuthenticated()) {
+    if (!isAdminAuthenticated()) {
       navigate("/login", { replace: true });
     } else {
       loadDashboardData();
@@ -68,28 +78,35 @@ const AdminDashboard = () => {
     filterUsers();
   }, [users, searchTerm, selectedRole]);
 
+  useEffect(() => {
+    filterDesigns();
+  }, [designs, designSearchTerm, selectedCategory]);
+
   const loadDashboardData = async () => {
     setLoading(true);
     setError(null);
     
     try {
       // Load analytics data
-      const analyticsData = await adminService.getAnalytics(timeRange);
+      const analyticsData = await adminApiService.getAnalytics(timeRange);
       setAnalytics(analyticsData.data);
       
       // Load users data
-      const usersData = await fetchUsersFromServices();
+      const usersData = await adminApiService.getAllUsers({
+        page: 1,
+        limit: 100
+      });
       if (usersData.success) {
         setUsers(usersData.data.users);
-      } else {
-        // Fallback to admin service if direct service calls fail
-        const adminUsersData = await adminService.getAllUsers({
-          page: 1,
-          limit: 100
-        });
-        if (adminUsersData.success) {
-          setUsers(adminUsersData.data.users);
-        }
+      }
+      
+      // Load designs data
+      const designsData = await adminApiService.getDesigns({
+        page: 1,
+        limit: 100
+      });
+      if (designsData.success) {
+        setDesigns(designsData.data.designs || []);
       }
     } catch (err) {
       console.error('Error loading dashboard data:', err);
@@ -116,6 +133,24 @@ const AdminDashboard = () => {
     }
     
     setFilteredUsers(filtered);
+  };
+
+  const filterDesigns = () => {
+    let filtered = designs;
+    
+    if (designSearchTerm) {
+      filtered = filtered.filter(design => 
+        design.name?.toLowerCase().includes(designSearchTerm.toLowerCase()) ||
+        design.description?.toLowerCase().includes(designSearchTerm.toLowerCase()) ||
+        design.tags?.some(tag => tag.toLowerCase().includes(designSearchTerm.toLowerCase()))
+      );
+    }
+    
+    if (selectedCategory) {
+      filtered = filtered.filter(design => design.category === selectedCategory);
+    }
+    
+    setFilteredDesigns(filtered);
   };
 
   const handleUserAction = async (action, userId, data = null) => {
@@ -334,6 +369,15 @@ const AdminDashboard = () => {
                   <option value="90d">Last 90 days</option>
                   <option value="1y">Last year</option>
                 </select>
+                {/* Settings button */}
+                <button
+                  onClick={() => navigate('/admin/settings')}
+                  className="flex items-center px-4 py-2 bg-coralblush hover:bg-pink-600 text-white rounded-lg font-medium transition-all duration-200"
+                  title="Settings"
+                >
+                  <FiSettings className="mr-2" />
+                  Settings
+                </button>
                 {/* Logout button */}
               <button
                   onClick={handleLogout}
@@ -667,6 +711,184 @@ const AdminDashboard = () => {
                       )) || (
                         <p className="text-gray-500 text-center py-4">No seller data available</p>
                       )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === "designs" && (
+            <div className="space-y-6">
+              {/* Design Showcase Header */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-charcoal">Design Showcase</h2>
+                  <p className="text-gray-600 mt-1">Manage and showcase your design catalog</p>
+                </div>
+                <button
+                  onClick={() => navigate('/admin/designs')}
+                  className="flex items-center px-4 py-2 bg-coralblush hover:bg-pink-600 text-white rounded-lg font-medium transition-all duration-200"
+                >
+                  <FiPlus className="mr-2" />
+                  Manage Designs
+                </button>
+              </div>
+
+              {/* Design Filters */}
+              <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                <div className="flex flex-col lg:flex-row gap-4">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Search designs..."
+                        value={designSearchTerm}
+                        onChange={(e) => setDesignSearchTerm(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-coralblush focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+                  
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-coralblush focus:border-transparent"
+                  >
+                    <option value="">All Categories</option>
+                    <option value="formal">Formal</option>
+                    <option value="casual">Casual</option>
+                    <option value="traditional">Traditional</option>
+                    <option value="western">Western</option>
+                    <option value="ethnic">Ethnic</option>
+                    <option value="party">Party</option>
+                    <option value="wedding">Wedding</option>
+                    <option value="office">Office</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Design Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredDesigns.length === 0 ? (
+                  <div className="col-span-full text-center py-12">
+                    <FiGrid className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No designs found</h3>
+                    <p className="text-gray-500 mb-4">Try adjusting your search or filter criteria</p>
+                    <button
+                      onClick={() => navigate('/admin/designs')}
+                      className="px-4 py-2 bg-coralblush hover:bg-pink-600 text-white rounded-lg font-medium transition-colors"
+                    >
+                      Add New Design
+                    </button>
+                  </div>
+                ) : (
+                  filteredDesigns.slice(0, 12).map((design) => (
+                    <div key={design._id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+                      <div className="aspect-w-3 aspect-h-4">
+                        <img
+                          src={design.image || '/images/default-design.jpg'}
+                          alt={design.name}
+                          className="w-full h-48 object-cover"
+                        />
+                      </div>
+                      <div className="p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-lilac bg-opacity-10 text-lilac">
+                            {design.category}
+                          </span>
+                          <span className="text-sm font-medium text-charcoal">
+                            ₹{design.price || 0}
+                          </span>
+                        </div>
+                        <h3 className="font-medium text-charcoal mb-1 line-clamp-1">
+                          {design.name}
+                        </h3>
+                        <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                          {design.description}
+                        </p>
+                        <div className="flex items-center justify-between text-xs text-gray-500">
+                          <span className="flex items-center">
+                            <FiClock className="w-3 h-3 mr-1" />
+                            {design.estimatedTime || 0}h
+                          </span>
+                          <span className="capitalize">{design.difficulty}</span>
+                        </div>
+                        {design.tags && design.tags.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {design.tags.slice(0, 2).map((tag, index) => (
+                              <span key={index} className="inline-flex px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">
+                                {tag}
+                              </span>
+                            ))}
+                            {design.tags.length > 2 && (
+                              <span className="inline-flex px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">
+                                +{design.tags.length - 2}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Design Statistics */}
+              {designs.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Total Designs</p>
+                        <p className="text-2xl font-bold text-charcoal">{designs.length}</p>
+                      </div>
+                      <div className="p-3 bg-coralblush bg-opacity-10 rounded-lg">
+                        <FiGrid className="w-6 h-6 text-coralblush" />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Categories</p>
+                        <p className="text-2xl font-bold text-charcoal">
+                          {[...new Set(designs.map(d => d.category))].length}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-lilac bg-opacity-10 rounded-lg">
+                        <FiTag className="w-6 h-6 text-lilac" />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Avg Price</p>
+                        <p className="text-2xl font-bold text-charcoal">
+                          ₹{Math.round(designs.reduce((sum, d) => sum + (d.price || 0), 0) / designs.length)}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-champagne bg-opacity-10 rounded-lg">
+                        <FiDollarSign className="w-6 h-6 text-champagne" />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Avg Time</p>
+                        <p className="text-2xl font-bold text-charcoal">
+                          {Math.round(designs.reduce((sum, d) => sum + (d.estimatedTime || 0), 0) / designs.length)}h
+                        </p>
+                      </div>
+                      <div className="p-3 bg-mint bg-opacity-10 rounded-lg">
+                        <FiClock className="w-6 h-6 text-mint" />
+                      </div>
                     </div>
                   </div>
                 </div>

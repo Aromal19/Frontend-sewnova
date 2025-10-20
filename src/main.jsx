@@ -16,7 +16,11 @@ import SellerDashboard from "./pages/seller/SellerDashboard";
 import CustomerLandingPage from "./pages/CustomerLandingPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { GOOGLE_CLIENT_ID } from "./config/googleOAuth";
+import { initializeErrorHandlers } from "./utils/errorHandler";
 import "./App.css";
+
+// Initialize error handlers for Razorpay and other browser errors
+initializeErrorHandlers();
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

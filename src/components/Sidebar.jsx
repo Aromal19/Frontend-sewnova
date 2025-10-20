@@ -146,8 +146,8 @@ const Sidebar = ({ isOpen, setIsOpen, userRole = "customer" }) => {
       case "tailor":
         return [
           ...baseItems,
-          // Temporarily hidden items: active orders, completed, pending, workflow, schedule, appointments, earnings, customer, reviews
-          // { key: "/active-orders", label: "Active Orders", icon: FiPackage, href: "/active-orders" },
+          { key: "/tailor/active-orders", label: "Active Orders", icon: FiPackage, href: "/tailor/active-orders" },
+          // Temporarily hidden items: completed, pending, workflow, schedule, appointments, earnings, customer, reviews
           // { key: "/completed-orders", label: "Completed", icon: FiCheckCircle, href: "/completed-orders" },
           // { key: "/pending-orders", label: "Pending", icon: FiClock, href: "/pending-orders" },
           // { key: "/workflow", label: "Workflow", icon: FiGrid, href: "/workflow" },
@@ -164,10 +164,11 @@ const Sidebar = ({ isOpen, setIsOpen, userRole = "customer" }) => {
           ...baseItems,
           { key: "/admin/dashboard", label: "Dashboard", icon: FiActivity, href: "/admin/dashboard" },
           { key: "/admin/users", label: "Manage Users", icon: FiUsers, href: "/admin/users" },
+          { key: "/admin/designs", label: "Design Management", icon: FiGrid, href: "/admin/designs" },
           { key: "/analytics", label: "Analytics", icon: FiBarChart, href: "/analytics" },
           { key: "/insights", label: "Insights", icon: FiTrendingUp, href: "/insights" },
           { key: "/reports", label: "Reports", icon: FiFileText, href: "/reports" },
-          { key: "/settings", label: "Settings", icon: FiSettings, href: "/settings" },
+          { key: "/admin/settings", label: "Settings", icon: FiSettings, href: "/admin/settings" },
         ];
       
       default:
@@ -331,7 +332,7 @@ const Sidebar = ({ isOpen, setIsOpen, userRole = "customer" }) => {
             )}
             {currentUserRole === "tailor" && (
               <Link
-                to="/active-orders"
+                to="/tailor/active-orders"
                 className="flex items-center px-3 py-2 bg-gradient-to-r from-coralblush to-pink-500 text-white rounded-lg text-sm font-medium hover:from-pink-500 hover:to-coralblush transition-all duration-300"
               >
                 <FiPackage className="w-4 h-4 mr-2" />

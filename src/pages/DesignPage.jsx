@@ -2,21 +2,48 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DesignSelection from '../components/DesignSelection';
 import DesignDebugInfo from '../components/DesignDebugInfo';
+import EnhancedMeasurementForm from '../components/EnhancedMeasurementForm';
 
 const DesignPage = () => {
   const [selectedDesign, setSelectedDesign] = useState(null);
+  const [showMeasurementForm, setShowMeasurementForm] = useState(false);
+  const [measurements, setMeasurements] = useState(null);
   const navigate = useNavigate();
 
   const handleDesignSelect = (design) => {
     setSelectedDesign(design);
     console.log('Selected design:', design);
     
-    // Navigate to try-on page with design ID
-    // This will be implemented in the next phase
-    navigate(`/tryon?designId=${design._id}`);
+    // Check if design requires measurements
+    if (design.measurementDetails && design.measurementDetails.length > 0) {
+      setShowMeasurementForm(true);
+    } else {
+      // Navigate directly to try-on if no measurements required
+      navigate(`/tryon?designId=${design._id}`);
+    }
   };
 
   const handleBackToBrowse = () => {
+    setSelectedDesign(null);
+    setShowMeasurementForm(false);
+    setMeasurements(null);
+  };
+
+  const handleMeasurementSubmit = (measurementData, savedMeasurement) => {
+    setMeasurements(measurementData);
+    console.log('Measurements submitted:', measurementData);
+    console.log('Saved measurement:', savedMeasurement);
+    
+    // Navigate to try-on page with design ID and measurements
+    const params = new URLSearchParams({
+      designId: selectedDesign._id,
+      measurements: JSON.stringify(measurementData)
+    });
+    navigate(`/tryon?${params.toString()}`);
+  };
+
+  const handleMeasurementCancel = () => {
+    setShowMeasurementForm(false);
     setSelectedDesign(null);
   };
 
@@ -69,11 +96,20 @@ const DesignPage = () => {
         {/* Debug Info */}
         <DesignDebugInfo />
 
-        {/* Design Selection Component */}
-        <DesignSelection 
-          onDesignSelect={handleDesignSelect}
-          selectedDesignId={selectedDesign?._id}
-        />
+        {/* Show Enhanced Measurement Form if design is selected and requires measurements */}
+        {showMeasurementForm && selectedDesign ? (
+          <EnhancedMeasurementForm
+            design={selectedDesign}
+            onMeasurementSubmit={handleMeasurementSubmit}
+            onCancel={handleMeasurementCancel}
+          />
+        ) : (
+          /* Design Selection Component */
+          <DesignSelection 
+            onDesignSelect={handleDesignSelect}
+            selectedDesignId={selectedDesign?._id}
+          />
+        )}
 
         {/* Selected Design Preview */}
         {selectedDesign && (
@@ -92,11 +128,11 @@ const DesignPage = () => {
             
             <div className="flex items-start space-x-4">
               <img
-                src={selectedDesign.image}
+                src={selectedDesign.image || (selectedDesign.images && selectedDesign.images.length > 0 ? (selectedDesign.images[0].url || selectedDesign.images[0]) : null)}
                 alt={selectedDesign.name}
                 className="w-24 h-32 object-cover rounded-lg"
                 onError={(e) => {
-                  e.target.src = 'https://via.placeholder.com/96x128?text=Design+Image';
+                  e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iMTI4IiB2aWV3Qm94PSIwIDAgOTYgMTI4IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8cmVjdCB3aWR0aD0iOTYiIGhlaWdodD0iMTI4IiBmaWxsPSIjRjNGNEY2Ii8+Cjx0ZXh0IHg9IjQ4IiB5PSI2NCIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEwIiBmaWxsPSIjNkI3MjgwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5EZXNpZ24gSW1hZ2U8L3RleHQ+Cjwvc3ZnPg==';
                 }}
               />
               

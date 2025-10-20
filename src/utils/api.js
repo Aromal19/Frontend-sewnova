@@ -205,6 +205,26 @@ export const isAuthenticated = () => {
   return !!(token && user);
 };
 
+export const isAdminAuthenticated = () => {
+  const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+  const user = localStorage.getItem('user');
+  const userRole = localStorage.getItem('userRole');
+  
+  // Check if user is authenticated and has admin role
+  if (!token || !user || userRole !== 'admin') {
+    return false;
+  }
+  
+  // Parse user data to verify admin role
+  try {
+    const userData = JSON.parse(user);
+    return userData.role === 'admin' || userRole === 'admin';
+  } catch (error) {
+    console.error('Error parsing user data:', error);
+    return false;
+  }
+};
+
 export const getCurrentUser = () => {
   const user = localStorage.getItem('user');
   return user ? JSON.parse(user) : null;
