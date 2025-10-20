@@ -58,6 +58,8 @@ class BookingCacheService {
     try {
       localStorage.removeItem(this.cacheKey);
       this.removeFromCart();
+      // Dispatch custom event to notify components
+      window.dispatchEvent(new CustomEvent('bookingCacheCleared'));
       return true;
     } catch (error) {
       console.error('Error clearing booking progress:', error);

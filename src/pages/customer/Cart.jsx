@@ -25,6 +25,7 @@ import {
   FiScissors,
   FiPackage,
   FiUser,
+  FiCheckCircle,
 } from "react-icons/fi";
 import { useCart } from "../../context/CartContext";
 import { useBooking } from "../../context/BookingContext";
@@ -150,6 +151,36 @@ const Cart = () => {
     setPendingBooking(pending);
   }, []);
 
+  // Listen for storage changes to update pending booking status
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const pending = bookingCache.getPendingBooking();
+      setPendingBooking(pending);
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also listen for custom events that might be triggered when booking cache is cleared
+    const handleBookingCacheChange = () => {
+      const pending = bookingCache.getPendingBooking();
+      setPendingBooking(pending);
+    };
+
+    window.addEventListener('bookingCacheCleared', handleBookingCacheChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('bookingCacheCleared', handleBookingCacheChange);
+    };
+  }, []);
+
+  // Check if booking has been successfully paid
+  const isBookingPaid = () => {
+    if (!pendingBooking) return false;
+    return pendingBooking.bookingData?.paymentStatus === 'paid' || 
+           pendingBooking.paymentStatus === 'paid';
+  };
+
   const proceedToCheckout = () => {
     navigate("/customer/checkout");
   };
@@ -216,40 +247,66 @@ const Cart = () => {
           <div className="lg:col-span-2 space-y-6">
             {/* Pending Booking */}
             {pendingBooking && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+              <div className={`border rounded-lg p-6 ${
+                isBookingPaid() 
+                  ? 'bg-green-50 border-green-200' 
+                  : 'bg-blue-50 border-blue-200'
+              }`}>
                 <div className="flex items-start justify-between">
                   <div className="flex items-start space-x-4">
-                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <FiScissors className="w-6 h-6 text-blue-600" />
+                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                      isBookingPaid() ? 'bg-green-100' : 'bg-blue-100'
+                    }`}>
+                      {isBookingPaid() ? (
+                        <FiCheckCircle className="w-6 h-6 text-green-600" />
+                      ) : (
+                        <FiScissors className="w-6 h-6 text-blue-600" />
+                      )}
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-blue-900 mb-1">
+                      <h3 className={`text-lg font-semibold mb-1 ${
+                        isBookingPaid() ? 'text-green-900' : 'text-blue-900'
+                      }`}>
                         {pendingBooking.name}
                       </h3>
-                      <p className="text-sm text-blue-700 mb-2">
+                      <p className={`text-sm mb-2 ${
+                        isBookingPaid() ? 'text-green-700' : 'text-blue-700'
+                      }`}>
                         {pendingBooking.description}
                       </p>
-                      <div className="flex items-center space-x-4 text-xs text-blue-600">
-                        <span>Status: Pending</span>
+                      <div className={`flex items-center space-x-4 text-xs ${
+                        isBookingPaid() ? 'text-green-600' : 'text-blue-600'
+                      }`}>
+                        <span>Status: {isBookingPaid() ? 'Paid' : 'Pending'}</span>
                         <span>₹{pendingBooking.price}</span>
                       </div>
                     </div>
                   </div>
                   <div className="flex flex-col space-y-2">
-                    <button
-                      onClick={() => navigate('/customer/booking/create', { state: { resume: true } })}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                    >
-                      Continue Order
-                    </button>
+                    {/* Only show Continue Order button if payment is not successful */}
+                    {!isBookingPaid() && (
+                      <button
+                        onClick={() => navigate('/customer/booking/create', { state: { resume: true } })}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                      >
+                        Continue Order
+                      </button>
+                    )}
                     <button
                       onClick={() => {
+                        // Clear all booking data and remove from cart
                         bookingCache.clearBookingProgress();
                         setPendingBooking(null);
+                        // Force refresh of cart items to remove the booking
+                        window.location.reload();
                       }}
-                      className="px-4 py-2 border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm"
+                      className={`px-4 py-2 border rounded-lg transition-colors text-sm ${
+                        isBookingPaid() 
+                          ? 'border-green-300 text-green-700 hover:bg-green-100' 
+                          : 'border-blue-300 text-blue-700 hover:bg-blue-100'
+                      }`}
                     >
-                      Cancel
+                      {isBookingPaid() ? 'Remove from Cart' : 'Cancel'}
                     </button>
                   </div>
                 </div>

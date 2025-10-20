@@ -323,6 +323,8 @@ const BookingFlow = () => {
               if (verifyRes?.success) {
                 // Clear booking cache and update UI
                 clearBookingCache();
+                // Dispatch custom event to notify other components
+                window.dispatchEvent(new CustomEvent('bookingCacheCleared'));
                 setPaymentCompleted(true);
                 setBookingData(prev => ({
                   ...prev,
