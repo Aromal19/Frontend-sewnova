@@ -34,6 +34,7 @@ const CustomerOrders = () => {
   const [filterType, setFilterType] = useState("all");
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
+  const [viewMode, setViewMode] = useState('table'); // 'table' or 'cards'
   const navigate = useNavigate();
 
   // Fetch orders on component mount
@@ -41,19 +42,196 @@ const CustomerOrders = () => {
     fetchOrders();
   }, []);
 
+  // Function to debug database contents
+  const debugDatabase = async () => {
+    try {
+      console.log('🔍 Debugging database...');
+      console.log('🔍 API Base URL:', import.meta.env.VITE_CUSTOMER_SERVICE_URL || 'http://localhost:3002');
+      const response = await fetch(`${import.meta.env.VITE_CUSTOMER_SERVICE_URL || 'http://localhost:3002'}/api/bookings/debug/database`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const result = await response.json();
+      console.log('🔍 Database debug result:', result);
+      alert(`Database Debug (Paid Bookings Focus):\nTotal bookings: ${result.debug.totalBookings}\nTotal PAID bookings: ${result.debug.totalPaidBookings}\nUser bookings: ${result.debug.userBookings}\nUser PAID bookings: ${result.debug.userPaidBookings}\nUser ID: ${result.debug.currentUserId}`);
+    } catch (error) {
+      console.error('❌ Error debugging database:', error);
+    }
+  };
+
+  // Function to debug user object
+  const debugUser = async () => {
+    try {
+      console.log('🔍 Debugging user object...');
+      const baseUrl = import.meta.env.VITE_CUSTOMER_SERVICE_URL || 'http://localhost:3002';
+      const fullUrl = `${baseUrl}/api/bookings/debug-user`;
+      console.log('🔍 Debug user URL:', fullUrl);
+      
+      const response = await fetch(fullUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('🔍 Debug user Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('🔍 Debug user Error response:', errorText);
+        alert(`Debug User Error: ${response.status} - ${errorText}`);
+        return;
+      }
+      
+      const result = await response.json();
+      console.log('🔍 Debug user result:', result);
+      alert(`Debug User:\nStatus: ${response.status}\nSuccess: ${result.success}\nUser Keys: ${result.userKeys?.join(', ')}\nHas User ID: ${result.hasUserId}\nUser ID: ${result.userId}`);
+    } catch (error) {
+      console.error('🔍 Debug user error:', error);
+      alert(`Debug User Error: ${error.message}`);
+    }
+  };
+
+  // Function to test simple API without authentication
+  const testSimpleAPI = async () => {
+    try {
+      console.log('🧪 Testing simple API (no auth)...');
+      const baseUrl = import.meta.env.VITE_CUSTOMER_SERVICE_URL || 'http://localhost:3002';
+      const fullUrl = `${baseUrl}/api/bookings/test`;
+      console.log('🧪 Simple API URL:', fullUrl);
+      
+      const response = await fetch(fullUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('🧪 Simple API Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('🧪 Simple API Error response:', errorText);
+        alert(`Simple API Error: ${response.status} - ${errorText}`);
+        return;
+      }
+      
+      const result = await response.json();
+      console.log('🧪 Simple API result:', result);
+      alert(`Simple API Test:\nStatus: ${response.status}\nSuccess: ${result.success}\nDatabase Connected: ${result.databaseConnected}\nTotal Bookings: ${result.totalBookings}`);
+    } catch (error) {
+      console.error('🧪 Simple API test error:', error);
+      alert(`Simple API Test Error: ${error.message}`);
+    }
+  };
+
+  // Function to test direct API call
+  const testDirectAPI = async () => {
+    try {
+      console.log('🧪 Testing direct API call...');
+      const baseUrl = import.meta.env.VITE_CUSTOMER_SERVICE_URL || 'http://localhost:3002';
+      const fullUrl = `${baseUrl}/api/bookings/orders`;
+      console.log('🧪 Full URL:', fullUrl);
+      
+      const response = await fetch(fullUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('🧪 Response status:', response.status);
+      console.log('🧪 Response headers:', Object.fromEntries(response.headers.entries()));
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('🧪 Error response:', errorText);
+        alert(`API Error: ${response.status} - ${errorText}`);
+        return;
+      }
+      
+      const result = await response.json();
+      console.log('🧪 Direct API result:', result);
+      alert(`Direct API Test:\nStatus: ${response.status}\nData length: ${result.data?.length || 0}\nSuccess: ${result.success}`);
+    } catch (error) {
+      console.error('🧪 Direct API test error:', error);
+      alert(`Direct API Test Error: ${error.message}`);
+    }
+  };
+
+  // Function to create sample booking data
+  const createSampleBooking = async () => {
+    try {
+      console.log('🔧 Creating sample booking...');
+      console.log('🔧 API Base URL:', import.meta.env.VITE_CUSTOMER_SERVICE_URL || 'http://localhost:3002');
+      const response = await fetch(`${import.meta.env.VITE_CUSTOMER_SERVICE_URL || 'http://localhost:3002'}/api/bookings/debug/sample`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const result = await response.json();
+      console.log('✅ Sample booking created:', result);
+      
+      if (result.success) {
+        // Refresh the orders list
+        fetchOrders();
+      }
+    } catch (error) {
+      console.error('❌ Error creating sample booking:', error);
+    }
+  };
+
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const response = await customerAPI.getBookings();
-      if (response && response.bookings) {
-        // Filter to show only confirmed/in-progress/completed/delivered bookings as orders
-        const actualOrders = response.bookings.filter(booking => 
-          ['confirmed', 'in_progress', 'ready_for_fitting', 'completed', 'delivered'].includes(booking.status)
-        );
-        setOrders(actualOrders);
+      console.log('🔍 Fetching orders...');
+      console.log('🔑 Token available:', !!localStorage.getItem('token'));
+      console.log('🔑 Access token available:', !!localStorage.getItem('accessToken'));
+      console.log('🌐 Customer Service URL:', import.meta.env.VITE_CUSTOMER_SERVICE_URL || 'http://localhost:3002');
+      console.log('📡 Full API URL:', `${import.meta.env.VITE_CUSTOMER_SERVICE_URL || 'http://localhost:3002'}/api/bookings/orders`);
+      
+      const response = await customerAPI.getOrders();
+      console.log('📦 API Response:', response);
+      
+      if (response && response.data) {
+        // Check if response has data property (from backend)
+        const bookings = response.data;
+        console.log('📋 Raw bookings from /api/bookings/orders:', bookings);
+        console.log('📊 Response structure:', {
+          success: response.success,
+          dataLength: bookings.length,
+          pagination: response.pagination,
+          filters: response.filters
+        });
+        
+        // The enhanced function already returns formatted booking data
+        // No need to filter as it returns all bookings for the user
+        console.log('✅ Fetched orders:', bookings.length);
+        setOrders(bookings);
+      } else if (response && response.bookings) {
+        // Fallback for different response structure
+        const bookings = response.bookings;
+        console.log('📋 Raw bookings (fallback):', bookings);
+        
+        console.log('✅ Fetched orders (fallback):', bookings.length);
+        setOrders(bookings);
+      } else {
+        console.warn('⚠️ No bookings data found in response:', response);
+        setOrders([]);
       }
     } catch (error) {
-      console.error("Error fetching orders:", error);
+      console.error("❌ Error fetching orders:", error);
+      console.error("❌ Error details:", error.message);
+      setOrders([]);
     } finally {
       setLoading(false);
     }
@@ -72,6 +250,10 @@ const CustomerOrders = () => {
        order.fabricDetails?.name?.toLowerCase().includes(searchQuery.toLowerCase()));
     
     const matchesStatus = filterStatus === "all" || 
+      (filterStatus === "confirmed" && order.status === "confirmed") ||
+      (filterStatus === "in_progress" && order.status === "in_progress") ||
+      (filterStatus === "completed" && order.status === "completed") ||
+      (filterStatus === "delivered" && order.status === "delivered") ||
       (filterStatus === "paid" && order.payment?.status === "paid") ||
       (filterStatus === "pending" && order.payment?.status !== "paid");
     const matchesType = filterType === "all" || order.bookingType === filterType;
@@ -155,13 +337,39 @@ const CustomerOrders = () => {
                 <p className="text-gray-600 mt-2">Track and manage all your orders in one place</p>
               </div>
               
-              <button
-                onClick={fetchOrders}
-                className="flex items-center px-4 py-2 bg-gradient-to-r from-coralblush to-lilac text-white rounded-lg font-medium hover:shadow-lg transition-all duration-200 transform hover:scale-105"
-              >
-                <FiRefreshCw className="w-4 h-4 mr-2" />
-                Refresh
-              </button>
+              <div className="flex items-center space-x-3">
+                {/* View Toggle */}
+                <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                  <button
+                    onClick={() => setViewMode('table')}
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${
+                      viewMode === 'table' 
+                        ? 'bg-white text-gray-900 shadow-sm' 
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Table
+                  </button>
+                  <button
+                    onClick={() => setViewMode('cards')}
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${
+                      viewMode === 'cards' 
+                        ? 'bg-white text-gray-900 shadow-sm' 
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Cards
+                  </button>
+                </div>
+
+                <button
+                  onClick={fetchOrders}
+                  className="flex items-center px-4 py-2 bg-gradient-to-r from-coralblush to-lilac text-white rounded-lg font-medium hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                >
+                  <FiRefreshCw className="w-4 h-4 mr-2" />
+                  Refresh
+                </button>
+              </div>
             </div>
 
             {/* Search and Filters */}
@@ -179,7 +387,7 @@ const CustomerOrders = () => {
                   />
                 </div>
 
-                {/* Payment Status Filter */}
+                {/* Order Status Filter */}
                 <div className="relative">
                   <FiFilter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
                   <select
@@ -188,6 +396,10 @@ const CustomerOrders = () => {
                     className="pl-10 pr-8 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-coralblush focus:border-transparent appearance-none bg-white cursor-pointer"
                   >
                     <option value="all">All Orders</option>
+                    <option value="confirmed">Confirmed</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                    <option value="delivered">Delivered</option>
                     <option value="paid">Paid Orders</option>
                     <option value="pending">Pending Payment</option>
                   </select>
@@ -204,6 +416,23 @@ const CustomerOrders = () => {
                   <option value="fabric">Fabric Only</option>
                   <option value="complete">Complete Package</option>
                 </select>
+              </div>
+            </div>
+            
+            {/* Orders Summary */}
+            <div className="mt-6 bg-gradient-to-r from-coralblush to-lilac rounded-lg p-4 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold">Your Orders Summary</h3>
+                  <p className="text-sm opacity-90">
+                    {filteredOrders.length} order{filteredOrders.length !== 1 ? 's' : ''} found
+                    {filterStatus === 'confirmed' && ' (Confirmed bookings only)'}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-bold">{filteredOrders.length}</div>
+                  <div className="text-sm opacity-90">Total Orders</div>
+                </div>
               </div>
             </div>
           </div>
@@ -269,161 +498,302 @@ const CustomerOrders = () => {
               </div>
             </div>
 
-            {/* Orders Grid */}
+            {/* Orders Display */}
             {filteredOrders.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredOrders.map((order) => (
-                  <div 
-                    key={order._id} 
-                    className="bg-white rounded-xl shadow-md border border-gray-200 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden"
-                  >
-                    {/* Order Header */}
-                    <div className="bg-gradient-to-r from-coralblush to-lilac p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2 text-white">
-                          {getOrderTypeIcon(order.bookingType)}
-                          <span className="font-semibold capitalize">{order.bookingType} Order</span>
-                        </div>
-                        <span className={`px-3 py-1 text-xs font-semibold rounded-full flex items-center space-x-1 bg-white border ${getStatusColor(order.status)}`}>
-                          {getStatusIcon(order.status)}
-                          <span className="capitalize ml-1">{order.status.replace(/_/g, ' ')}</span>
-                        </span>
-                      </div>
-                      <div className="text-white text-sm mt-2 opacity-90">
-                        Booking ID: #{order._id?.slice(-8).toUpperCase() || 'N/A'}
-                      </div>
-                    </div>
+              viewMode === 'table' ? (
+                /* Table View */
+              <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gradient-to-r from-coralblush to-lilac text-white">
+                      <tr>
+                        <th className="px-6 py-4 text-left text-sm font-semibold">Order ID</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold">Type</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold">Garment</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold">Tailor</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold">Status</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold">Payment</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold">Amount</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold">Order Date</th>
+                        <th className="px-6 py-4 text-center text-sm font-semibold">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {filteredOrders.map((order, index) => (
+                        <tr key={order._id || order.id} className={`hover:bg-gray-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                          {/* Order ID */}
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="w-8 h-8 bg-gradient-to-br from-coralblush to-lilac rounded-lg flex items-center justify-center mr-3">
+                                <FiPackage className="w-4 h-4 text-white" />
+                              </div>
+                              <div>
+                                <div className="text-sm font-medium text-gray-900">
+                                  #{order._id?.slice(-8).toUpperCase() || order.id?.slice(-8).toUpperCase() || 'N/A'}
+                                </div>
+                                <div className="text-xs text-gray-500">Booking ID</div>
+                              </div>
+                            </div>
+                          </td>
 
-                    {/* Order Body */}
-                    <div className="p-5 space-y-4">
-                      {/* Garment Details */}
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <p className="text-xs text-gray-500 mb-1">Garment Type</p>
-                            <p className="font-semibold text-gray-900 capitalize text-lg">
-                              {order.orderDetails?.garmentType || 'N/A'}
-                            </p>
-                            <p className="text-sm text-gray-600 mt-1">
-                              Quantity: {order.orderDetails?.quantity || 1}
-                            </p>
-                          </div>
-                          <div className="w-12 h-12 bg-gradient-to-br from-coralblush to-lilac rounded-lg flex items-center justify-center">
-                            <FiPackage className="w-6 h-6 text-white" />
-                          </div>
-                        </div>
-                      </div>
+                          {/* Type */}
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              {getOrderTypeIcon(order.bookingType)}
+                              <span className="ml-2 text-sm font-medium text-gray-900 capitalize">
+                                {order.bookingType}
+                              </span>
+                            </div>
+                          </td>
 
-                      {/* Tailor/Fabric Info */}
-                      {order.tailorDetails && (
-                        <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <FiScissors className="w-4 h-4 text-blue-600" />
-                            <p className="text-xs font-medium text-blue-600">Tailor</p>
-                          </div>
-                          <p className="font-semibold text-blue-900">{order.tailorDetails.name || 'N/A'}</p>
-                          {order.tailorDetails.location && (
-                            <p className="text-sm text-blue-700 mt-1">
-                              {order.tailorDetails.location.city}, {order.tailorDetails.location.state}
-                            </p>
-                          )}
-                        </div>
-                      )}
+                          {/* Garment */}
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div>
+                              <div className="text-sm font-medium text-gray-900 capitalize">
+                                {order.orderDetails?.garmentType || 'N/A'}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                Qty: {order.orderDetails?.quantity || 1}
+                              </div>
+                            </div>
+                          </td>
 
-                      {order.fabricDetails && (
-                        <div className="bg-green-50 rounded-lg p-4 border border-green-100">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <FiShoppingBag className="w-4 h-4 text-green-600" />
-                            <p className="text-xs font-medium text-green-600">Fabric</p>
-                          </div>
-                          <p className="font-semibold text-green-900">{order.fabricDetails.name || 'N/A'}</p>
-                          <p className="text-sm text-green-700 mt-1">
-                            {order.fabricDetails.color} - {order.fabricDetails.pattern}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Payment Status Card */}
-                      <div className={`rounded-lg p-4 border-2 ${
-                        order.payment?.status === 'paid' 
-                          ? 'bg-green-50 border-green-200' 
-                          : 'bg-red-50 border-red-200'
-                      }`}>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                              order.payment?.status === 'paid' ? 'bg-green-500' : 'bg-red-500'
-                            }`}>
-                              {order.payment?.status === 'paid' ? (
-                                <FiCheckCircle className="w-6 h-6 text-white" />
-                              ) : (
-                                <FiXCircle className="w-6 h-6 text-white" />
+                          {/* Tailor */}
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">
+                                {order.tailor?.name || order.tailorDetails?.name || 'N/A'}
+                              </div>
+                              {order.tailor?.location && (
+                                <div className="text-xs text-gray-500">
+                                  {order.tailor.location.city}, {order.tailor.location.state}
+                                </div>
                               )}
                             </div>
-                            <div>
-                              <p className="text-sm font-medium text-gray-600">Payment Status</p>
-                              <p className={`text-lg font-bold ${
+                          </td>
+
+                          {/* Status */}
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(order.status)}`}>
+                              {getStatusIcon(order.status)}
+                              <span className="ml-1 capitalize">{order.status.replace(/_/g, ' ')}</span>
+                            </span>
+                          </td>
+
+                          {/* Payment */}
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className={`w-3 h-3 rounded-full mr-2 ${
+                                order.payment?.status === 'paid' ? 'bg-green-500' : 'bg-red-500'
+                              }`}></div>
+                              <span className={`text-sm font-medium ${
                                 order.payment?.status === 'paid' ? 'text-green-700' : 'text-red-700'
                               }`}>
                                 {order.payment?.status === 'paid' ? 'PAID' : 'PENDING'}
+                              </span>
+                            </div>
+                            {order.payment?.method && (
+                              <div className="text-xs text-gray-500 capitalize">
+                                {order.payment.method}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Amount */}
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-semibold text-gray-900">
+                              {formatPrice(order.pricing?.totalAmount)}
+                            </div>
+                            {order.pricing?.advanceAmount > 0 && (
+                              <div className="text-xs text-green-600">
+                                Paid: {formatPrice(order.pricing.advanceAmount)}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Order Date */}
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {formatDate(order.timeline?.bookingDate || order.createdAt)}
+                            </div>
+                            {order.orderDetails?.deliveryDate && (
+                              <div className="text-xs text-gray-500">
+                                Expected: {formatDate(order.orderDetails.deliveryDate)}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Actions */}
+                          <td className="px-6 py-4 whitespace-nowrap text-center">
+                            <button
+                              onClick={() => handleViewDetails(order)}
+                              className="inline-flex items-center px-3 py-2 bg-gradient-to-r from-coralblush to-lilac text-white text-sm font-medium rounded-lg hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                            >
+                              <FiEye className="w-4 h-4 mr-1" />
+                              View
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Table Footer */}
+                <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-700">
+                      Showing {filteredOrders.length} of {orders.length} orders
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <button className="px-3 py-1 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                        Previous
+                      </button>
+                      <button className="px-3 py-1 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              ) : (
+                /* Card View */
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredOrders.map((order) => (
+                    <div 
+                      key={order._id || order.id} 
+                      className="bg-white rounded-xl shadow-md border border-gray-200 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden"
+                    >
+                      {/* Order Header */}
+                      <div className="bg-gradient-to-r from-coralblush to-lilac p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2 text-white">
+                            {getOrderTypeIcon(order.bookingType)}
+                            <span className="font-semibold capitalize">{order.bookingType} Order</span>
+                          </div>
+                          <span className={`px-3 py-1 text-xs font-semibold rounded-full flex items-center space-x-1 bg-white border ${getStatusColor(order.status)}`}>
+                            {getStatusIcon(order.status)}
+                            <span className="capitalize ml-1">{order.status.replace(/_/g, ' ')}</span>
+                          </span>
+                        </div>
+                        <div className="text-white text-sm mt-2 opacity-90">
+                          Booking ID: #{order._id?.slice(-8).toUpperCase() || order.id?.slice(-8).toUpperCase() || 'N/A'}
+                        </div>
+                      </div>
+
+                      {/* Order Body */}
+                      <div className="p-5 space-y-4">
+                        {/* Garment Details */}
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <p className="text-xs text-gray-500 mb-1">Garment Type</p>
+                              <p className="font-semibold text-gray-900 capitalize text-lg">
+                                {order.orderDetails?.garmentType || 'N/A'}
+                              </p>
+                              <p className="text-sm text-gray-600 mt-1">
+                                Quantity: {order.orderDetails?.quantity || 1}
+                              </p>
+                            </div>
+                            <div className="w-12 h-12 bg-gradient-to-br from-coralblush to-lilac rounded-lg flex items-center justify-center">
+                              <FiPackage className="w-6 h-6 text-white" />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Tailor/Fabric Info */}
+                        {order.tailor && (
+                          <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <FiScissors className="w-4 h-4 text-blue-600" />
+                              <p className="text-xs font-medium text-blue-600">Tailor</p>
+                            </div>
+                            <p className="font-semibold text-blue-900">{order.tailor.name || 'N/A'}</p>
+                            {order.tailor.location && (
+                              <p className="text-sm text-blue-700 mt-1">
+                                {order.tailor.location.city}, {order.tailor.location.state}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {order.fabric && (
+                          <div className="bg-green-50 rounded-lg p-4 border border-green-100">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <FiShoppingBag className="w-4 h-4 text-green-600" />
+                              <p className="text-xs font-medium text-green-600">Fabric</p>
+                            </div>
+                            <p className="font-semibold text-green-900">{order.fabric.name || 'N/A'}</p>
+                            <p className="text-sm text-green-700 mt-1">
+                              {order.fabric.color} - {order.fabric.pattern}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Payment Status Card */}
+                        <div className={`rounded-lg p-4 border-2 ${
+                          order.payment?.status === 'paid' 
+                            ? 'bg-green-50 border-green-200' 
+                            : 'bg-red-50 border-red-200'
+                        }`}>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                                order.payment?.status === 'paid' ? 'bg-green-500' : 'bg-red-500'
+                              }`}>
+                                {order.payment?.status === 'paid' ? (
+                                  <FiCheckCircle className="w-6 h-6 text-white" />
+                                ) : (
+                                  <FiXCircle className="w-6 h-6 text-white" />
+                                )}
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-gray-600">Payment Status</p>
+                                <p className={`text-lg font-bold ${
+                                  order.payment?.status === 'paid' ? 'text-green-700' : 'text-red-700'
+                                }`}>
+                                  {order.payment?.status === 'paid' ? 'PAID' : 'PENDING'}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs text-gray-600 mb-1">Total Amount</p>
+                              <p className="font-bold text-gray-900 text-xl">
+                                {formatPrice(order.pricing?.totalAmount)}
                               </p>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <p className="text-xs text-gray-600 mb-1">Total Amount</p>
-                            <p className="font-bold text-gray-900 text-xl">
-                              {formatPrice(order.pricing?.totalAmount)}
-                            </p>
+                        </div>
+
+                        {/* Timeline */}
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center space-x-2 text-gray-600">
+                            <FiCalendar className="w-4 h-4" />
+                            <span>Ordered: {formatDate(order.timeline?.bookingDate || order.createdAt)}</span>
                           </div>
                         </div>
-                        {order.payment?.status === 'paid' && (
-                          <div className="mt-3 pt-3 border-t border-green-200">
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-green-600">Payment Method:</span>
-                              <span className="font-medium text-green-700 capitalize">
-                                {order.payment?.method || 'Razorpay'}
-                              </span>
-                            </div>
-                            {order.payment?.gatewayPaymentId && (
-                              <div className="flex items-center justify-between text-sm mt-1">
-                                <span className="text-green-600">Transaction ID:</span>
-                                <span className="font-mono text-xs text-green-700">
-                                  {order.payment.gatewayPaymentId.slice(-8)}
-                                </span>
-                              </div>
-                            )}
+                        {order.orderDetails?.deliveryDate && (
+                          <div className="flex items-center space-x-2 text-sm text-gray-600">
+                            <FiTruck className="w-4 h-4" />
+                            <span>Expected: {formatDate(order.orderDetails.deliveryDate)}</span>
                           </div>
                         )}
                       </div>
 
-                      {/* Timeline */}
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center space-x-2 text-gray-600">
-                          <FiCalendar className="w-4 h-4" />
-                          <span>Ordered: {formatDate(order.timeline?.bookingDate || order.createdAt)}</span>
-                        </div>
+                      {/* Order Footer */}
+                      <div className="p-5 bg-gray-50 border-t border-gray-200">
+                        <button
+                          onClick={() => handleViewDetails(order)}
+                          className="w-full flex items-center justify-center px-4 py-3 bg-gradient-to-r from-coralblush to-lilac text-white rounded-lg font-medium hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                        >
+                          <FiEye className="w-4 h-4 mr-2" />
+                          View Details
+                        </button>
                       </div>
-                      {order.orderDetails?.deliveryDate && (
-                        <div className="flex items-center space-x-2 text-sm text-gray-600">
-                          <FiTruck className="w-4 h-4" />
-                          <span>Expected: {formatDate(order.orderDetails.deliveryDate)}</span>
-                        </div>
-                      )}
                     </div>
-
-                    {/* Order Footer */}
-                    <div className="p-5 bg-gray-50 border-t border-gray-200">
-                      <button
-                        onClick={() => handleViewDetails(order)}
-                        className="w-full flex items-center justify-center px-4 py-3 bg-gradient-to-r from-coralblush to-lilac text-white rounded-lg font-medium hover:shadow-lg transition-all duration-200 transform hover:scale-105"
-                      >
-                        <FiEye className="w-4 h-4 mr-2" />
-                        View Details
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )
             ) : (
               <div className="text-center py-16">
                 <div className="w-24 h-24 bg-gradient-to-r from-coralblush to-lilac rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
@@ -437,12 +807,44 @@ const CustomerOrders = () => {
                   }
                 </p>
                 {!searchQuery && filterStatus === "all" && filterType === "all" && (
-                  <button
-                    onClick={() => navigate('/customer/fabrics')}
-                    className="px-6 py-3 bg-gradient-to-r from-coralblush to-lilac text-white rounded-lg font-medium hover:shadow-lg transition-all duration-200 transform hover:scale-105"
-                  >
-                    Start Shopping
-                  </button>
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                    <button
+                      onClick={() => navigate('/customer/fabrics')}
+                      className="px-6 py-3 bg-gradient-to-r from-coralblush to-lilac text-white rounded-lg font-medium hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                    >
+                      Start Shopping
+                    </button>
+                    <button
+                      onClick={testSimpleAPI}
+                      className="px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                    >
+                      Test Simple API
+                    </button>
+                    <button
+                      onClick={debugUser}
+                      className="px-6 py-3 bg-orange-600 text-white rounded-lg font-medium hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                    >
+                      Debug User
+                    </button>
+                    <button
+                      onClick={testDirectAPI}
+                      className="px-6 py-3 bg-purple-600 text-white rounded-lg font-medium hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                    >
+                      Test Auth API
+                    </button>
+                    <button
+                      onClick={debugDatabase}
+                      className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                    >
+                      Debug Database
+                    </button>
+                    <button
+                      onClick={createSampleBooking}
+                      className="px-6 py-3 bg-gray-600 text-white rounded-lg font-medium hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                    >
+                      Create Sample Order
+                    </button>
+                  </div>
                 )}
               </div>
             )}

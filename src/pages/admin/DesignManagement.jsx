@@ -24,6 +24,60 @@ import { useNavigate } from "react-router-dom";
 import { isAdminAuthenticated } from "../../utils/api";
 import { adminApiService } from "../../services/adminApiService";
 
+// Garment type options based on category
+const GARMENT_OPTIONS = {
+  Men: [
+    { value: 'shirt', label: 'Shirt' },
+    { value: 'pants', label: 'Pants' },
+    { value: 'suit', label: 'Suit' },
+    { value: 'kurta', label: 'Kurta' },
+    { value: 'sherwani', label: 'Sherwani' },
+    { value: 'blazer', label: 'Blazer' },
+    { value: 'trouser', label: 'Trouser' },
+    { value: 'waistcoat', label: 'Waistcoat' },
+    { value: 'jacket', label: 'Jacket' },
+    { value: 'other', label: 'Other' }
+  ],
+  Women: [
+    { value: 'dress', label: 'Dress' },
+    { value: 'saree', label: 'Saree' },
+    { value: 'lehenga', label: 'Lehenga' },
+    { value: 'salwar-kameez', label: 'Salwar Kameez' },
+    { value: 'blouse', label: 'Blouse' },
+    { value: 'skirt', label: 'Skirt' },
+    { value: 'top', label: 'Top' },
+    { value: 'gown', label: 'Gown' },
+    { value: 'pants', label: 'Pants' },
+    { value: 'other', label: 'Other' }
+  ],
+  Unisex: [
+    { value: 'kurta', label: 'Kurta' },
+    { value: 'shirt', label: 'Shirt' },
+    { value: 'pants', label: 'Pants' },
+    { value: 'jacket', label: 'Jacket' },
+    { value: 'other', label: 'Other' }
+  ]
+};
+
+// Tag options
+const TAG_OPTIONS = [
+  { value: 'bridal', label: 'Bridal' },
+  { value: 'ethnic', label: 'Ethnic Wear' },
+  { value: 'casual', label: 'Casual' },
+  { value: 'formal', label: 'Formal' },
+  { value: 'party', label: 'Party' },
+  { value: 'traditional', label: 'Traditional' },
+  { value: 'western', label: 'Western' },
+  { value: 'fusion', label: 'Fusion' },
+  { value: 'wedding', label: 'Wedding' },
+  { value: 'festive', label: 'Festive' },
+  { value: 'office', label: 'Office' },
+  { value: 'sports', label: 'Sports' },
+  { value: 'beach', label: 'Beach' },
+  { value: 'cocktail', label: 'Cocktail' },
+  { value: 'evening', label: 'Evening' }
+];
+
 const DesignManagementEnhanced = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -58,6 +112,7 @@ const DesignManagementEnhanced = () => {
   const [formData, setFormData] = useState({
     name: "",
     category: "",
+    garmentType: "",
     description: "",
     price: "",
     images: [],
@@ -284,6 +339,7 @@ const DesignManagementEnhanced = () => {
     setFormData({
       name: "",
       category: "",
+      garmentType: "",
       description: "",
       price: "",
       images: [],
@@ -332,12 +388,13 @@ const DesignManagementEnhanced = () => {
     setFormData({
       name: design.name,
       category: design.category,
+      garmentType: design.garmentType || '',
       description: design.description || '',
       price: design.price || 0,
       difficulty: design.difficulty || 'intermediate',
       estimatedTime: design.estimatedTime || 0,
       images: [],
-      tags: design.tags || [],
+      tags: design.tags || "",
       requiredMeasurements: design.requiredMeasurements || []
     });
     setSelectedMeasurements(design.requiredMeasurements || []);
@@ -391,6 +448,7 @@ const DesignManagementEnhanced = () => {
       const designData = new FormData();
       designData.append('name', formData.name);
       designData.append('category', formData.category);
+      designData.append('garmentType', formData.garmentType);
       designData.append('description', formData.description);
       designData.append('price', formData.price);
       designData.append('difficulty', formData.difficulty);
@@ -464,11 +522,12 @@ const DesignManagementEnhanced = () => {
       const formDataToSend = new FormData();
       formDataToSend.append('name', formData.name);
       formDataToSend.append('category', formData.category);
+      formDataToSend.append('garmentType', formData.garmentType);
       formDataToSend.append('description', formData.description || '');
       formDataToSend.append('price', formData.price || 0);
       formDataToSend.append('difficulty', formData.difficulty);
       formDataToSend.append('estimatedTime', formData.estimatedTime || 0);
-      formDataToSend.append('tags', formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag).join(','));
+      formDataToSend.append('tags', formData.tags);
       formDataToSend.append('requiredMeasurements', JSON.stringify(selectedMeasurements));
       
       // Append image files
@@ -867,13 +926,55 @@ const DesignManagementEnhanced = () => {
                       <select
                         required
                         value={formData.category}
-                        onChange={(e) => setFormData({...formData, category: e.target.value})}
+                        onChange={(e) => {
+                          setFormData({...formData, category: e.target.value, garmentType: ""});
+                        }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-coralblush focus:border-transparent"
                       >
                         <option value="">Select Category</option>
                         <option value="Men">Men</option>
                         <option value="Women">Women</option>
                         <option value="Unisex">Unisex</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Garment Type *
+                      </label>
+                      <select
+                        required
+                        value={formData.garmentType}
+                        onChange={(e) => setFormData({...formData, garmentType: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-coralblush focus:border-transparent"
+                        disabled={!formData.category}
+                      >
+                        <option value="">Select Garment Type</option>
+                        {formData.category && GARMENT_OPTIONS[formData.category]?.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Tag
+                      </label>
+                      <select
+                        value={formData.tags}
+                        onChange={(e) => setFormData({...formData, tags: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-coralblush focus:border-transparent"
+                      >
+                        <option value="">Select Tag</option>
+                        {TAG_OPTIONS.map((tag) => (
+                          <option key={tag.value} value={tag.value}>
+                            {tag.label}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>
@@ -1170,7 +1271,7 @@ const DesignManagementEnhanced = () => {
                       </label>
                       <select
                         value={formData.category}
-                        onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                        onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value, garmentType: "" }))}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-coralblush focus:border-transparent"
                         required
                       >
@@ -1178,6 +1279,46 @@ const DesignManagementEnhanced = () => {
                         <option value="Men">Men</option>
                         <option value="Women">Women</option>
                         <option value="Unisex">Unisex</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Garment Type *
+                      </label>
+                      <select
+                        required
+                        value={formData.garmentType}
+                        onChange={(e) => setFormData(prev => ({ ...prev, garmentType: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-coralblush focus:border-transparent"
+                        disabled={!formData.category}
+                      >
+                        <option value="">Select Garment Type</option>
+                        {formData.category && GARMENT_OPTIONS[formData.category]?.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Tag
+                      </label>
+                      <select
+                        value={formData.tags}
+                        onChange={(e) => setFormData({...formData, tags: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-coralblush focus:border-transparent"
+                      >
+                        <option value="">Select Tag</option>
+                        {TAG_OPTIONS.map((tag) => (
+                          <option key={tag.value} value={tag.value}>
+                            {tag.label}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>

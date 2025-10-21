@@ -13,10 +13,10 @@ export const customerAPI = {
     }
   },
 
-  // Get customer orders
+  // Get customer orders (enhanced version from bookings)
   getOrders: async () => {
     try {
-      return await apiCall('CUSTOMER_SERVICE', '/api/orders');
+      return await apiCall('CUSTOMER_SERVICE', '/api/bookings/orders');
     } catch (error) {
       console.error('Error fetching orders:', error);
       throw error;

@@ -6,7 +6,7 @@ const config = {
   CUSTOMER_SERVICE_URL: import.meta.env.VITE_CUSTOMER_SERVICE_URL || 'http://localhost:3002',
   ADMIN_SERVICE_URL: import.meta.env.VITE_ADMIN_SERVICE_URL || 'http://localhost:3003',
   DESIGN_SERVICE_URL: import.meta.env.VITE_DESIGN_SERVICE_URL || 'http://localhost:3004',
-  TAILOR_SERVICE_URL: import.meta.env.VITE_TAILOR_SERVICE_URL || 'http://localhost:3005',
+  TAILOR_SERVICE_URL: import.meta.env.VITE_TAILOR_SERVICE_URL || 'http://localhost:3003',
   VENDOR_SERVICE_URL: import.meta.env.VITE_VENDOR_SERVICE_URL || 'http://localhost:3006',
   PAYMENT_SERVICE_URL: import.meta.env.VITE_PAYMENT_SERVICE_URL || 'http://localhost:3007',
   MEASUREMENT_SERVICE_URL: import.meta.env.VITE_MEASUREMENT_SERVICE_URL || 'http://localhost:8001',

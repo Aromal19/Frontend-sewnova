@@ -202,6 +202,31 @@ const BookingFlow = () => {
   const [isPaying, setIsPaying] = useState(false);
   const [paymentCompleted, setPaymentCompleted] = useState(false);
 
+  // Add useEffect to track bookingData changes for debugging
+  useEffect(() => {
+    console.log('📊 Booking data updated:', bookingData);
+  }, [bookingData]);
+
+  // Add localStorage persistence
+  useEffect(() => {
+    // Save to localStorage whenever bookingData changes
+    localStorage.setItem('bookingData', JSON.stringify(bookingData));
+  }, [bookingData]);
+
+  // Load from localStorage on component mount
+  useEffect(() => {
+    const savedBookingData = localStorage.getItem('bookingData');
+    if (savedBookingData) {
+      try {
+        const parsedData = JSON.parse(savedBookingData);
+        console.log('🔄 Restoring booking data from localStorage:', parsedData);
+        setBookingData(parsedData);
+      } catch (error) {
+        console.error('❌ Error parsing saved booking data:', error);
+      }
+    }
+  }, []);
+
   const loadScript = (src) => {
     return new Promise((resolve) => {
       if (document.querySelector(`script[src="${src}"]`)) {
@@ -217,13 +242,15 @@ const BookingFlow = () => {
 
   const initiatePayment = async () => {
     try {
-      if (!bookingData.addressId && !bookingData.deliveryAddress?._id) {
-        alert('Please select a delivery address first.');
-        return;
-      }
-
-      if (!bookingData.measurementId && (!bookingData.customMeasurements || Object.keys(bookingData.customMeasurements || {}).length === 0)) {
-        alert('Please confirm your measurements first.');
+      // Validate booking data before payment
+      const validation = validateBookingData();
+      if (!validation.isValid) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Incomplete Booking',
+          text: `Please complete the following: ${validation.errors.join(', ')}`,
+          confirmButtonText: 'OK'
+        });
         return;
       }
 
@@ -321,16 +348,41 @@ const BookingFlow = () => {
               );
 
               if (verifyRes?.success) {
-                // Clear booking cache and update UI
-                clearBookingCache();
-                // Dispatch custom event to notify other components
-                window.dispatchEvent(new CustomEvent('bookingCacheCleared'));
-                setPaymentCompleted(true);
-                setBookingData(prev => ({
-                  ...prev,
-                  paymentStatus: 'paid',
-                  orderId: verifyRes.paymentId
-                }));
+                // Save booking data to backend BEFORE clearing cache
+                try {
+                  console.log('💾 Payment successful, saving booking data...');
+                  await saveBookingToBackend(bookingData);
+                  
+                  // Update UI state
+                  setPaymentCompleted(true);
+                  setBookingData(prev => ({
+                    ...prev,
+                    paymentStatus: 'paid',
+                    orderId: verifyRes.paymentId
+                  }));
+                  
+                  // Show success message
+                  Swal.fire({
+                    icon: 'success',
+                    title: 'Payment Successful!',
+                    text: 'Your booking has been confirmed and saved.',
+                    confirmButtonText: 'OK'
+                  });
+                  
+                  // Clear booking cache AFTER successful save
+                  clearBookingCache();
+                  // Dispatch custom event to notify other components
+                  window.dispatchEvent(new CustomEvent('bookingCacheCleared'));
+                  
+                } catch (saveError) {
+                  console.error('❌ Error saving booking after payment:', saveError);
+                  Swal.fire({
+                    icon: 'error',
+                    title: 'Payment Successful but Save Failed',
+                    text: 'Your payment was processed but there was an error saving your booking. Please contact support.',
+                    confirmButtonText: 'OK'
+                  });
+                }
                 
                 // Show success message and redirect
                 Swal.fire({
@@ -593,9 +645,117 @@ const BookingFlow = () => {
     }
   };
 
+  // Validation function to check if booking data is complete
+  const validateBookingData = () => {
+    const errors = [];
+    
+    if (!bookingData.serviceType) {
+      errors.push('Service type is required');
+    }
+    
+    if (bookingData.serviceType === 'fabric-tailor' && !bookingData.tailorId) {
+      errors.push('Tailor selection is required');
+    }
+    
+    if (!bookingData.measurementId && (!bookingData.customMeasurements || Object.keys(bookingData.customMeasurements).length === 0)) {
+      errors.push('Measurements are required');
+    }
+    
+    if (!bookingData.addressId && !bookingData.deliveryAddress?._id) {
+      errors.push('Delivery address is required');
+    }
+    
+    if (!bookingData.garmentType) {
+      errors.push('Garment type is required');
+    }
+    
+    if (bookingData.quantity <= 0) {
+      errors.push('Quantity must be greater than 0');
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  };
+
+  // Function to save booking data to backend
+  const saveBookingToBackend = async (bookingDataToSave) => {
+    try {
+      console.log('💾 Saving booking to backend:', bookingDataToSave);
+      
+      // Import BookingService
+      const { default: BookingService } = await import('../../services/bookingService');
+      
+      // Prepare booking data for API
+      const apiBookingData = {
+        bookingType: bookingDataToSave.serviceType === 'fabric-only' ? 'fabric' : 
+                    bookingDataToSave.serviceType === 'fabric-tailor' ? 'complete' : 'tailor',
+        tailorId: bookingDataToSave.tailorId,
+        fabricId: bookingDataToSave.fabricId,
+        measurementId: bookingDataToSave.measurementId,
+        measurementSnapshot: bookingDataToSave.customMeasurements,
+        addressId: bookingDataToSave.addressId,
+        orderDetails: {
+          garmentType: bookingDataToSave.garmentType,
+          quantity: bookingDataToSave.quantity,
+          designDescription: bookingDataToSave.designInstructions,
+          specialInstructions: bookingDataToSave.notes,
+          deliveryDate: bookingDataToSave.preferredDate ? new Date(bookingDataToSave.preferredDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        },
+        pricing: {
+          fabricCost: bookingDataToSave.fabricCost || 0,
+          tailoringCost: bookingDataToSave.tailoringCost || 0,
+          additionalCharges: 0,
+          totalAmount: bookingDataToSave.totalCost || 0,
+          advanceAmount: bookingDataToSave.advanceAmount || 0,
+          remainingAmount: (bookingDataToSave.totalCost || 0) - (bookingDataToSave.advanceAmount || 0)
+        },
+        payment: {
+          status: 'paid',
+          method: 'razorpay',
+          paidAmount: bookingDataToSave.advanceAmount || bookingDataToSave.totalCost || 0,
+          paidAt: new Date()
+        }
+      };
+      
+      const response = await BookingService.createBooking(apiBookingData);
+      console.log('✅ Booking saved successfully:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Error saving booking:', error);
+      throw error;
+    }
+  };
+
+  // Debug function to show current booking data
+  const debugBookingData = () => {
+    console.log('🔍 Current booking data:', bookingData);
+    console.log('🔍 Validation result:', validateBookingData());
+    Swal.fire({
+      title: 'Booking Data Debug',
+      html: `
+        <div style="text-align: left; font-family: monospace; font-size: 12px;">
+          <strong>Service Type:</strong> ${bookingData.serviceType || 'Not set'}<br/>
+          <strong>Tailor ID:</strong> ${bookingData.tailorId || 'Not set'}<br/>
+          <strong>Fabric ID:</strong> ${bookingData.fabricId || 'Not set'}<br/>
+          <strong>Measurement ID:</strong> ${bookingData.measurementId || 'Not set'}<br/>
+          <strong>Address ID:</strong> ${bookingData.addressId || 'Not set'}<br/>
+          <strong>Garment Type:</strong> ${bookingData.garmentType || 'Not set'}<br/>
+          <strong>Quantity:</strong> ${bookingData.quantity || 'Not set'}<br/>
+          <strong>Total Cost:</strong> ${bookingData.totalCost || 'Not set'}<br/>
+          <strong>Validation:</strong> ${validateBookingData().isValid ? '✅ Valid' : '❌ Invalid'}<br/>
+          ${!validateBookingData().isValid ? `<strong>Errors:</strong> ${validateBookingData().errors.join(', ')}` : ''}
+        </div>
+      `,
+      confirmButtonText: 'OK'
+    });
+  };
+
   // Clear booking cache when order is confirmed
   const clearBookingCache = () => {
     bookingCache.clearBookingProgress();
+    localStorage.removeItem('bookingData');
   };
 
   const handleTailorSelect = (t) => {
@@ -918,7 +1078,11 @@ const BookingFlow = () => {
               </button>
               
               <button
-                onClick={() => setBookingData(prev => ({ ...prev, designType: 'custom' }))}
+                onClick={() => setBookingData(prev => ({ 
+                  ...prev, 
+                  designType: 'custom',
+                  garmentType: 'other' // Default garment type for custom designs
+                }))}
                 className={`p-6 border-2 rounded-lg text-left transition-all duration-200 ${
                   bookingData.designType === 'custom'
                     ? 'border-amber-500 bg-amber-50'
@@ -939,7 +1103,8 @@ const BookingFlow = () => {
                     setBookingData(prev => ({ 
                       ...prev, 
                       selectedDesign: design,
-                      designType: 'predefined'
+                      designType: 'predefined',
+                      garmentType: design.garmentType || 'other' // Set garment type from design garmentType
                     }));
                   }}
                   selectedDesignId={bookingData.selectedDesign?._id}
@@ -1253,6 +1418,17 @@ const BookingFlow = () => {
                       ))}
                     </div>
                     
+                    <div>
+                      <h4 className="font-medium">Garment Details</h4>
+                      <div className="text-sm text-gray-600 ml-4">
+                        <div>Type: {bookingData.garmentType ? bookingData.garmentType.charAt(0).toUpperCase() + bookingData.garmentType.slice(1) : 'Not selected'}</div>
+                        <div>Quantity: {bookingData.quantity || 1}</div>
+                        {bookingData.selectedDesign && (
+                          <div>Design: {bookingData.selectedDesign.name}</div>
+                        )}
+                      </div>
+                    </div>
+                    
                     {bookingData.serviceType === 'fabric-tailor' && (
                       <>
                         <div>
@@ -1347,15 +1523,60 @@ const BookingFlow = () => {
                       {isPaying ? 'Processing...' : 'Pay Now'}
                     </button>
                   )}
-                  <button 
-                    onClick={() => {
-                      console.log('Placing order without upfront payment:', bookingData);
-                      clearBookingCache();
-                    }}
-                    className="w-full bg-gray-100 text-gray-800 py-3 px-6 rounded-lg font-semibold hover:bg-gray-200 transition-colors"
-                  >
-                    Place Order
-                  </button>
+                  <div className="space-y-3">
+                    <button 
+                      onClick={async () => {
+                        try {
+                          // Validate booking data first
+                          const validation = validateBookingData();
+                          if (!validation.isValid) {
+                            Swal.fire({
+                              icon: 'error',
+                              title: 'Incomplete Booking',
+                              text: `Please complete the following: ${validation.errors.join(', ')}`,
+                              confirmButtonText: 'OK'
+                            });
+                            return;
+                          }
+                          
+                          console.log('💾 Placing order without upfront payment:', bookingData);
+                          
+                          // Save booking data to backend
+                          await saveBookingToBackend(bookingData);
+                          
+                          // Show success message
+                          Swal.fire({
+                            icon: 'success',
+                            title: 'Order Placed!',
+                            text: 'Your booking has been confirmed and saved.',
+                            confirmButtonText: 'OK'
+                          });
+                          
+                          // Clear booking cache AFTER successful save
+                          clearBookingCache();
+                          
+                        } catch (error) {
+                          console.error('❌ Error placing order:', error);
+                          Swal.fire({
+                            icon: 'error',
+                            title: 'Order Failed',
+                            text: `Failed to place order: ${error.message}`,
+                            confirmButtonText: 'OK'
+                          });
+                        }
+                      }}
+                      className="w-full bg-gray-100 text-gray-800 py-3 px-6 rounded-lg font-semibold hover:bg-gray-200 transition-colors"
+                    >
+                      Place Order
+                    </button>
+                    
+                    <button 
+                      onClick={debugBookingData}
+                      className="w-full bg-blue-100 text-blue-800 py-2 px-4 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors"
+                    >
+                      🔍 Debug Booking Data
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
