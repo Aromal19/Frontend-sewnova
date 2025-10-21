@@ -1,23 +1,25 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist"
-      }
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
-  ],
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
   "env": {
-    "VITE_API_BASE_URL": "@vite_api_base_url",
-    "VITE_GOOGLE_CLIENT_ID": "@vite_google_client_id",
-    "VITE_RAZORPAY_KEY_ID": "@vite_razorpay_key_id"
+    "VITE_API_BASE_URL": "http://localhost:3001",
+    "VITE_AUTH_SERVICE_URL": "http://localhost:3001",
+    "VITE_CUSTOMER_SERVICE_URL": "http://localhost:3002",
+    "VITE_ADMIN_SERVICE_URL": "http://localhost:3003",
+    "VITE_DESIGN_SERVICE_URL": "http://localhost:3004",
+    "VITE_TAILOR_SERVICE_URL": "http://localhost:3005",
+    "VITE_VENDOR_SERVICE_URL": "http://localhost:3006",
+    "VITE_PAYMENT_SERVICE_URL": "http://localhost:3007",
+    "VITE_MEASUREMENT_SERVICE_URL": "http://localhost:8001",
+    "VITE_GOOGLE_CLIENT_ID": "648036319844-qp2nk1cg25ukh0j9ritk0mtbslbbccqk.apps.googleusercontent.com",
+    "VITE_RAZORPAY_KEY_ID": "rzp_test_1234567890",
+    "VITE_CLOUDINARY_CLOUD_NAME": "dshizq6va",
+    "VITE_CLOUDINARY_API_KEY": "593971394352412",
+    "VITE_CLOUDINARY_URL": "https://api.cloudinary.com/",
+    "VITE_APP_NAME": "SewNova",
+    "VITE_APP_VERSION": "1.0.0",
+    "VITE_APP_ENV": "development",
+    "VITE_CORS_ORIGIN": "http://localhost:5173"
   }
 }
