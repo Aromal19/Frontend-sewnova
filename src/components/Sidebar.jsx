@@ -164,6 +164,7 @@ const Sidebar = ({ isOpen, setIsOpen, userRole = "customer" }) => {
           ...baseItems,
           { key: "/admin/dashboard", label: "Dashboard", icon: FiActivity, href: "/admin/dashboard" },
           { key: "/admin/users", label: "Manage Users", icon: FiUsers, href: "/admin/users" },
+          { key: "/admin/orders", label: "Order Management", icon: FiPackage, href: "/admin/orders" },
           { key: "/admin/designs", label: "Design Management", icon: FiGrid, href: "/admin/designs" },
           { key: "/analytics", label: "Analytics", icon: FiBarChart, href: "/analytics" },
           { key: "/insights", label: "Insights", icon: FiTrendingUp, href: "/insights" },

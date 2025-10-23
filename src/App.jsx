@@ -19,6 +19,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminSettings from "./pages/admin/AdminSettings";
 import ManageUsers from "./pages/admin/ManageUsers";
 import DesignManagement from "./pages/admin/DesignManagement";
+import AdminOrders from "./pages/admin/AdminOrders";
 import AddFabric from "./pages/seller/AddFabric";
 import ActiveOrders from "./pages/tailor/ActiveOrders";
 import EmailVerification from "./pages/EmailVerification";
@@ -39,7 +40,6 @@ import DesignPage from "./pages/DesignPage";
 // Protected route component
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
-import AdminLogin from "./pages/admin/AdminLogin";
 
 const Orders = () => (
   <div className="p-8 text-gray-100">Your Orders (Customer View)</div>
@@ -61,7 +61,6 @@ function App() {
         <Route path="/verify-email" element={<EmailVerification />} />
         
         {/* Admin Routes */}
-        <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/dashboard" element={
           <AdminProtectedRoute>
             <AdminDashboard />
@@ -75,6 +74,11 @@ function App() {
         <Route path="/admin/designs" element={
           <AdminProtectedRoute>
             <DesignManagement />
+          </AdminProtectedRoute>
+        } />
+        <Route path="/admin/orders" element={
+          <AdminProtectedRoute>
+            <AdminOrders />
           </AdminProtectedRoute>
         } />
         <Route path="/admin/settings" element={

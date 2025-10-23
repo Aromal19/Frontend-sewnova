@@ -578,6 +578,37 @@ const AdminDashboard = () => {
             </div>
           )}
 
+          {activeTab === "orders" && (
+            <div className="space-y-6">
+              <div className="bg-white rounded-xl shadow-lg border border-gray-100">
+                <div className="p-6 border-b border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-charcoal">Order Management</h3>
+                    <button 
+                      onClick={() => navigate('/admin/orders')}
+                      className="px-4 py-2 bg-gradient-to-r from-coralblush to-pink-500 text-white rounded-lg font-medium hover:from-pink-500 hover:to-coralblush transition-all duration-300 flex items-center space-x-2"
+                    >
+                      <FiPackage className="w-4 h-4" />
+                      <span>Manage Orders</span>
+                    </button>
+                  </div>
+                </div>
+                <div className="p-6">
+                  <div className="text-center py-12">
+                    <FiPackage className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Order Management</h3>
+                    <p className="text-gray-500 mb-6">View and manage all customer orders across the platform</p>
+                    <button 
+                      onClick={() => navigate('/admin/orders')}
+                      className="px-6 py-3 bg-coralblush hover:bg-pink-600 text-white rounded-lg font-medium transition-colors"
+                    >
+                      Go to Orders Page
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {activeTab === "designs" && (
             <div className="space-y-6">

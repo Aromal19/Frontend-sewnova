@@ -239,6 +239,38 @@ export const adminApiService = {
 
   async getDashboardStats() {
     return await adminApiCall('/api/admin/dashboard-stats');
+  },
+
+  // Booking Management (using new booking endpoints - no auth required)
+  async getAllOrders(params = {}) {
+    const { page = 1, limit = 10, status, customerId, bookingType, sortBy = 'createdAt', sortOrder = 'desc', search } = params;
+    const queryParams = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+      sortBy,
+      sortOrder,
+      ...(status && { status }),
+      ...(customerId && { customerId }),
+      ...(bookingType && { bookingType }),
+      ...(search && { search })
+    });
+
+    return await adminApiCall(`/api/bookings?${queryParams}`);
+  },
+
+  async getOrderById(orderId) {
+    return await adminApiCall(`/api/bookings/${orderId}`);
+  },
+
+  async updateOrderStatus(orderId, statusData) {
+    return await adminApiCall(`/api/bookings/${orderId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify(statusData)
+    });
+  },
+
+  async getOrderStatistics() {
+    return await adminApiCall('/api/bookings/statistics');
   }
 };
 

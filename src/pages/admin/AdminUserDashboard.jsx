@@ -61,7 +61,7 @@ const AdminSettings = () => {
 
   useEffect(() => {
     if (!isAdminAuthenticated()) {
-      navigate("/admin/login", { replace: true });
+      navigate("/login", { replace: true });
     } else {
       loadAdminProfile();
     }
