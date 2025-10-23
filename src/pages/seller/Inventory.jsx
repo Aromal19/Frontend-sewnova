@@ -172,7 +172,7 @@ const Inventory = () => {
                             </span>
                           </td>
                           <td className="py-4 px-6">
-                            <span className="font-medium text-charcoal">${p.price}</span>
+                            <span className="font-medium text-charcoal">₹{p.price}</span>
                           </td>
                           <td className="py-4 px-6">
                             <span className="text-gray-600">{p.pricePerUnit?.replace('per_', ' per ')}</span>

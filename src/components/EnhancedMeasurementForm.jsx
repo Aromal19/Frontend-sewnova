@@ -942,7 +942,7 @@ const EnhancedMeasurementForm = ({ design, onMeasurementSubmit, onCancel }) => {
                 <span className="capitalize">{design.category}</span>
                 <span className="capitalize">{design.difficulty}</span>
                 {design.price && (
-                  <span className="font-medium text-green-600">${design.price}</span>
+                  <span className="font-medium text-green-600">₹{design.price}</span>
                 )}
               </div>
             </div>

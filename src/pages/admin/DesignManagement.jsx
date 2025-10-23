@@ -517,6 +517,18 @@ const DesignManagementEnhanced = () => {
     e.preventDefault();
     setLoading(true);
     
+    // Basic validation
+    if (!formData.name || !formData.category || !formData.garmentType) {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Validation Error',
+        text: 'Please fill in all required fields (Name, Category, and Garment Type)',
+        confirmButtonText: 'OK'
+      });
+      setLoading(false);
+      return;
+    }
+    
     try {
       // Create FormData for file upload
       const formDataToSend = new FormData();

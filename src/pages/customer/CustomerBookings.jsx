@@ -1,633 +1,570 @@
   import React, { useState, useEffect } from "react";
   import { useNavigate } from "react-router-dom";
   import Sidebar from "../../components/Sidebar";
-  import BookingService from "../../services/bookingService";
+import { adminApiService } from "../../services/adminApiService";
+import { getCurrentUser } from "../../utils/api";
   import { 
-    FiPlus, 
-    FiEdit2, 
-    FiTrash2, 
-    FiStar, 
+  FiSearch,
+  FiFilter,
+  FiDownload,
+  FiEye,
+  FiEdit,
     FiPackage, 
-    FiScissors,
-    FiShoppingBag,
-    FiFilter,
-    FiSearch,
-    FiGrid,
-    FiList,
+  FiUser,
+  FiMapPin,
+  FiCalendar,
+  FiDollarSign,
     FiClock,
     FiCheckCircle,
-    FiXCircle,
-    FiTruck,
+  FiAlertCircle,
+  FiX,
+  FiChevronLeft,
+  FiChevronRight,
+  FiRefreshCw,
     FiTrendingUp,
-    FiCalendar,
-    FiMapPin,
-    FiRefreshCw
+  FiTrendingDown,
+  FiMenu
   } from "react-icons/fi";
 
   const CustomerBookings = () => {
-    const [sidebarOpen, setSidebarOpen] = useState(true);
-    const [bookings, setBookings] = useState([]);
-    const [showForm, setShowForm] = useState(false);
-    const [editingBooking, setEditingBooking] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [searchQuery, setSearchQuery] = useState("");
-    const [filterStatus, setFilterStatus] = useState("all");
-    const [filterType, setFilterType] = useState("all");
-    const [viewMode, setViewMode] = useState("grid");
     const navigate = useNavigate();
+  const [orders, setOrders] = useState([]);
+  const [filteredOrders, setFilteredOrders] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  
+  // Filters and pagination
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [sortBy, setSortBy] = useState("createdAt");
+  const [sortOrder, setSortOrder] = useState("desc");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [ordersPerPage] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalBookings, setTotalBookings] = useState(0);
+  
+  // Statistics
+  const [statistics, setStatistics] = useState(null);
+  
+  // Selected order for details
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  
+  // Current user
+  const [currentUser, setCurrentUser] = useState(null);
 
-    // Fetch bookings from API
-    useEffect(() => {
-      const fetchBookings = async () => {
-        try {
-          setLoading(true);
-          console.log('🔍 Fetching bookings from API...');
-          
-          // Fetch customer orders (paid bookings)
-          const response = await BookingService.getCustomerOrders({
-            page: 1,
-            limit: 50,
-            sortBy: 'createdAt',
-            sortOrder: 'desc'
-          });
-          
-          console.log('✅ Bookings fetched successfully:', response);
-          
-          if (response.success && response.data) {
-            setBookings(response.data);
-          } else {
-            console.warn('⚠️ No bookings data received:', response);
-            setBookings([]);
-          }
-        } catch (error) {
-          console.error('❌ Error fetching bookings:', error);
-          // Show error message to user
-          alert(`Failed to load bookings: ${error.message}`);
-          setBookings([]);
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      fetchBookings();
+  useEffect(() => {
+    // Get current user
+    const user = getCurrentUser();
+    setCurrentUser(user);
+    
+    if (user) {
+      loadOrders();
+      loadStatistics();
+    }
     }, []);
 
-    const handleAddBooking = () => {
-      setEditingBooking(null);
-      setShowForm(true);
-    };
+  useEffect(() => {
+    filterOrders();
+  }, [orders, searchTerm, statusFilter]);
 
-    const handleRefreshBookings = async () => {
-      try {
+  useEffect(() => {
+    if (currentUser) {
+      loadOrders();
+    }
+  }, [currentPage, statusFilter, sortBy, sortOrder, currentUser]);
+
+  const loadOrders = async () => {
+    if (!currentUser?.email) return;
+    
         setLoading(true);
-        console.log('🔄 Refreshing bookings...');
-        
-        const response = await BookingService.getCustomerOrders({
-          page: 1,
-          limit: 50,
-          sortBy: 'createdAt',
-          sortOrder: 'desc'
-        });
-        
-        if (response.success && response.data) {
-          setBookings(response.data);
-          console.log('✅ Bookings refreshed successfully');
-        }
-      } catch (error) {
-        console.error('❌ Error refreshing bookings:', error);
-        alert(`Failed to refresh bookings: ${error.message}`);
+    setError(null);
+    
+    try {
+      const response = await adminApiService.getAllOrders({
+        page: currentPage,
+        limit: ordersPerPage,
+        status: statusFilter || undefined,
+        sortBy,
+        sortOrder,
+        search: currentUser.email // Filter by current user's email
+      });
+      
+      if (response.success) {
+        setOrders(response.data.bookings || []);
+        setTotalPages(response.data.pagination?.totalPages || 1);
+        setTotalBookings(response.data.pagination?.totalBookings || 0);
+      } else {
+        setError(response.message || 'Failed to load orders');
+      }
+    } catch (err) {
+      console.error('Error loading orders:', err);
+      setError('Failed to load orders. Please try again.');
       } finally {
         setLoading(false);
       }
     };
 
-    const handleEditBooking = (booking) => {
-      setEditingBooking(booking);
-      setShowForm(true);
-    };
-
-    const handleCancelBooking = async (id) => {
-      if (window.confirm("Are you sure you want to cancel this booking?")) {
-        try {
-          console.log('🔄 Cancelling booking:', id);
-          await BookingService.cancelBooking(id, 'Cancelled by customer');
-          
-          // Update local state
-          setBookings(bookings.map(b => 
-            b.id === id ? { ...b, status: 'cancelled' } : b
-          ));
-          
-          alert('Booking cancelled successfully!');
-        } catch (error) {
-          console.error("Error cancelling booking:", error);
-          alert(`Failed to cancel booking: ${error.message}`);
-        }
+  const loadStatistics = async () => {
+    if (!currentUser?.email) return;
+    
+    try {
+      const response = await adminApiService.getOrderStatistics();
+      if (response.success) {
+        // Filter statistics to only show current user's data
+        const userStats = {
+          ...response.data,
+          totalBookings: response.data.bookingsByEmail?.[currentUser.email] || 0,
+          totalRevenue: response.data.revenueByEmail?.[currentUser.email] || 0,
+          bookingsByStatus: response.data.bookingsByStatus || {}
+        };
+        setStatistics(userStats);
       }
-    };
+    } catch (err) {
+      console.error('Error loading statistics:', err);
+    }
+  };
 
-    const handleFormSubmit = async (bookingData) => {
-      try {
-        console.log('💾 Saving booking:', bookingData);
-        
-        if (editingBooking) {
-          // Update existing booking
-          console.log('🔄 Updating existing booking:', editingBooking.id);
-          const response = await BookingService.updateBooking(editingBooking.id, bookingData);
-          
-          if (response.success) {
-            // Update local state
-            const updatedBookings = bookings.map(b => 
-              b.id === editingBooking.id ? { ...b, ...response.data } : b
-            );
-            setBookings(updatedBookings);
-            alert('Booking updated successfully!');
-          } else {
-            throw new Error(response.message || 'Failed to update booking');
-          }
-        } else {
-          // Create new booking
-          console.log('➕ Creating new booking');
-          const response = await BookingService.createBooking(bookingData);
-          
-          if (response.success) {
-            // Add to local state
-            const newBooking = {
-              id: response.data._id || response.data.id,
-              ...response.data,
-              status: response.data.status || 'pending'
-            };
-            setBookings([newBooking, ...bookings]);
-            alert('Booking created successfully!');
-          } else {
-            throw new Error(response.message || 'Failed to create booking');
-          }
-        }
-        
-        setShowForm(false);
-        setEditingBooking(null);
-      } catch (error) {
-        console.error("Error saving booking:", error);
-        alert(`Failed to save booking: ${error.message}`);
-      }
-    };
-
-    const filteredBookings = bookings.filter(booking => {
-      const matchesSearch = 
-        (booking.tailorId?.firstname?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        booking.tailorId?.lastname?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        booking.fabricId?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        booking.orderDetails?.garmentType?.toLowerCase().includes(searchQuery.toLowerCase()));
-      
-      const matchesStatus = filterStatus === "all" || booking.status === filterStatus;
-      const matchesType = filterType === "all" || booking.bookingType === filterType;
-      
-      return matchesSearch && matchesStatus && matchesType;
-    });
-
-    const getBookingTypeIcon = (type) => {
-      switch (type) {
-        case "tailor": return "✂️";
-        case "fabric": return "🧵";
-        case "complete": return "🎯";
-        default: return "📦";
-      }
+  const filterOrders = () => {
+    let filtered = orders;
+    
+    if (searchTerm) {
+      filtered = filtered.filter(order => 
+        order._id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.userEmail?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.orderDetails?.garmentType?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.orderDetails?.designDescription?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    setFilteredOrders(filtered);
     };
 
     const getStatusColor = (status) => {
       switch (status) {
-        case "pending": return "bg-yellow-100 text-yellow-700";
-        case "confirmed": return "bg-blue-100 text-blue-700";
-        case "in_progress": return "bg-purple-100 text-purple-700";
-        case "ready_for_delivery": return "bg-indigo-100 text-indigo-700";
-        case "completed": return "bg-green-100 text-green-700";
-        case "cancelled": return "bg-red-100 text-red-700";
-        default: return "bg-gray-100 text-gray-700";
+      case "pending": return "bg-yellow-100 text-yellow-800";
+      case "confirmed": return "bg-blue-100 text-blue-800";
+      case "in_progress": return "bg-purple-100 text-purple-800";
+      case "ready_for_fitting": return "bg-indigo-100 text-indigo-800";
+      case "completed": return "bg-green-100 text-green-800";
+      case "delivered": return "bg-emerald-100 text-emerald-800";
+      case "cancelled": return "bg-red-100 text-red-800";
+      default: return "bg-gray-100 text-gray-800";
       }
     };
 
     const getStatusIcon = (status) => {
       switch (status) {
-        case "pending": return <FiClock className="w-4 h-4" />;
-        case "confirmed": return <FiCheckCircle className="w-4 h-4" />;
-        case "in_progress": return <FiPackage className="w-4 h-4" />;
-        case "ready_for_delivery": return <FiTruck className="w-4 h-4" />;
-        case "completed": return <FiCheckCircle className="w-4 h-4" />;
-        case "cancelled": return <FiXCircle className="w-4 h-4" />;
-        default: return <FiClock className="w-4 h-4" />;
-      }
-    };
-
-    const getPaymentStatusColor = (status) => {
-      switch (status) {
-        case "paid": return "bg-green-100 text-green-700";
-        case "partial": return "bg-yellow-100 text-yellow-700";
-        case "pending": return "bg-red-100 text-red-700";
-        default: return "bg-gray-100 text-gray-700";
-      }
-    };
-
-    if (loading) {
-      return (
-        <div className="flex h-screen bg-gray-50">
-          <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} currentPage="bookings" />
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading bookings...</p>
-            </div>
-          </div>
-        </div>
-      );
+      case "pending": return FiClock;
+      case "confirmed": return FiCheckCircle;
+      case "in_progress": return FiRefreshCw;
+      case "ready_for_fitting": return FiPackage;
+      case "completed": return FiCheckCircle;
+      case "delivered": return FiCheckCircle;
+      case "cancelled": return FiX;
+      default: return FiClock;
     }
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR'
+    }).format(amount);
+  };
+
 
     return (
-      <div className="flex min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex">
         {/* Sidebar */}
         <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} currentPage="bookings" />
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col min-h-screen">
+      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-0' : 'ml-0'}`}>
+        <div className="p-6">
           {/* Header */}
-          <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
-            <div className="px-6 py-4">
-              <div className="flex items-center justify-between">
+        <header className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="lg:hidden p-2 rounded-lg bg-white shadow-md hover:bg-gray-50 transition-colors"
+              >
+                <FiMenu className="w-5 h-5 text-gray-600" />
+              </button>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">My Bookings</h1>
-                  <p className="text-gray-600 mt-1">Track and manage your tailor and fabric bookings</p>
+                <h1 className="text-3xl font-bold text-charcoal">My Orders</h1>
+                <p className="text-gray-600 mt-2">Track and manage your orders and bookings.</p>
+              </div>
                 </div>
-                
-                <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-4">
                   <button
-                    onClick={handleRefreshBookings}
-                    className="flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-all duration-200"
+                onClick={loadOrders}
+                className="flex items-center px-4 py-2 bg-coralblush hover:bg-pink-600 text-white rounded-lg font-medium transition-all duration-200"
                   >
-                    <FiRefreshCw className="w-4 h-4 mr-2" />
+                <FiRefreshCw className="mr-2" />
                     Refresh
                   </button>
                   <button
-                    onClick={handleAddBooking}
-                    className="flex items-center px-4 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-medium hover:from-amber-500 hover:to-orange-600 transition-all duration-200"
+                onClick={() => navigate('/customer/landing')}
+                className="flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 font-medium transition-all duration-200"
                   >
-                    <FiPlus className="w-4 h-4 mr-2" />
-                    New Booking
+                Back to Dashboard
                   </button>
                 </div>
               </div>
 
-              {/* Search and Filters */}
-              <div className="flex items-center justify-between mt-6">
-                <div className="flex items-center space-x-4">
-                  {/* Search */}
-                  <div className="relative">
-                    <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <input
-                      type="text"
-                      placeholder="Search bookings..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
-                    />
+          {/* Statistics Cards */}
+          {statistics && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-600 text-sm font-medium">Total Orders</p>
+                    <p className="text-2xl font-bold text-charcoal">{statistics.totalBookings}</p>
                   </div>
-
-                  {/* Status Filter */}
-                  <select
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="pending">Pending</option>
-                    <option value="confirmed">Confirmed</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="ready_for_delivery">Ready for Delivery</option>
-                    <option value="completed">Completed</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
-
-                  {/* Type Filter */}
-                  <select
-                    value={filterType}
-                    onChange={(e) => setFilterType(e.target.value)}
-                    className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
-                  >
-                    <option value="all">All Types</option>
-                    <option value="tailor">Tailor Only</option>
-                    <option value="fabric">Fabric Only</option>
-                    <option value="complete">Complete Package</option>
-                  </select>
+                  <div className="w-12 h-12 bg-gradient-to-r from-coralblush to-pink-500 rounded-lg flex items-center justify-center">
+                    <FiPackage className="w-6 h-6 text-white" />
                 </div>
-
-                {/* View Controls */}
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => setViewMode("grid")}
-                    className={`p-2 rounded-lg transition-all duration-200 ${
-                      viewMode === "grid" 
-                        ? 'bg-amber-500 text-white' 
-                        : 'text-gray-500 hover:text-amber-500 hover:bg-amber-50'
-                    }`}
-                  >
-                    <FiGrid className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setViewMode("list")}
-                    className={`p-2 rounded-lg transition-all duration-200 ${
-                      viewMode === "list" 
-                        ? 'bg-amber-500 text-white' 
-                        : 'text-gray-500 hover:text-amber-500 hover:bg-amber-50'
-                    }`}
-                  >
-                    <FiList className="w-4 h-4" />
-                  </button>
                 </div>
               </div>
-            </div>
-          </header>
-
-          {/* Content */}
-          <main className="flex-1 p-6 overflow-y-auto">
-            <div className="max-w-7xl mx-auto">
-              {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <div className="flex items-center">
-                    <div className="w-12 h-12 bg-gradient-to-r from-blue-400 to-blue-600 rounded-lg flex items-center justify-center">
-                      <FiPackage className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-600">Total Bookings</p>
-                      <p className="text-2xl font-bold text-gray-900">{bookings.length}</p>
-                    </div>
+              
+              <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-600 text-sm font-medium">Total Spent</p>
+                    <p className="text-2xl font-bold text-charcoal">{formatCurrency(statistics.totalRevenue)}</p>
+                  </div>
+                  <div className="w-12 h-12 bg-gradient-to-r from-champagne to-yellow-500 rounded-lg flex items-center justify-center">
+                    <FiDollarSign className="w-6 h-6 text-charcoal" />
+                  </div>
                   </div>
                 </div>
 
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <div className="flex items-center">
-                    <div className="w-12 h-12 bg-gradient-to-r from-green-400 to-green-600 rounded-lg flex items-center justify-center">
-                      <FiCheckCircle className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-600">Active</p>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {bookings.filter(b => ['pending', 'confirmed', 'in_progress', 'ready_for_delivery'].includes(b.status)).length}
-                      </p>
-                    </div>
+              <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-600 text-sm font-medium">Pending Orders</p>
+                    <p className="text-2xl font-bold text-charcoal">{statistics.bookingsByStatus?.pending || 0}</p>
                   </div>
-                </div>
-
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <div className="flex items-center">
-                    <div className="w-12 h-12 bg-gradient-to-r from-purple-400 to-purple-600 rounded-lg flex items-center justify-center">
-                      <FiTrendingUp className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-600">Total Value</p>
-                      <p className="text-2xl font-bold text-gray-900">
-                        ₹{bookings.reduce((sum, b) => sum + b.pricing.totalAmount, 0).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <div className="flex items-center">
-                    <div className="w-12 h-12 bg-gradient-to-r from-amber-400 to-orange-600 rounded-lg flex items-center justify-center">
-                      <FiCalendar className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-600">This Month</p>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {bookings.filter(b => {
-                          const created = new Date(b.timeline.created);
-                          const now = new Date();
-                          return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
-                        }).length}
-                      </p>
-                    </div>
+                  <div className="w-12 h-12 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center">
+                    <FiClock className="w-6 h-6 text-white" />
                   </div>
                 </div>
               </div>
 
-              {/* Bookings Grid/List */}
-              {filteredBookings.length > 0 ? (
-                <div className={`grid gap-6 ${
-                  viewMode === "grid" 
-                    ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' 
-                    : 'grid-cols-1'
-                }`}>
-                  {filteredBookings.map((booking) => (
-                    <div key={booking.id} className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200">
-                      {/* Header */}
-                      <div className="p-6 border-b border-gray-100">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex items-center space-x-3">
-                            <span className="text-2xl">{getBookingTypeIcon(booking.bookingType)}</span>
+              <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
+                <div className="flex items-center justify-between">
                             <div>
-                              <h3 className="font-semibold text-gray-900 text-lg capitalize">
-                                {booking.bookingType} Booking
-                              </h3>
-                              <div className="text-sm text-gray-600">
-                                #{booking.id.toString().padStart(6, '0')}
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center space-x-2">
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full flex items-center space-x-1 ${getStatusColor(booking.status)}`}>
-                              {getStatusIcon(booking.status)}
-                              <span className="capitalize">{booking.status.replace('_', ' ')}</span>
-                            </span>
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPaymentStatusColor(booking.pricing.paymentStatus)}`}>
-                              {booking.pricing.paymentStatus}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Order Details */}
-                        <div className="space-y-3">
-                          <div className="p-3 bg-gray-50 rounded-lg">
-                            <p className="text-sm text-gray-600 mb-1">Garment</p>
-                            <p className="font-medium text-gray-900">
-                              {booking.orderDetails.garmentType} ({booking.orderDetails.quantity})
-                            </p>
-                          </div>
-                          
-                          <div className="p-3 bg-gray-50 rounded-lg">
-                            <p className="text-sm text-gray-600 mb-1">Design & Instructions</p>
-                            <p className="font-medium text-gray-900">{booking.orderDetails.design}</p>
-                            <p className="text-sm text-gray-600">{booking.orderDetails.instructions}</p>
-                          </div>
-
-                          {/* Service Provider Info */}
-                          {booking.tailorId && (
-                            <div className="p-3 bg-blue-50 rounded-lg">
-                              <p className="text-sm text-blue-600 mb-1">Tailor</p>
-                              <p className="font-medium text-blue-900">
-                                {booking.tailorId.firstname} {booking.tailorId.lastname}
-                              </p>
-                              <p className="text-sm text-blue-600">{booking.tailorId.phone}</p>
-                            </div>
-                          )}
-
-                          {booking.fabricId && (
-                            <div className="p-3 bg-green-50 rounded-lg">
-                              <p className="text-sm text-green-600 mb-1">Fabric</p>
-                              <p className="font-medium text-green-900">
-                                {booking.fabricId.name} - {booking.fabricId.color}
-                              </p>
-                              <p className="text-sm text-green-600">{booking.fabricId.pattern}</p>
-                            </div>
-                          )}
-
-                          {/* Measurement */}
-                          {booking.measurementId && (
-                            <div className="p-3 bg-purple-50 rounded-lg">
-                              <p className="text-sm text-purple-600 mb-1">Measurement</p>
-                              <p className="font-medium text-purple-900">{booking.measurementId.measurementName}</p>
-                            </div>
-                          )}
-
-                          {/* Pricing */}
-                          <div className="p-3 bg-amber-50 rounded-lg">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="text-sm text-amber-600 mb-1">Total Amount</p>
-                                <p className="font-bold text-amber-900 text-lg">₹{booking.pricing.totalAmount}</p>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-sm text-amber-600">Advance</p>
-                                <p className="font-medium text-amber-900">₹{booking.pricing.advanceAmount}</p>
-                              </div>
-                            </div>
-                            <div className="mt-2 pt-2 border-t border-amber-200">
-                              <p className="text-sm text-amber-600">Remaining: ₹{booking.pricing.remainingAmount}</p>
-                            </div>
-                          </div>
-
-                          {/* Delivery Info */}
-                          <div className="p-3 bg-gray-50 rounded-lg">
-                            <div className="flex items-center space-x-2">
-                              <FiMapPin className="w-4 h-4 text-gray-600" />
-                              <div>
-                                <p className="text-sm text-gray-600">Delivery Address</p>
-                                <p className="font-medium text-gray-900">
-                                  {booking.deliveryAddress.addressLine}, {booking.deliveryAddress.city}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Timeline */}
-                          <div className="p-3 bg-gray-50 rounded-lg">
-                            <p className="text-sm text-gray-600 mb-2">Timeline</p>
-                            <div className="space-y-1">
-                              <div className="flex items-center justify-between text-xs">
-                                <span>Created:</span>
-                                <span className="font-medium">{booking.timeline.created}</span>
-                              </div>
-                              {booking.timeline.estimatedDelivery && (
-                                <div className="flex items-center justify-between text-xs">
-                                  <span>Estimated Delivery:</span>
-                                  <span className="font-medium">{booking.timeline.estimatedDelivery}</span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Footer */}
-                      <div className="p-6">
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => handleEditBooking(booking)}
-                            className="flex-1 flex items-center justify-center px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors duration-200"
-                          >
-                            <FiEdit2 className="w-4 h-4 mr-2" />
-                            Edit
-                          </button>
-                          
-                          {['pending', 'confirmed'].includes(booking.status) && (
-                            <button
-                              onClick={() => handleCancelBooking(booking.id)}
-                              className="flex-1 flex items-center justify-center px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors duration-200"
-                            >
-                              <FiXCircle className="w-4 h-4 mr-2" />
-                              Cancel
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 bg-gradient-to-r from-amber-100 to-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <FiPackage className="w-8 h-8 text-amber-500" />
+                    <p className="text-gray-600 text-sm font-medium">Completed Orders</p>
+                    <p className="text-2xl font-bold text-charcoal">{statistics.bookingsByStatus?.completed || 0}</p>
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No bookings found</h3>
-                  <p className="text-gray-600 mb-4">
-                    {searchQuery || filterStatus !== "all" || filterType !== "all"
-                      ? "Try adjusting your search or filters" 
-                      : "Get started by creating your first booking"
-                    }
-                  </p>
-                  {!searchQuery && filterStatus === "all" && filterType === "all" && (
+                  <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center">
+                    <FiCheckCircle className="w-6 h-6 text-white" />
+                              </div>
+                            </div>
+                          </div>
+            </div>
+          )}
+        </header>
+
+        {/* Filters */}
+        <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 mb-6">
+          <div className="flex flex-col lg:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search orders by ID, garment type, or description..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-coralblush focus:border-transparent"
+                />
+                          </div>
+                        </div>
+
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-coralblush focus:border-transparent"
+            >
+              <option value="">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="in_progress">In Progress</option>
+              <option value="ready_for_fitting">Ready for Fitting</option>
+              <option value="completed">Completed</option>
+              <option value="delivered">Delivered</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-coralblush focus:border-transparent"
+            >
+              <option value="createdAt">Sort by Date</option>
+              <option value="totalAmount">Sort by Amount</option>
+              <option value="status">Sort by Status</option>
+            </select>
+
+            <button
+              onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
+              className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              {sortOrder === 'desc' ? <FiTrendingDown className="w-4 h-4" /> : <FiTrendingUp className="w-4 h-4" />}
+            </button>
+                            </div>
+                          </div>
+
+        {/* Orders Table */}
+        <div className="bg-white rounded-xl shadow-lg border border-gray-100">
+          <div className="p-6 border-b border-gray-100">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-charcoal">My Orders ({totalBookings})</h3>
+              <div className="text-sm text-gray-500">
+                Showing {((currentPage - 1) * ordersPerPage) + 1} to {Math.min(currentPage * ordersPerPage, totalBookings)} of {totalBookings} orders
+                              </div>
+                            </div>
+                          </div>
+
+          {loading ? (
+            <div className="p-8 text-center">
+              <FiRefreshCw className="w-8 h-8 text-coralblush animate-spin mx-auto mb-4" />
+              <p className="text-gray-600">Loading orders...</p>
+                              </div>
+          ) : error ? (
+            <div className="p-8 text-center">
+              <FiAlertCircle className="w-8 h-8 text-red-500 mx-auto mb-4" />
+              <p className="text-red-600">{error}</p>
+              <button
+                onClick={loadOrders}
+                className="mt-4 px-4 py-2 bg-coralblush text-white rounded-lg hover:bg-pink-600 transition-colors"
+              >
+                Try Again
+              </button>
+                                </div>
+          ) : filteredOrders.length === 0 ? (
+            <div className="p-8 text-center">
+              <FiPackage className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No orders found</h3>
+              <p className="text-gray-500">Try adjusting your search or filter criteria</p>
+                            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Garment</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredOrders.map((booking) => {
+                    const StatusIcon = getStatusIcon(booking.status);
+                    return (
+                      <tr key={booking._id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div>
+                            <div className="text-sm font-medium text-charcoal">{booking.bookingType}</div>
+                            <div className="text-sm text-gray-500">ID: {booking._id.slice(-8)}</div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-charcoal">{booking.orderDetails?.garmentType || 'N/A'}</div>
+                          <div className="text-sm text-gray-500">Qty: {booking.orderDetails?.quantity || 1}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-charcoal">{formatCurrency(booking.pricing?.totalAmount || 0)}</div>
+                          <div className="text-sm text-gray-500">{booking.payment?.status || 'pending'}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(booking.status)}`}>
+                            <StatusIcon className="w-3 h-3 mr-1" />
+                            {booking.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {formatDate(booking.createdAt)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => {
+                                setSelectedOrder(booking);
+                                setShowOrderModal(true);
+                              }}
+                              className="text-coralblush hover:text-pink-600 transition-colors"
+                              title="View Details"
+                            >
+                              <FiEye className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+                          )}
+                        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="mt-6 flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <FiChevronLeft className="w-4 h-4 mr-1" />
+                Previous
+              </button>
+              
+              <div className="flex items-center space-x-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  const pageNum = i + 1;
+                  return (
                     <button
-                      onClick={handleAddBooking}
-                      className="px-4 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-medium hover:from-amber-500 hover:to-orange-600 transition-all duration-200"
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`px-3 py-2 text-sm font-medium rounded-lg ${
+                        currentPage === pageNum
+                          ? 'bg-coralblush text-white'
+                          : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
+                      }`}
                     >
-                      <FiPlus className="w-4 h-4 mr-2 inline" />
-                      Create First Booking
+                      {pageNum}
                     </button>
+                  );
+                })}
+                
+                {totalPages > 5 && (
+                  <>
+                    <span className="px-2 text-gray-500">...</span>
+                    <button
+                      onClick={() => setCurrentPage(totalPages)}
+                      className={`px-3 py-2 text-sm font-medium rounded-lg ${
+                        currentPage === totalPages
+                          ? 'bg-coralblush text-white'
+                          : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {totalPages}
+                    </button>
+                  </>
                   )}
                 </div>
-              )}
+              
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+                <FiChevronRight className="w-4 h-4 ml-1" />
+              </button>
             </div>
-          </main>
+            
+            <div className="text-sm text-gray-500">
+              Page {currentPage} of {totalPages}
+            </div>
         </div>
+        )}
 
-        {/* Booking Form Modal */}
-        {showForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        {/* Order Details Modal */}
+        {showOrderModal && selectedOrder && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
               <div className="p-6 border-b border-gray-200">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    {editingBooking ? 'Edit Booking' : 'Create New Booking'}
-                  </h2>
+                  <h3 className="text-lg font-semibold text-charcoal">Order Details</h3>
                   <button
                     onClick={() => {
-                      setShowForm(false);
-                      setEditingBooking(null);
+                      setShowOrderModal(false);
+                      setSelectedOrder(null);
                     }}
                     className="text-gray-400 hover:text-gray-600"
                   >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    <FiX className="w-6 h-6" />
                   </button>
                 </div>
               </div>
               
-              <div className="p-6">
-                <div className="text-center py-8">
-                  <div className="w-16 h-16 bg-gradient-to-r from-amber-100 to-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <FiPackage className="w-8 h-8 text-amber-500" />
+              <div className="p-6 space-y-6">
+                {/* Order Info */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="font-medium text-charcoal mb-2">Order Information</h4>
+                    <div className="space-y-2 text-sm">
+                      <div><span className="font-medium">Order ID:</span> {selectedOrder._id}</div>
+                      <div><span className="font-medium">Booking Type:</span> {selectedOrder.bookingType}</div>
+                      <div><span className="font-medium">Status:</span> 
+                        <span className={`ml-2 px-2 py-1 rounded-full text-xs ${getStatusColor(selectedOrder.status)}`}>
+                          {selectedOrder.status}
+                        </span>
+                      </div>
+                      <div><span className="font-medium">Payment Status:</span> {selectedOrder.payment?.status || 'pending'}</div>
+                      <div><span className="font-medium">Total Amount:</span> {formatCurrency(selectedOrder.pricing?.totalAmount || 0)}</div>
+                      <div><span className="font-medium">Created:</span> {formatDate(selectedOrder.createdAt)}</div>
+                    </div>
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Booking Form</h3>
-                  <p className="text-gray-600">
-                    This form will be integrated with the backend API to create and manage bookings.
-                  </p>
-                  <p className="text-sm text-gray-500 mt-2">
-                    For now, you can manage existing bookings using the edit and cancel functions.
-                  </p>
+                  
+                  <div>
+                    <h4 className="font-medium text-charcoal mb-2">Order Details</h4>
+                    <div className="space-y-2 text-sm">
+                      <div><span className="font-medium">Garment Type:</span> {selectedOrder.orderDetails?.garmentType || 'N/A'}</div>
+                      <div><span className="font-medium">Quantity:</span> {selectedOrder.orderDetails?.quantity || 1}</div>
+                      <div><span className="font-medium">Delivery Date:</span> {selectedOrder.orderDetails?.deliveryDate ? formatDate(selectedOrder.orderDetails.deliveryDate) : 'N/A'}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Order Details */}
+                <div>
+                  <h4 className="font-medium text-charcoal mb-2">Order Details</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <div className="font-medium">{selectedOrder.orderDetails?.garmentType || 'N/A'}</div>
+                        <div className="text-sm text-gray-600">{selectedOrder.orderDetails?.designDescription || 'No description'}</div>
+                        {selectedOrder.orderDetails?.specialInstructions && (
+                          <div className="text-sm text-gray-500 mt-1">
+                            <span className="font-medium">Special Instructions:</span> {selectedOrder.orderDetails.specialInstructions}
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <div className="font-medium">{formatCurrency(selectedOrder.pricing?.totalAmount || 0)}</div>
+                        <div className="text-sm text-gray-600">Qty: {selectedOrder.orderDetails?.quantity || 1}</div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         )}
+        </div>
+      </div>
       </div>
     );
   };

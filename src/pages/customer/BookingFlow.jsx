@@ -526,7 +526,7 @@ const BookingFlow = () => {
               rating: t.rating || 4.0,
               experience: t.experience || 0,
               services: t.services || [
-                { name: "Custom Tailoring", price: t.basePrice || 2000 },
+                { name: "Custom Tailoring", price: t.basePrice  },
               ],
             }))
           );
@@ -781,7 +781,12 @@ const BookingFlow = () => {
       ? selectedFabric.price * bookingData.quantity
       : 0;
     const tailoringCost = selectedTailor?.services[0]?.price || 0;
-    const total = fabricCost + tailoringCost;
+    const designCost = bookingData.selectedDesign?.price || 0;
+    const deliveryFee = 100;
+    const subtotal = fabricCost + tailoringCost + designCost + deliveryFee;
+    const tax = Math.round(subtotal * 0.05);
+    const total = subtotal + tax;
+    
     setBookingData((p) => ({
       ...p,
       fabricCost,
@@ -793,7 +798,7 @@ const BookingFlow = () => {
 
   useEffect(() => {
     calculateTotal();
-  }, [selectedFabric, selectedTailor, bookingData.quantity]);
+  }, [selectedFabric, selectedTailor, bookingData.quantity, bookingData.selectedDesign]);
 
   // Define steps based on the new flow
   const getSteps = () => {
@@ -1146,7 +1151,7 @@ const BookingFlow = () => {
                           <span className="capitalize">{bookingData.selectedDesign.difficulty}</span>
                           {bookingData.selectedDesign.price && (
                             <span className="font-medium text-green-600">
-                              ${bookingData.selectedDesign.price}
+                              ₹{bookingData.selectedDesign.price}
                             </span>
                           )}
                         </div>
@@ -1212,7 +1217,7 @@ const BookingFlow = () => {
                       </div>
                     </div>
                     
-                    <div className="space-y-2 mb-4">
+                    {/* <div className="space-y-2 mb-4">
                       <div className="flex items-center space-x-2">
                         <FiStar className="h-4 w-4 text-yellow-500" />
                         <span className="text-sm text-gray-600">{tailor.rating}/5.0</span>
@@ -1221,11 +1226,11 @@ const BookingFlow = () => {
                         <FiClock className="h-4 w-4 text-gray-400" />
                         <span className="text-sm text-gray-600">{tailor.experience} years experience</span>
                       </div>
-                    </div>
+                    </div> */}
                     
                     <div className="border-t pt-4">
                       <div className="flex justify-between items-center">
-                        <span className="text-2xl font-bold text-amber-600">₹{tailor.services[0]?.price}</span>
+                        <span className="text-2xl font-bold text-amber-600">{tailor.services[0]?.price}</span>
                         {bookingData.tailorId === tailor._id && (
                           <div className="bg-amber-100 text-amber-800 px-2 py-1 rounded-full text-sm font-medium">
                             Selected
@@ -1488,10 +1493,49 @@ const BookingFlow = () => {
                         <span>₹{bookingData.tailoringCost}</span>
                       </div>
                     )}
+                    {bookingData.selectedDesign && bookingData.selectedDesign.price && (
+                      <div className="flex justify-between">
+                        <span>Design Cost:</span>
+                        <span>₹{bookingData.selectedDesign.price}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
+                      <span>Delivery Fee:</span>
+                      <span>₹100</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Subtotal:</span>
+                      <span>₹{(() => {
+                        const fabricCost = bookingData.fabricCost || 0;
+                        const tailoringCost = bookingData.serviceType === 'fabric-tailor' ? (bookingData.tailoringCost || 0) : 0;
+                        const designCost = bookingData.selectedDesign?.price || 0;
+                        const deliveryFee = 100;
+                        return fabricCost + tailoringCost + designCost + deliveryFee;
+                      })()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Tax (5%):</span>
+                      <span>₹{(() => {
+                        const fabricCost = bookingData.fabricCost || 0;
+                        const tailoringCost = bookingData.serviceType === 'fabric-tailor' ? (bookingData.tailoringCost || 0) : 0;
+                        const designCost = bookingData.selectedDesign?.price || 0;
+                        const deliveryFee = 100;
+                        const subtotal = fabricCost + tailoringCost + designCost + deliveryFee;
+                        return Math.round(subtotal * 0.05);
+                      })()}</span>
+                    </div>
                     <div className="border-t pt-2">
                       <div className="flex justify-between font-semibold text-lg">
                         <span>Total:</span>
-                        <span>₹{bookingData.totalCost}</span>
+                        <span>₹{(() => {
+                          const fabricCost = bookingData.fabricCost || 0;
+                          const tailoringCost = bookingData.serviceType === 'fabric-tailor' ? (bookingData.tailoringCost || 0) : 0;
+                          const designCost = bookingData.selectedDesign?.price || 0;
+                          const deliveryFee = 100;
+                          const subtotal = fabricCost + tailoringCost + designCost + deliveryFee;
+                          const tax = Math.round(subtotal * 0.05);
+                          return subtotal + tax;
+                        })()}</span>
                       </div>
                     </div>
                   </div>
@@ -1570,12 +1614,12 @@ const BookingFlow = () => {
                       Place Order
                     </button>
                     
-                    <button 
+                    {/* <button 
                       onClick={debugBookingData}
                       className="w-full bg-blue-100 text-blue-800 py-2 px-4 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors"
                     >
                       🔍 Debug Booking Data
-                    </button>
+                    </button> */}
                   </div>
                 </div>
               </div>

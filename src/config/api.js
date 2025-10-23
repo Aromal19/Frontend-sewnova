@@ -23,6 +23,9 @@ const API_CONFIG = {
   TAILOR_SERVICE: import.meta.env.VITE_TAILOR_SERVICE_URL || 'http://localhost:3003',
   SELLER_SERVICE: import.meta.env.VITE_SELLER_SERVICE_URL || 'http://localhost:3004',
   PAYMENT_SERVICE: import.meta.env.VITE_PAYMENT_SERVICE_URL || 'http://localhost:3010',
+  
+  // AI Measurement Service (running on port 8001)
+  MEASUREMENT_SERVICE: import.meta.env.VITE_MEASUREMENT_SERVICE_URL || 'http://localhost:8001',
 };
 
 // Helper function to get full API URL

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
 import MeasurementForm from "../../components/customer/MeasurementForm";
+import AIMeasurementService from "../../components/customer/AIMeasurementService";
 import axios from "axios";
 import { getApiUrl } from "../../config/api";
 import { 
@@ -15,19 +16,23 @@ import {
   FiFilter,
   FiSearch,
   FiGrid,
-  FiList
+  FiList,
+  FiCamera,
+  FiCheck
 } from "react-icons/fi";
 
 const CustomerMeasurements = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [measurements, setMeasurements] = useState([]);
   const [showForm, setShowForm] = useState(false);
+  const [showAIService, setShowAIService] = useState(false);
   const [editingMeasurement, setEditingMeasurement] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [viewMode, setViewMode] = useState("grid");
   const [activeTab, setActiveTab] = useState("measurements");
+  const [successMessage, setSuccessMessage] = useState("");
   const navigate = useNavigate();
 
   // Token refresh and request wrapper (shared across handlers)
@@ -120,6 +125,53 @@ const CustomerMeasurements = () => {
   const handleAddMeasurement = () => {
     setEditingMeasurement(null);
     setShowForm(true);
+  };
+
+  const handleAIMeasurement = () => {
+    setShowAIService(true);
+  };
+
+  const handleAIMeasurementsGenerated = async (aiMeasurements) => {
+    try {
+      // Create a new measurement directly with AI data
+      const measurementData = {
+        measurementName: 'AI Generated Measurements',
+        measurementType: 'custom',
+        gender: 'unisex',
+        ageGroup: 'adult',
+        ...aiMeasurements,
+        isDefault: false,
+        isActive: true
+      };
+
+      // Save the AI measurement directly to the database
+      const url = getApiUrl('CUSTOMER_SERVICE', '/api/measurements');
+      await axiosRequest({ method: 'POST', url, data: measurementData });
+      
+      // Refresh the measurements list
+      await loadMeasurements();
+      
+      // Close the AI service
+      setShowAIService(false);
+      
+      // Show success message
+      setSuccessMessage('AI measurement saved successfully!');
+      setTimeout(() => setSuccessMessage(''), 3000);
+      
+    } catch (error) {
+      console.error('Error saving AI measurement:', error);
+      // If direct save fails, fall back to form pre-fill
+      setEditingMeasurement({
+        measurementName: 'AI Generated Measurements',
+        measurementType: 'custom',
+        gender: 'unisex',
+        ageGroup: 'adult',
+        ...aiMeasurements,
+        isDefault: false
+      });
+      setShowForm(true);
+      setShowAIService(false);
+    }
   };
 
   const handleEditMeasurement = (measurement) => {
@@ -222,13 +274,22 @@ const CustomerMeasurements = () => {
                 <p className="text-gray-600 mt-1">Manage your custom measurements for perfect fitting clothes</p>
               </div>
               
-              <button
-                onClick={handleAddMeasurement}
-                className="flex items-center px-4 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-medium hover:from-amber-500 hover:to-orange-600 transition-all duration-200"
-              >
-                <FiPlus className="w-4 h-4 mr-2" />
-                Add Measurement
-              </button>
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={handleAIMeasurement}
+                  className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200"
+                >
+                  <FiCamera className="w-4 h-4 mr-2" />
+                  AI Measurements
+                </button>
+                <button
+                  onClick={handleAddMeasurement}
+                  className="flex items-center px-4 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-medium hover:from-amber-500 hover:to-orange-600 transition-all duration-200"
+                >
+                  <FiPlus className="w-4 h-4 mr-2" />
+                  Add Measurement
+                </button>
+              </div>
             </div>
 
             {/* Search and Filters */}
@@ -291,6 +352,13 @@ const CustomerMeasurements = () => {
         {/* Content */}
         <main className="flex-1 p-6 overflow-y-auto">
           <div className="max-w-7xl mx-auto">
+            {/* Success Message */}
+            {successMessage && (
+              <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 flex items-center space-x-2">
+                <FiCheck className="w-5 h-5 text-green-500" />
+                <p className="text-green-700">{successMessage}</p>
+              </div>
+            )}
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -514,6 +582,14 @@ const CustomerMeasurements = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* AI Measurement Service Modal */}
+      {showAIService && (
+        <AIMeasurementService
+          onMeasurementsGenerated={handleAIMeasurementsGenerated}
+          onClose={() => setShowAIService(false)}
+        />
       )}
     </div>
   );

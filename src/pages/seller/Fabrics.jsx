@@ -104,7 +104,7 @@ const Fabrics = () => {
                     <h3 className="text-lg font-semibold text-charcoal">{product.name}</h3>
                     <p className="text-sm text-gray-600 line-clamp-2">{product.description}</p>
                     <div className="mt-3 flex items-center justify-between">
-                      <span className="text-coralblush font-bold">${product.price}</span>
+                      <span className="text-coralblush font-bold">₹{product.price}</span>
                       <span className="text-xs text-gray-500">{product.pricePerUnit?.replace('per_', ' per ')}</span>
                     </div>
                     <div className="mt-2 text-xs text-gray-500">

@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
+import { adminApiService } from "../../services/adminApiService";
+import { getCurrentUser } from "../../utils/api";
 import { 
   FiPackage, 
   FiClock, 
@@ -16,59 +19,154 @@ import {
   FiTrendingDown,
   FiActivity,
   FiMapPin,
-  FiX
+  FiX,
+  FiRefreshCw
 } from "react-icons/fi";
 
 const ActiveOrders = () => {
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedPriority, setSelectedPriority] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [activeOrders, setActiveOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [statistics, setStatistics] = useState(null);
 
-  // Fetch active orders from backend
   useEffect(() => {
-    fetchActiveOrders();
+    // Get current user with multiple fallbacks
+    const user = getCurrentUser();
+    console.log('👤 Current user from localStorage:', user);
+    console.log('🔍 User ID fields:', {
+      _id: user?._id,
+      id: user?.id,
+      userId: user?.userId,
+      role: user?.role
+    });
+    
+    // Check if user exists and has required fields
+    if (user && (user._id || user.id || user.userId)) {
+      console.log('✅ User found, loading orders and statistics');
+      setCurrentUser(user);
+      loadOrders();
+      loadStatistics();
+    } else {
+      console.log('❌ No valid user found in localStorage');
+      console.log('🔍 Available localStorage keys:', Object.keys(localStorage));
+      console.log('🔍 Raw user data from localStorage:', localStorage.getItem('user'));
+      console.log('🔍 User role from localStorage:', localStorage.getItem('userRole'));
+      console.log('🔍 Token from localStorage:', localStorage.getItem('token'));
+      setError('Please log in to view your orders.');
+      setLoading(false);
+      
+      // Redirect to login after a short delay
+      setTimeout(() => {
+        navigate('/login');
+      }, 3000);
+    }
   }, []);
 
-  const fetchActiveOrders = async () => {
+  const loadOrders = async () => {
+    // Try different ways to get the user ID
+    const userId = currentUser?._id || currentUser?.id || currentUser?.userId;
+    
+    if (!userId) {
+      console.log('❌ No current user ID found:', currentUser);
+      setError('No user ID found. Please log in again.');
+      setLoading(false);
+      return;
+    }
+    
+    console.log('🔍 Loading orders for tailor ID:', userId);
+    setLoading(true);
+    setError(null);
+    
     try {
-      setLoading(true);
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-      
-      const response = await fetch('http://localhost:3002/api/tailor/orders/active', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include'
+      const response = await adminApiService.getAllOrders({
+        page: 1,
+        limit: 50,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+        search: userId // Filter by current tailor's ID
       });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          // Transform backend data to match component structure
-          const transformedOrders = data.data.map(order => transformOrder(order));
-          setActiveOrders(transformedOrders);
-        }
+      
+      console.log('📊 API Response:', response);
+      
+      if (response.success) {
+        const orders = response.data.bookings || [];
+        console.log('📦 All orders received:', orders.length);
+        
+        // For debugging, let's show all orders first
+        console.log('🔍 All orders structure:', orders.map(o => ({
+          id: o._id,
+          tailorId: o.tailorId,
+          tailorIdId: o.tailorId?._id,
+          tailorDetails: o.tailorDetails,
+          userEmail: o.userEmail
+        })));
+        
+        // Filter orders where this tailor is assigned
+        const tailorOrders = orders.filter(order => 
+          order.tailorId === userId || 
+          order.tailorId?._id === userId ||
+          order.tailorDetails?.tailorId === userId
+        );
+        
+        console.log('✂️ Tailor-specific orders:', tailorOrders.length);
+        console.log('🔍 Filter criteria:', {
+          tailorId: userId,
+          ordersWithTailorId: orders.filter(o => o.tailorId).length,
+          ordersWithTailorIdId: orders.filter(o => o.tailorId?._id).length,
+          ordersWithTailorDetails: orders.filter(o => o.tailorDetails?.tailorId).length
+        });
+        
+        // For now, let's show all orders to debug
+        const ordersToShow = tailorOrders.length > 0 ? tailorOrders : orders.slice(0, 5); // Show first 5 orders for debugging
+        
+        // Transform orders to match component structure
+        const transformedOrders = ordersToShow.map(order => transformOrder(order));
+        console.log('🔄 Transformed orders:', transformedOrders.length);
+        setActiveOrders(transformedOrders);
       } else {
-        console.error('Failed to fetch orders:', response.statusText);
+        console.error('❌ API Error:', response.message);
+        setError(response.message || 'Failed to load orders');
       }
-    } catch (error) {
-      console.error('Error fetching active orders:', error);
+    } catch (err) {
+      console.error('❌ Error loading orders:', err);
+      setError('Failed to load orders. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadStatistics = async () => {
+    if (!currentUser?._id) return;
+    
+    try {
+      const response = await adminApiService.getOrderStatistics();
+      if (response.success) {
+        // Filter statistics to only show current tailor's data
+        const tailorStats = {
+          ...response.data,
+          totalBookings: response.data.bookingsByTailor?.[currentUser._id] || 0,
+          totalRevenue: response.data.revenueByTailor?.[currentUser._id] || 0,
+          bookingsByStatus: response.data.bookingsByStatus || {}
+        };
+        setStatistics(tailorStats);
+      }
+    } catch (err) {
+      console.error('Error loading statistics:', err);
     }
   };
 
   // Transform backend order to component format
   const transformOrder = (order) => {
     const customer = order.customerId || {};
-    const deliveryDate = new Date(order.orderDetails?.deliveryDate);
+    const deliveryDate = new Date(order.orderDetails?.deliveryDate || order.timeline?.estimatedDelivery || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
     const today = new Date();
     const daysRemaining = Math.ceil((deliveryDate - today) / (1000 * 60 * 60 * 24));
     
@@ -80,7 +178,7 @@ const ActiveOrders = () => {
     return {
       id: `#${order._id.toString().substring(0, 8).toUpperCase()}`,
       _id: order._id,
-      customer: `${customer.firstname || ''} ${customer.lastname || ''}`.trim() || 'Unknown Customer',
+      customer: `${customer.firstname || ''} ${customer.lastname || ''}`.trim() || order.userEmail || 'Unknown Customer',
       service: `${order.orderDetails?.garmentType || 'Custom'} ${order.bookingType === 'complete' ? '(Complete)' : order.bookingType === 'tailor' ? '(Tailoring)' : ''}`,
       amount: `₹${order.pricing?.totalAmount || 0}`,
       status: order.status === 'in_progress' ? 'in-progress' : order.status,
@@ -93,7 +191,7 @@ const ActiveOrders = () => {
       completedHours: order.status === 'in_progress' ? Math.floor(daysRemaining * 2) : 0,
       progress: order.status === 'completed' ? 100 : order.status === 'in_progress' ? 50 : 0,
       customerPhone: `${customer.countryCode || '+91'} ${customer.phone || ''}`,
-      customerEmail: customer.email || '',
+      customerEmail: customer.email || order.userEmail || '',
       notes: order.orderDetails?.specialInstructions || '',
       designDescription: order.orderDetails?.designDescription || '',
       measurements: order.measurementSnapshot || order.measurementId || {},
@@ -116,93 +214,6 @@ const ActiveOrders = () => {
     return `${days} day${days > 1 ? 's' : ''} ago`;
   };
 
-  const mockOrders = [
-    {
-      id: "#ORD-001",
-      customer: "Sarah Johnson",
-      service: "Wedding Dress Alteration",
-      amount: "₹450",
-      status: "in-progress",
-      priority: "high",
-      deadline: "2024-01-20",
-      startDate: "2024-01-15",
-      estimatedHours: 8,
-      completedHours: 4,
-      progress: 50,
-      customerPhone: "+1 (555) 123-4567",
-      customerEmail: "sarah.johnson@email.com",
-      notes: "Customer requested rush delivery for wedding on Jan 25th",
-      lastUpdate: "2 hours ago"
-    },
-    {
-      id: "#ORD-002",
-      customer: "Mike Chen",
-      service: "Suit Fitting & Alteration",
-      amount: "₹320",
-      status: "pending",
-      priority: "medium",
-      deadline: "2024-01-22",
-      startDate: "2024-01-18",
-      estimatedHours: 6,
-      completedHours: 0,
-      progress: 0,
-      customerPhone: "+1 (555) 234-5678",
-      customerEmail: "mike.chen@email.com",
-      notes: "Customer prefers evening appointments",
-      lastUpdate: "1 day ago"
-    },
-    {
-      id: "#ORD-003",
-      customer: "Emma Davis",
-      service: "Dress Hemming",
-      amount: "₹180",
-      status: "in-progress",
-      priority: "low",
-      deadline: "2024-01-18",
-      startDate: "2024-01-16",
-      estimatedHours: 3,
-      completedHours: 2,
-      progress: 67,
-      customerPhone: "+1 (555) 345-6789",
-      customerEmail: "emma.davis@email.com",
-      notes: "Simple hemming job, straightforward",
-      lastUpdate: "4 hours ago"
-    },
-    {
-      id: "#ORD-004",
-      customer: "Alex Wilson",
-      service: "Blouse Alteration",
-      amount: "₹120",
-      status: "in-progress",
-      priority: "medium",
-      deadline: "2024-01-25",
-      startDate: "2024-01-20",
-      estimatedHours: 4,
-      completedHours: 2,
-      progress: 50,
-      customerPhone: "+1 (555) 456-7890",
-      customerEmail: "alex.wilson@email.com",
-      notes: "Customer wants to keep original buttons",
-      lastUpdate: "6 hours ago"
-    },
-    {
-      id: "#ORD-005",
-      customer: "Lisa Brown",
-      service: "Pants Tailoring",
-      amount: "₹280",
-      status: "pending",
-      priority: "low",
-      deadline: "2024-01-19",
-      startDate: "2024-01-17",
-      estimatedHours: 5,
-      completedHours: 0,
-      progress: 0,
-      customerPhone: "+1 (555) 567-8901",
-      customerEmail: "lisa.brown@email.com",
-      notes: "Standard tailoring, no rush",
-      lastUpdate: "2 days ago"
-    }
-  ];
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -240,28 +251,18 @@ const ActiveOrders = () => {
 
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-      
-      const response = await fetch(`http://localhost:3002/api/tailor/orders/${orderId}/status`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
-        body: JSON.stringify({ status: newStatus })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log('✅ Order status updated:', data);
+      const response = await adminApiService.updateOrderStatus(orderId, { status: newStatus });
+      if (response.success) {
+        console.log('✅ Order status updated:', response);
         // Refresh orders list
-        fetchActiveOrders();
+        loadOrders();
       } else {
-        console.error('Failed to update order status');
+        console.error('Failed to update order status:', response.message);
+        setError(response.message || 'Failed to update order status');
       }
     } catch (error) {
       console.error('Error updating order status:', error);
+      setError('Failed to update order status. Please try again.');
     }
   };
 
@@ -286,6 +287,47 @@ const ActiveOrders = () => {
           <div className="text-center">
             <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-purple-500 mx-auto mb-4"></div>
             <p className="text-gray-600 font-medium">Loading active orders...</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex bg-gray-50">
+        <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} userRole="tailor" />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <FiAlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Authentication Required</h3>
+            <p className="text-gray-600 mb-6">{error}</p>
+            <div className="space-x-4">
+              <button
+                onClick={() => navigate('/login')}
+                className="px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors font-medium"
+              >
+                Go to Login
+              </button>
+              <button
+                onClick={() => {
+                  setError(null);
+                  setLoading(true);
+                  const user = getCurrentUser();
+                  if (user && (user._id || user.id || user.userId)) {
+                    setCurrentUser(user);
+                    loadOrders();
+                    loadStatistics();
+                  } else {
+                    setError('Please log in to view your orders.');
+                    setLoading(false);
+                  }
+                }}
+                className="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium"
+              >
+                Try Again
+              </button>
+            </div>
           </div>
         </main>
       </div>
@@ -318,6 +360,13 @@ const ActiveOrders = () => {
                     {filteredOrders.length} active orders
                   </span>
                 </div>
+                <button 
+                  onClick={loadOrders}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-all duration-200 flex items-center space-x-2"
+                >
+                  <FiRefreshCw className="w-4 h-4" />
+                  <span>Refresh</span>
+                </button>
                 <button className="px-6 py-3 bg-gradient-to-r from-coralblush to-pink-500 text-white rounded-lg font-semibold hover:from-pink-500 hover:to-coralblush transition-all duration-300 shadow-lg flex items-center space-x-2">
                   <FiPackage className="w-4 h-4" />
                   <span>New Order</span>
@@ -657,16 +706,12 @@ const ActiveOrders = () => {
                           <span className="font-bold text-green-600 text-lg">₹{selectedOrder.pricing?.totalAmount || 0}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Advance Paid:</span>
-                          <span className="font-medium text-green-600">₹{selectedOrder.pricing?.advanceAmount || 0}</span>
-                        </div>
-                        <div className="flex justify-between border-t border-green-200 pt-2">
-                          <span className="text-gray-600 font-semibold">Remaining:</span>
-                          <span className="font-bold text-red-600">₹{(selectedOrder.pricing?.totalAmount || 0) - (selectedOrder.pricing?.advanceAmount || 0)}</span>
-                        </div>
-                        <div className="flex justify-between">
                           <span className="text-gray-600">Payment Status:</span>
                           <span className="font-medium text-green-600 capitalize">{selectedOrder.payment?.status || 'Pending'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Payment Method:</span>
+                          <span className="font-medium text-gray-900">{selectedOrder.payment?.method || 'Not specified'}</span>
                         </div>
                       </div>
                     </div>

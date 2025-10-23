@@ -7,7 +7,7 @@ import PhoneNumberInput from '../../components/PhoneNumberInput';
 import { getApiUrl } from '../../config/api';
 
 const CustomerProfile = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');

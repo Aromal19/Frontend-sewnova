@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import Sidebar from "../../components/Sidebar";
 import { 
   FiTrash2, 
   FiPlus, 
@@ -145,6 +146,7 @@ const Cart = () => {
   const { setSelectedFabric, setServiceType, setCurrentStep } = useBooking();
   const [bookingCache] = useState(new BookingCacheService());
   const [pendingBooking, setPendingBooking] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     const pending = bookingCache.getPendingBooking();
@@ -200,47 +202,52 @@ const Cart = () => {
 
   if (!items.length) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Header onNavigate={navigate} />
-        <div className="flex items-center justify-center p-6 flex-1">
-          <div className="text-center">
-            <div className="w-24 h-24 bg-white rounded-full shadow-lg flex items-center justify-center mx-auto mb-6">
-              <FiShoppingBag className="w-12 h-12 text-amber-500" />
-            </div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">Your cart is empty</h2>
-            <p className="text-gray-600 mb-8 text-lg">Browse our premium fabrics to add items to your cart</p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button 
-                onClick={() => navigate("/customer/fabrics")} 
-                className="px-8 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-semibold flex items-center justify-center"
-              >
-                <FiShoppingBag className="mr-2" />
-                Browse Fabrics
-              </button>
-              <button 
-                onClick={() => navigate("/customer/tailors")} 
-                className="px-8 py-3 bg-white text-amber-600 border-2 border-amber-600 rounded-lg hover:bg-amber-50 transition-colors font-semibold flex items-center justify-center"
-              >
-                <FiScissors className="mr-2" />
-                Find Tailors
-              </button>
+      <div className="flex min-h-screen bg-gray-50">
+        <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} currentPage="cart" />
+        <div className="flex-1 flex flex-col min-h-screen">
+          <Header onNavigate={navigate} />
+          <div className="flex items-center justify-center p-6 flex-1">
+            <div className="text-center">
+              <div className="w-24 h-24 bg-white rounded-full shadow-lg flex items-center justify-center mx-auto mb-6">
+                <FiShoppingBag className="w-12 h-12 text-amber-500" />
+              </div>
+              <h2 className="text-3xl font-bold text-gray-900 mb-4">Your cart is empty</h2>
+              <p className="text-gray-600 mb-8 text-lg">Browse our premium fabrics to add items to your cart</p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <button 
+                  onClick={() => navigate("/customer/fabrics")} 
+                  className="px-8 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-semibold flex items-center justify-center"
+                >
+                  <FiShoppingBag className="mr-2" />
+                  Browse Fabrics
+                </button>
+                <button 
+                  onClick={() => navigate("/customer/tailors")} 
+                  className="px-8 py-3 bg-white text-amber-600 border-2 border-amber-600 rounded-lg hover:bg-amber-50 transition-colors font-semibold flex items-center justify-center"
+                >
+                  <FiScissors className="mr-2" />
+                  Find Tailors
+                </button>
+              </div>
             </div>
           </div>
+          <Footer />
         </div>
-        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header onNavigate={navigate} />
-      
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Your Shopping Cart</h1>
-          <p className="text-gray-600 text-lg">Review your selected items and proceed to checkout</p>
-        </div>
+    <div className="flex min-h-screen bg-gray-50">
+      <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} currentPage="cart" />
+      <div className="flex-1 flex flex-col min-h-screen">
+        <Header onNavigate={navigate} />
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1">
+          <div className="mb-8">
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">Your Shopping Cart</h1>
+            <p className="text-gray-600 text-lg">Review your selected items and proceed to checkout</p>
+          </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Cart Items */}
@@ -440,10 +447,11 @@ const Cart = () => {
               </button>
             </div>
           </div>
+          </div>
         </div>
+        
+        <Footer />
       </div>
-      
-      <Footer />
     </div>
   );
 };

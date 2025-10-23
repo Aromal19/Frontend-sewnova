@@ -255,7 +255,13 @@ export const adminApiService = {
       ...(search && { search })
     });
 
-    return await adminApiCall(`/api/bookings?${queryParams}`);
+    console.log('🔍 Admin API getAllOrders called with params:', params);
+    console.log('🌐 Query string:', queryParams.toString());
+    
+    const result = await adminApiCall(`/api/bookings?${queryParams}`);
+    console.log('📊 Admin API getAllOrders result:', result);
+    
+    return result;
   },
 
   async getOrderById(orderId) {

@@ -148,7 +148,7 @@ const DesignPage = () => {
                   <span className="capitalize">{selectedDesign.difficulty}</span>
                   {selectedDesign.price && (
                     <span className="font-medium text-green-600">
-                      ${selectedDesign.price}
+                      ₹{selectedDesign.price}
                     </span>
                   )}
                 </div>

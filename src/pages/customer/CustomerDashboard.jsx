@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
+import { getApiUrl } from "../../config/api";
+import { customerAPI } from "../../utils/bookingApi";
+import axios from "axios";
 import { 
   FiPlus, 
   FiBarChart2, 
@@ -24,7 +27,7 @@ import {
 } from "react-icons/fi";
 
 const CustomerDashboard = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -46,13 +49,250 @@ const CustomerDashboard = () => {
   });
 
   useEffect(() => {
-    // TODO: Replace with actual API calls
-    // For now, initialize with empty data
-    setDashboardData({
-      measurements: [],
-      addresses: [],
-      bookings: [],
-      stats: {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      console.log('🔄 Fetching dashboard data...');
+      
+      // Fetch all data in parallel
+      const [measurementsResponse, addressesResponse, bookingsResponse, statsResponse] = await Promise.allSettled([
+        fetchMeasurements(),
+        fetchAddresses(),
+        fetchBookings(),
+        fetchStats()
+      ]);
+
+      console.log('📊 API Responses:', {
+        measurements: measurementsResponse.status,
+        addresses: addressesResponse.status,
+        bookings: bookingsResponse.status,
+        stats: statsResponse.status
+      });
+
+      // Process measurements data
+      const measurements = measurementsResponse.status === 'fulfilled' 
+        ? measurementsResponse.value 
+        : [];
+
+      // Process addresses data
+      const addresses = addressesResponse.status === 'fulfilled' 
+        ? addressesResponse.value 
+        : [];
+
+      // Process bookings data
+      const bookings = bookingsResponse.status === 'fulfilled' 
+        ? bookingsResponse.value 
+        : [];
+
+      // Process stats data - calculate from actual data
+      const stats = {
+        totalMeasurements: measurements.length,
+        totalAddresses: addresses.length,
+        totalBookings: bookings.length,
+        activeBookings: bookings.filter(booking => 
+          ['pending', 'confirmed', 'in_progress'].includes(booking.status)
+        ).length,
+        completedBookings: bookings.filter(booking => 
+          booking.status === 'completed'
+        ).length,
+        totalSpent: bookings
+          .filter(booking => booking.status === 'completed')
+          .reduce((sum, booking) => sum + (booking.totalAmount || 0), 0),
+        averageRating: bookings
+          .filter(booking => booking.tailorDetails?.rating)
+          .reduce((sum, booking) => sum + (booking.tailorDetails.rating || 0), 0) / 
+          Math.max(bookings.filter(booking => booking.tailorDetails?.rating).length, 1)
+      };
+
+      setDashboardData({
+        measurements,
+        addresses,
+        bookings,
+        stats
+      });
+
+      console.log('✅ Dashboard data loaded:', {
+        measurementsCount: measurements.length,
+        addressesCount: addresses.length,
+        bookingsCount: bookings.length,
+        stats
+      });
+
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      // Set empty data on error
+      setDashboardData({
+        measurements: [],
+        addresses: [],
+        bookings: [],
+        stats: {
+          totalMeasurements: 0,
+          totalAddresses: 0,
+          totalBookings: 0,
+          activeBookings: 0,
+          completedBookings: 0,
+          totalSpent: 0,
+          averageRating: 0
+        }
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchMeasurements = async () => {
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+      const url = getApiUrl('CUSTOMER_SERVICE', '/api/measurements');
+      console.log('📏 Fetching measurements from:', url);
+      const response = await axios.get(url, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : undefined,
+        },
+        withCredentials: true,
+      });
+
+      const apiData = Array.isArray(response?.data?.data) ? response.data.data : [];
+      console.log('📏 Measurements response:', { count: apiData.length, data: apiData });
+      return apiData.map(item => ({
+        id: item._id,
+        measurementName: item.measurementName || 'Unnamed Measurement',
+        measurementType: item.measurementType || 'general',
+        gender: item.gender || 'unisex',
+        ageGroup: item.ageGroup || 'adult',
+        chest: item.chest || 0,
+        waist: item.waist || 0,
+        hip: item.hip || 0,
+        shoulder: item.shoulder || 0,
+        sleeveLength: item.sleeveLength || 0,
+        sleeveWidth: item.sleeveWidth || 0,
+        neck: item.neck || 0,
+        inseam: item.inseam || 0,
+        thigh: item.thigh || 0,
+        knee: item.knee || 0,
+        ankle: item.ankle || 0,
+        isDefault: !!item.isDefault,
+        isActive: !!item.isActive,
+        createdAt: item.createdAt ? new Date(item.createdAt).toISOString().split('T')[0] : '',
+        lastUsed: item.lastUsed ? new Date(item.lastUsed).toISOString().split('T')[0] : '',
+      }));
+    } catch (error) {
+      console.error('Error fetching measurements:', error);
+      return [];
+    }
+  };
+
+  const fetchAddresses = async () => {
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+      const url = getApiUrl('CUSTOMER_SERVICE', '/api/addresses');
+      const response = await axios.get(url, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : undefined,
+        },
+        withCredentials: true,
+      });
+
+      const apiData = Array.isArray(response?.data?.data) ? response.data.data : [];
+      return apiData.map(item => ({
+        id: item._id,
+        addressType: item.addressType || 'home',
+        addressLine: item.addressLine || '',
+        landmark: item.landmark || '',
+        locality: item.locality || '',
+        city: item.city || '',
+        district: item.district || '',
+        state: item.state || '',
+        pincode: item.pincode || '',
+        country: item.country || 'India',
+        isDefault: !!item.isDefault,
+        isActive: !!item.isActive,
+        coordinates: item.coordinates || null,
+        createdAt: item.createdAt ? new Date(item.createdAt).toISOString().split('T')[0] : '',
+      }));
+    } catch (error) {
+      console.error('Error fetching addresses:', error);
+      return [];
+    }
+  };
+
+  const fetchBookings = async () => {
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+      const url = getApiUrl('CUSTOMER_SERVICE', '/api/bookings');
+      const response = await axios.get(url, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : undefined,
+        },
+        withCredentials: true,
+      });
+
+      const apiData = Array.isArray(response?.data?.data) ? response.data.data : [];
+      return apiData.map(item => ({
+        id: item._id,
+        bookingType: item.bookingType || 'general',
+        status: item.status || 'pending',
+        totalAmount: item.pricing?.totalAmount || 0,
+        advanceAmount: item.pricing?.advanceAmount || 0,
+        remainingAmount: item.pricing?.remainingAmount || 0,
+        deliveryDate: item.orderDetails?.deliveryDate 
+          ? new Date(item.orderDetails.deliveryDate).toISOString().split('T')[0] 
+          : '',
+        createdAt: item.createdAt ? new Date(item.createdAt).toISOString().split('T')[0] : '',
+        tailorDetails: item.tailorId ? {
+          name: item.tailorId.firstname + ' ' + item.tailorId.lastname,
+          email: item.tailorId.email,
+          phone: item.tailorId.phone,
+          location: item.tailorId.location,
+          rating: item.tailorId.rating
+        } : null,
+        fabricDetails: item.fabricId ? {
+          name: item.fabricId.name,
+          type: item.fabricId.type,
+          color: item.fabricId.color,
+          pattern: item.fabricId.pattern,
+          price: item.fabricId.price
+        } : null,
+        deliveryAddress: item.deliveryAddress ? {
+          addressLine: item.deliveryAddress.addressLine,
+          city: item.deliveryAddress.city,
+          state: item.deliveryAddress.state,
+          pincode: item.deliveryAddress.pincode
+        } : null,
+      }));
+    } catch (error) {
+      console.error('Error fetching bookings:', error);
+      return [];
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+      const url = getApiUrl('CUSTOMER_SERVICE', '/api/customers/stats');
+      const response = await axios.get(url, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : undefined,
+        },
+        withCredentials: true,
+      });
+
+      const statsData = response?.data?.data || {};
+      return {
+        totalMeasurements: statsData.totalMeasurements || 0,
+        totalAddresses: statsData.totalAddresses || 0,
+        totalBookings: statsData.totalBookings || 0,
+        activeBookings: statsData.activeBookings || 0,
+        completedBookings: statsData.completedBookings || 0,
+        totalSpent: statsData.totalSpent || 0,
+        averageRating: statsData.averageRating || 0
+      };
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+      return {
         totalMeasurements: 0,
         totalAddresses: 0,
         totalBookings: 0,
@@ -60,10 +300,13 @@ const CustomerDashboard = () => {
         completedBookings: 0,
         totalSpent: 0,
         averageRating: 0
-      }
-    });
-    setLoading(false);
-  }, []);
+      };
+    }
+  };
+
+  const handleRefresh = () => {
+    fetchDashboardData();
+  };
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -277,29 +520,55 @@ const CustomerDashboard = () => {
                   </div>
                 </div>
 
+                {/* Data Debug Section */}
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Data Status</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div className="bg-blue-50 p-3 rounded-lg">
+                      <div className="font-medium text-blue-900">Measurements</div>
+                      <div className="text-blue-700">{dashboardData.measurements.length} found</div>
+                    </div>
+                    <div className="bg-green-50 p-3 rounded-lg">
+                      <div className="font-medium text-green-900">Addresses</div>
+                      <div className="text-green-700">{dashboardData.addresses.length} found</div>
+                    </div>
+                    <div className="bg-amber-50 p-3 rounded-lg">
+                      <div className="font-medium text-amber-900">Bookings</div>
+                      <div className="text-amber-700">{dashboardData.bookings.length} found</div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Recent Activity */}
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
                   <div className="space-y-3">
-                    {dashboardData.bookings.slice(0, 3).map((booking) => (
-                      <div key={booking.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <span className="text-xl">{getBookingTypeIcon(booking.bookingType)}</span>
-                          <div>
-                            <p className="font-medium text-gray-900 capitalize">
-                              {booking.bookingType} booking created
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              Delivery expected: {booking.deliveryDate}
-                            </p>
-                          </div>
-                        </div>
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full flex items-center space-x-1 ${getStatusColor(booking.status)}`}>
-                          {getStatusIcon(booking.status)}
-                          <span className="capitalize">{booking.status.replace('_', ' ')}</span>
-                        </span>
+                    {dashboardData.bookings.length === 0 ? (
+                      <div className="text-center py-8">
+                        <FiPackage className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-600">No recent activity</p>
                       </div>
-                    ))}
+                    ) : (
+                      dashboardData.bookings.slice(0, 3).map((booking) => (
+                        <div key={booking.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center space-x-3">
+                            <span className="text-xl">{getBookingTypeIcon(booking.bookingType)}</span>
+                            <div>
+                              <p className="font-medium text-gray-900 capitalize">
+                                {booking.bookingType} booking created
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                Delivery expected: {booking.deliveryDate || 'TBD'}
+                              </p>
+                            </div>
+                          </div>
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full flex items-center space-x-1 ${getStatusColor(booking.status)}`}>
+                            {getStatusIcon(booking.status)}
+                            <span className="capitalize">{booking.status.replace('_', ' ')}</span>
+                          </span>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </div>
@@ -318,21 +587,42 @@ const CustomerDashboard = () => {
                   </Link>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {dashboardData.measurements.map((measurement) => (
-                    <div key={measurement.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <h4 className="font-semibold text-gray-900">{measurement.measurementName}</h4>
-                        {measurement.isDefault && (
-                          <span className="px-2 py-1 bg-amber-100 text-amber-700 text-xs font-medium rounded-full">
-                            Default
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-600 mb-2 capitalize">{measurement.measurementType}</p>
-                      <p className="text-xs text-gray-500">Last used: {measurement.lastUsed}</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {dashboardData.measurements.length === 0 ? (
+                    <div className="col-span-full text-center py-12">
+                      <FiBarChart2 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No measurements found</h3>
+                      <p className="text-gray-600 mb-4">Start by adding your body measurements for better tailoring</p>
+                      <Link
+                        to="/customer/measurements"
+                        className="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                      >
+                        <FiPlus className="w-4 h-4 mr-2" />
+                        Add Measurement
+                      </Link>
                     </div>
-                  ))}
+                  ) : (
+                    dashboardData.measurements.map((measurement) => (
+                      <div key={measurement.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <h4 className="font-semibold text-gray-900">{measurement.measurementName}</h4>
+                          {measurement.isDefault && (
+                            <span className="px-2 py-1 bg-amber-100 text-amber-700 text-xs font-medium rounded-full">
+                              Default
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600 mb-2 capitalize">{measurement.measurementType}</p>
+                        <div className="grid grid-cols-2 gap-2 text-xs text-gray-500 mb-3">
+                          <div>Chest: {measurement.chest}"</div>
+                          <div>Waist: {measurement.waist}"</div>
+                          <div>Hip: {measurement.hip}"</div>
+                          <div>Shoulder: {measurement.shoulder}"</div>
+                        </div>
+                        <p className="text-xs text-gray-500">Last used: {measurement.lastUsed || 'Never'}</p>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             )}
@@ -350,20 +640,41 @@ const CustomerDashboard = () => {
                   </Link>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {dashboardData.addresses.map((address) => (
-                    <div key={address.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <h4 className="font-semibold text-gray-900 capitalize">{address.addressType} Address</h4>
-                        {address.isDefault && (
-                          <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
-                            Default
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-600">{address.city}, {address.state}</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {dashboardData.addresses.length === 0 ? (
+                    <div className="col-span-full text-center py-12">
+                      <FiMapPin className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No addresses found</h3>
+                      <p className="text-gray-600 mb-4">Add your delivery addresses for seamless order processing</p>
+                      <Link
+                        to="/customer/addresses"
+                        className="inline-flex items-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                      >
+                        <FiPlus className="w-4 h-4 mr-2" />
+                        Add Address
+                      </Link>
                     </div>
-                  ))}
+                  ) : (
+                    dashboardData.addresses.map((address) => (
+                      <div key={address.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <h4 className="font-semibold text-gray-900 capitalize">{address.addressType} Address</h4>
+                          {address.isDefault && (
+                            <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                              Default
+                            </span>
+                          )}
+                        </div>
+                        <div className="space-y-1 text-sm text-gray-600">
+                          <p className="font-medium">{address.addressLine}</p>
+                          {address.landmark && <p className="text-gray-500">Near: {address.landmark}</p>}
+                          <p>{address.city}, {address.state} - {address.pincode}</p>
+                          <p className="text-gray-500">{address.country}</p>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-3">Added: {address.createdAt}</p>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             )}

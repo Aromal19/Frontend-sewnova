@@ -246,7 +246,7 @@ const DesignSelection = ({ onDesignSelect, selectedDesignId = null }) => {
                 <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
                   {design.price && (
                     <span className="font-medium text-green-600">
-                      ${design.price}
+                      ₹{design.price}
                     </span>
                   )}
                   {design.estimatedTime && (
@@ -257,23 +257,44 @@ const DesignSelection = ({ onDesignSelect, selectedDesignId = null }) => {
                 </div>
 
                 {/* Tags */}
-                {design.tags && design.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mb-1">
-                    {design.tags.slice(0, 2).map((tag, index) => (
-                      <span
-                        key={index}
-                        className="px-1.5 py-0.5 text-xs bg-gray-100 text-gray-700 rounded-full"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                    {design.tags.length > 2 && (
-                      <span className="px-1.5 py-0.5 text-xs bg-gray-100 text-gray-700 rounded-full">
-                        +{design.tags.length - 2}
-                      </span>
-                    )}
-                  </div>
-                )}
+                {(() => {
+                  // Debug logging
+                  console.log('Design tags debug:', {
+                    designId: design._id,
+                    tags: design.tags,
+                    tagsType: typeof design.tags,
+                    isArray: Array.isArray(design.tags)
+                  });
+                  
+                  // Handle tags safely - convert to array if needed
+                  let tagsArray = [];
+                  if (design.tags) {
+                    if (Array.isArray(design.tags)) {
+                      tagsArray = design.tags;
+                    } else if (typeof design.tags === 'string') {
+                      // Split comma-separated string into array
+                      tagsArray = design.tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+                    }
+                  }
+                  
+                  return tagsArray.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-1">
+                      {tagsArray.slice(0, 2).map((tag, index) => (
+                        <span
+                          key={index}
+                          className="px-1.5 py-0.5 text-xs bg-gray-100 text-gray-700 rounded-full"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                      {tagsArray.length > 2 && (
+                        <span className="px-1.5 py-0.5 text-xs bg-gray-100 text-gray-700 rounded-full">
+                          +{tagsArray.length - 2}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Database indicator */}
                 <div className="flex items-center justify-between text-xs text-gray-500">
