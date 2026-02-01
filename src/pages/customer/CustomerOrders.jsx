@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
-import { customerAPI } from "../../utils/bookingApi";
+import { customerAPI, deliveryAPI } from "../../utils/bookingApi";
+import { adminApiService } from "../../services/adminApiService"; // Added import
+import { getCurrentUser } from "../../utils/api"; // Added import
 import { 
   FiPackage, 
   FiClock,
@@ -15,271 +17,196 @@ import {
   FiDollarSign,
   FiShoppingBag,
   FiScissors,
-  FiUser,
-  FiPhone,
-  FiMail,
   FiEye,
-  FiDownload,
-  FiStar,
-  FiMessageSquare,
-  FiRefreshCw
+  FiRefreshCw,
+  FiMenu,
+  FiTrendingUp,
+  FiTrendingDown,
+  FiChevronLeft,
+  FiChevronRight,
+  FiX,
+  FiDownload
 } from "react-icons/fi";
 
 const CustomerOrders = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const navigate = useNavigate();
+  // Sidebar state consistent with Bookings
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  
+  // Data states
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState(null); // Added user state
+  
+  // Filter states
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterType, setFilterType] = useState("all");
+  const [sortBy, setSortBy] = useState("createdAt");
+  const [sortOrder, setSortOrder] = useState("desc");
+  const [viewMode, setViewMode] = useState('cards');
+  
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(9); // Matches Bookings closely (usually 10, but 9 fits grid 3x3)
+  const [totalPages, setTotalPages] = useState(1); // Added total pages state
+  const [totalOrders, setTotalOrders] = useState(0); // Added total orders state
+
+  // Modal states
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
-  const [viewMode, setViewMode] = useState('table'); // 'table' or 'cards'
-  const navigate = useNavigate();
+  const [trackingData, setTrackingData] = useState(null);
+  const [showTrackingModal, setShowTrackingModal] = useState(false);
+  const [loadingTracking, setLoadingTracking] = useState(false);
+  const [trackingError, setTrackingError] = useState(null);
 
-  // Fetch orders on component mount
   useEffect(() => {
-    fetchOrders();
+    const user = getCurrentUser();
+    setCurrentUser(user);
+    if (user) {
+        fetchOrders(user);
+    }
   }, []);
 
-  // Function to debug database contents
-  const debugDatabase = async () => {
-    try {
-      console.log('🔍 Debugging database...');
-      console.log('🔍 API Base URL:', import.meta.env.VITE_CUSTOMER_SERVICE_URL || 'http://localhost:3002');
-      const response = await fetch(`${import.meta.env.VITE_CUSTOMER_SERVICE_URL || 'http://localhost:3002'}/api/bookings/debug/database`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      const result = await response.json();
-      console.log('🔍 Database debug result:', result);
-      alert(`Database Debug (Paid Bookings Focus):\nTotal bookings: ${result.debug.totalBookings}\nTotal PAID bookings: ${result.debug.totalPaidBookings}\nUser bookings: ${result.debug.userBookings}\nUser PAID bookings: ${result.debug.userPaidBookings}\nUser ID: ${result.debug.currentUserId}`);
-    } catch (error) {
-      console.error('❌ Error debugging database:', error);
+  // Effect to re-fetch when filters change (server-side filtering preference)
+  useEffect(() => {
+    if (currentUser) {
+        fetchOrders(currentUser);
     }
-  };
+  }, [currentPage, filterStatus, sortBy, sortOrder, currentUser]); 
 
-  // Function to debug user object
-  const debugUser = async () => {
-    try {
-      console.log('🔍 Debugging user object...');
-      const baseUrl = import.meta.env.VITE_CUSTOMER_SERVICE_URL || 'http://localhost:3002';
-      const fullUrl = `${baseUrl}/api/bookings/debug-user`;
-      console.log('🔍 Debug user URL:', fullUrl);
-      
-      const response = await fetch(fullUrl, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      console.log('🔍 Debug user Response status:', response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('🔍 Debug user Error response:', errorText);
-        alert(`Debug User Error: ${response.status} - ${errorText}`);
-        return;
-      }
-      
-      const result = await response.json();
-      console.log('🔍 Debug user result:', result);
-      alert(`Debug User:\nStatus: ${response.status}\nSuccess: ${result.success}\nUser Keys: ${result.userKeys?.join(', ')}\nHas User ID: ${result.hasUserId}\nUser ID: ${result.userId}`);
-    } catch (error) {
-      console.error('🔍 Debug user error:', error);
-      alert(`Debug User Error: ${error.message}`);
-    }
-  };
+  const fetchOrders = async (user = currentUser) => {
+    if (!user?.email) return;
 
-  // Function to test simple API without authentication
-  const testSimpleAPI = async () => {
-    try {
-      console.log('🧪 Testing simple API (no auth)...');
-      const baseUrl = import.meta.env.VITE_CUSTOMER_SERVICE_URL || 'http://localhost:3002';
-      const fullUrl = `${baseUrl}/api/bookings/test`;
-      console.log('🧪 Simple API URL:', fullUrl);
-      
-      const response = await fetch(fullUrl, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      console.log('🧪 Simple API Response status:', response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('🧪 Simple API Error response:', errorText);
-        alert(`Simple API Error: ${response.status} - ${errorText}`);
-        return;
-      }
-      
-      const result = await response.json();
-      console.log('🧪 Simple API result:', result);
-      alert(`Simple API Test:\nStatus: ${response.status}\nSuccess: ${result.success}\nDatabase Connected: ${result.databaseConnected}\nTotal Bookings: ${result.totalBookings}`);
-    } catch (error) {
-      console.error('🧪 Simple API test error:', error);
-      alert(`Simple API Test Error: ${error.message}`);
-    }
-  };
-
-  // Function to test direct API call
-  const testDirectAPI = async () => {
-    try {
-      console.log('🧪 Testing direct API call...');
-      const baseUrl = import.meta.env.VITE_CUSTOMER_SERVICE_URL || 'http://localhost:3002';
-      const fullUrl = `${baseUrl}/api/bookings/orders`;
-      console.log('🧪 Full URL:', fullUrl);
-      
-      const response = await fetch(fullUrl, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      console.log('🧪 Response status:', response.status);
-      console.log('🧪 Response headers:', Object.fromEntries(response.headers.entries()));
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('🧪 Error response:', errorText);
-        alert(`API Error: ${response.status} - ${errorText}`);
-        return;
-      }
-      
-      const result = await response.json();
-      console.log('🧪 Direct API result:', result);
-      alert(`Direct API Test:\nStatus: ${response.status}\nData length: ${result.data?.length || 0}\nSuccess: ${result.success}`);
-    } catch (error) {
-      console.error('🧪 Direct API test error:', error);
-      alert(`Direct API Test Error: ${error.message}`);
-    }
-  };
-
-  // Function to create sample booking data
-  const createSampleBooking = async () => {
-    try {
-      console.log('🔧 Creating sample booking...');
-      console.log('🔧 API Base URL:', import.meta.env.VITE_CUSTOMER_SERVICE_URL || 'http://localhost:3002');
-      const response = await fetch(`${import.meta.env.VITE_CUSTOMER_SERVICE_URL || 'http://localhost:3002'}/api/bookings/debug/sample`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      const result = await response.json();
-      console.log('✅ Sample booking created:', result);
-      
-      if (result.success) {
-        // Refresh the orders list
-        fetchOrders();
-      }
-    } catch (error) {
-      console.error('❌ Error creating sample booking:', error);
-    }
-  };
-
-  const fetchOrders = async () => {
     setLoading(true);
     try {
-      console.log('🔍 Fetching orders...');
-      console.log('🔑 Token available:', !!localStorage.getItem('token'));
-      console.log('🔑 Access token available:', !!localStorage.getItem('accessToken'));
-      console.log('🌐 Customer Service URL:', import.meta.env.VITE_CUSTOMER_SERVICE_URL || 'http://localhost:3002');
-      console.log('📡 Full API URL:', `${import.meta.env.VITE_CUSTOMER_SERVICE_URL || 'http://localhost:3002'}/api/bookings/orders`);
-      
-      const response = await customerAPI.getOrders();
-      console.log('📦 API Response:', response);
-      
-      if (response && response.data) {
-        // Check if response has data property (from backend)
-        const bookings = response.data;
-        console.log('📋 Raw bookings from /api/bookings/orders:', bookings);
-        console.log('📊 Response structure:', {
-          success: response.success,
-          dataLength: bookings.length,
-          pagination: response.pagination,
-          filters: response.filters
-        });
-        
-        // The enhanced function already returns formatted booking data
-        // No need to filter as it returns all bookings for the user
-        console.log('✅ Fetched orders:', bookings.length);
-        setOrders(bookings);
-      } else if (response && response.bookings) {
-        // Fallback for different response structure
-        const bookings = response.bookings;
-        console.log('📋 Raw bookings (fallback):', bookings);
-        
-        console.log('✅ Fetched orders (fallback):', bookings.length);
-        setOrders(bookings);
+      // Use adminApiService to match CustomerBookings logic
+      const response = await adminApiService.getAllOrders({
+        page: currentPage,
+        limit: itemsPerPage,
+        status: filterStatus !== 'all' ? filterStatus : undefined,
+        sortBy,
+        sortOrder,
+        search: user.email // Filter by current user's email acting as search
+      });
+
+      if (response.success) {
+        setOrders(response.data.bookings || []);
+        setTotalPages(response.data.pagination?.totalPages || 1);
+        setTotalOrders(response.data.pagination?.totalBookings || 0);
       } else {
-        console.warn('⚠️ No bookings data found in response:', response);
+        console.error("Failed to fetch orders:", response.message);
         setOrders([]);
       }
     } catch (error) {
-      console.error("❌ Error fetching orders:", error);
-      console.error("❌ Error details:", error.message);
+      console.error("Error fetching orders:", error);
       setOrders([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleViewDetails = (order) => {
-    setSelectedOrder(order);
-    setShowOrderDetails(true);
-  };
+  const handleTrackOrder = async (order) => {
+    if (order.status === 'pending' || order.status === 'cancelled') {
+        alert('Tracking is only available for confirmed orders.');
+        return;
+    }
 
-  const filteredOrders = orders.filter(order => {
-    const matchesSearch = 
-      (order.orderDetails?.garmentType?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-       order._id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-       order.tailorDetails?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-       order.fabricDetails?.name?.toLowerCase().includes(searchQuery.toLowerCase()));
-    
-    const matchesStatus = filterStatus === "all" || 
-      (filterStatus === "confirmed" && order.status === "confirmed") ||
-      (filterStatus === "in_progress" && order.status === "in_progress") ||
-      (filterStatus === "completed" && order.status === "completed") ||
-      (filterStatus === "delivered" && order.status === "delivered") ||
-      (filterStatus === "paid" && order.payment?.status === "paid") ||
-      (filterStatus === "pending" && order.payment?.status !== "paid");
-    const matchesType = filterType === "all" || order.bookingType === filterType;
-    
-    return matchesSearch && matchesStatus && matchesType;
-  });
+    setLoadingTracking(true);
+    setTrackingError(null);
+    setTrackingData(null);
+    setShowTrackingModal(true);
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case "confirmed": return <FiCheckCircle className="w-5 h-5" />;
-      case "in_progress": return <FiRefreshCw className="w-5 h-5" />;
-      case "ready_for_fitting": return <FiPackage className="w-5 h-5" />;
-      case "completed": return <FiCheckCircle className="w-5 h-5" />;
-      case "delivered": return <FiTruck className="w-5 h-5" />;
-      default: return <FiClock className="w-5 h-5" />;
+    try {
+      const data = await deliveryAPI.getTracking(order._id);
+      if (data.success) {
+        setTrackingData(data.tracking);
+      } else if (data.notFound) {
+         setTrackingData(null);
+      } else {
+        setTrackingError(data.message || 'Failed to fetch tracking info');
+      }
+    } catch (error) {
+      console.error("Error fetching tracking:", error);
+      setTrackingError("Unable to load tracking details.");
+    } finally {
+      setLoadingTracking(false);
     }
   };
 
+  // Filter and Sort Logic (Client-side refinement)
+  const getFilteredOrders = () => {
+    // If the API already filtered by email and status, we refine by local search string and type
+    let filtered = orders.filter(order => {
+      // Local search (API 'search' was used for email)
+      const matchesSearch = searchQuery === "" ||
+        (order.orderDetails?.garmentType?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+         order._id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+         order.tailorDetails?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+         order.fabricDetails?.name?.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+      // Status is filtered by API if not 'all', but double check for robustness
+      const matchesStatus = filterStatus === "all" || order.status === filterStatus; 
+
+      const matchesType = filterType === "all" || order.bookingType === filterType;
+      
+      return matchesSearch && matchesStatus && matchesType;
+    });
+
+    // Client-side sort if API sort isn't sufficient or if re-sorting filtered results
+    return filtered.sort((a, b) => {
+      let valA, valB;
+      switch (sortBy) {
+        case 'totalAmount':
+          valA = a.pricing?.totalAmount || 0;
+          valB = b.pricing?.totalAmount || 0;
+          break;
+        case 'status':
+          valA = a.status;
+          valB = b.status;
+          break;
+        case 'createdAt':
+        default:
+          valA = new Date(a.timeline?.bookingDate || a.createdAt).getTime();
+          valB = new Date(b.timeline?.bookingDate || b.createdAt).getTime();
+          break;
+      }
+      if (sortOrder === 'asc') return valA > valB ? 1 : -1;
+      return valA < valB ? 1 : -1;
+    });
+  };
+
+  const filteredOrders = getFilteredOrders();
+  // Note: Pagination is now Hybrid. API limits to 'itemsPerPage', but we are filtering further on client. 
+  // Ideally, all filters should be server-side. For now, we display the filtered results of the *current page*.
+  // If the user wants full search across all pages, the API needs 'searchQuery' separate from 'userEmail'.
+  // We will assume for this step that the user accepts this current-page filtering or that the admin API 'search' can handle generic queries later.
+  const currentOrders = filteredOrders; // Display all filtered ones from the fetched batch
+
+  // Helpers
   const getStatusColor = (status) => {
     switch (status) {
-      case "confirmed": return "bg-blue-100 text-blue-700 border-blue-300";
-      case "in_progress": return "bg-purple-100 text-purple-700 border-purple-300";
-      case "ready_for_fitting": return "bg-indigo-100 text-indigo-700 border-indigo-300";
-      case "completed": return "bg-green-100 text-green-700 border-green-300";
-      case "delivered": return "bg-emerald-100 text-emerald-700 border-emerald-300";
-      default: return "bg-gray-100 text-gray-700 border-gray-300";
+      case "pending": return "bg-yellow-100 text-yellow-800";
+      case "confirmed": return "bg-blue-100 text-blue-800";
+      case "in_progress": return "bg-purple-100 text-purple-800";
+      case "ready_for_fitting": return "bg-indigo-100 text-indigo-800";
+      case "completed": return "bg-green-100 text-green-800";
+      case "delivered": return "bg-emerald-100 text-emerald-800";
+      case "cancelled": return "bg-red-100 text-red-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case "pending": return FiClock;
+      case "confirmed": return FiCheckCircle;
+      case "in_progress": return FiRefreshCw;
+      case "ready_for_fitting": return FiPackage;
+      case "completed": return FiCheckCircle;
+      case "delivered": return FiCheckCircle;
+      case "cancelled": return FiX;
+      default: return FiClock;
     }
   };
 
@@ -295,733 +222,457 @@ const CustomerOrders = () => {
   const formatDate = (date) => {
     if (!date) return "N/A";
     return new Date(date).toLocaleDateString('en-IN', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+      year: 'numeric', month: 'short', day: 'numeric'
     });
   };
 
-  const formatPrice = (price) => {
-    return `₹${price?.toLocaleString('en-IN') || 0}`;
-  };
-
-  if (loading) {
-    return (
-      <div className="flex h-screen bg-gray-50">
-        <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} userRole="customer" />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-coralblush mx-auto mb-4"></div>
-            <p className="text-gray-600 text-lg">Loading your orders...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const formatPrice = (price) => `₹${price?.toLocaleString('en-IN') || 0}`;
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      {/* Sidebar */}
-      <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} userRole="customer" />
+    <div className="min-h-screen bg-gray-50 flex">
+      <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} currentPage="orders" />
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-h-screen">
-        {/* Header */}
-        <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
-          <div className="px-6 py-6">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 bg-gradient-to-r from-coralblush to-lilac bg-clip-text text-transparent">
-                  My Orders
-                </h1>
-                <p className="text-gray-600 mt-2">Track and manage all your orders in one place</p>
-              </div>
-              
-              <div className="flex items-center space-x-3">
-                {/* View Toggle */}
-                <div className="flex items-center bg-gray-100 rounded-lg p-1">
-                  <button
-                    onClick={() => setViewMode('table')}
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${
-                      viewMode === 'table' 
-                        ? 'bg-white text-gray-900 shadow-sm' 
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    Table
-                  </button>
-                  <button
-                    onClick={() => setViewMode('cards')}
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${
-                      viewMode === 'cards' 
-                        ? 'bg-white text-gray-900 shadow-sm' 
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    Cards
-                  </button>
+      <div className={`flex-1 transition-all duration-300`}>
+        <div className="p-6">
+          {/* Header */}
+          <header className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  className="lg:hidden p-2 rounded-lg bg-white shadow-md hover:bg-gray-50 transition-colors"
+                >
+                  <FiMenu className="w-5 h-5 text-gray-600" />
+                </button>
+                <div>
+                  <h1 className="text-3xl font-bold text-charcoal">My Orders</h1>
+                  <p className="text-gray-600 mt-2">Track and manage your orders.</p>
                 </div>
-
+              </div>
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center bg-gray-100 rounded-lg p-1 mr-2 hidden md:flex">
+                    <button
+                        onClick={() => setViewMode('cards')}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${viewMode === 'cards' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'}`}
+                    >
+                        Cards
+                    </button>
+                    <button
+                        onClick={() => setViewMode('table')}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${viewMode === 'table' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'}`}
+                    >
+                        Table
+                    </button>
+                </div>
                 <button
                   onClick={fetchOrders}
-                  className="flex items-center px-4 py-2 bg-gradient-to-r from-coralblush to-lilac text-white rounded-lg font-medium hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                  className="flex items-center px-4 py-2 bg-coralblush hover:bg-pink-600 text-white rounded-lg font-medium transition-all duration-200"
                 >
-                  <FiRefreshCw className="w-4 h-4 mr-2" />
-                  Refresh
+                  <FiRefreshCw className="mr-2" /> Refresh
                 </button>
               </div>
             </div>
 
-            {/* Search and Filters */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex items-center gap-4 flex-1">
-                {/* Search */}
-                <div className="relative flex-1 max-w-md">
-                  <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            {/* Statistics Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-600 text-sm font-medium">Total Orders</p>
+                    <p className="text-2xl font-bold text-charcoal">{orders.length}</p>
+                  </div>
+                  <div className="w-12 h-12 bg-gradient-to-r from-coralblush to-pink-500 rounded-lg flex items-center justify-center">
+                    <FiPackage className="w-6 h-6 text-white" />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-600 text-sm font-medium">Total Spent</p>
+                    <p className="text-2xl font-bold text-charcoal">
+                        {formatPrice(orders.reduce((sum, o) => sum + (o.pricing?.totalAmount || 0), 0))}
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 bg-gradient-to-r from-champagne to-yellow-500 rounded-lg flex items-center justify-center">
+                    <FiDollarSign className="w-6 h-6 text-charcoal" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-600 text-sm font-medium">Pending Orders</p>
+                    <p className="text-2xl font-bold text-charcoal">
+                        {orders.filter(o => o.status === 'pending' || o.status === 'in_progress').length}
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center">
+                    <FiClock className="w-6 h-6 text-white" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-600 text-sm font-medium">Completed</p>
+                    <p className="text-2xl font-bold text-charcoal">
+                        {orders.filter(o => o.status === 'completed' || o.status === 'delivered').length}
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center">
+                    <FiCheckCircle className="w-6 h-6 text-white" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          {/* Filters */}
+          <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 mb-6">
+            <div className="flex flex-col lg:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Search orders by ID, garment type..."
+                    placeholder="Search orders..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-coralblush focus:border-transparent transition-all"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-coralblush focus:border-transparent"
                   />
                 </div>
-
-                {/* Order Status Filter */}
-                <div className="relative">
-                  <FiFilter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
-                  <select
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    className="pl-10 pr-8 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-coralblush focus:border-transparent appearance-none bg-white cursor-pointer"
-                  >
-                    <option value="all">All Orders</option>
-                    <option value="confirmed">Confirmed</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="completed">Completed</option>
-                    <option value="delivered">Delivered</option>
-                    <option value="paid">Paid Orders</option>
-                    <option value="pending">Pending Payment</option>
-                  </select>
-                </div>
-
-                {/* Type Filter */}
-                <select
-                  value={filterType}
-                  onChange={(e) => setFilterType(e.target.value)}
-                  className="px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-coralblush focus:border-transparent bg-white cursor-pointer"
-                >
-                  <option value="all">All Types</option>
-                  <option value="tailor">Tailor Only</option>
-                  <option value="fabric">Fabric Only</option>
-                  <option value="complete">Complete Package</option>
-                </select>
               </div>
-            </div>
-            
-            {/* Orders Summary */}
-            <div className="mt-6 bg-gradient-to-r from-coralblush to-lilac rounded-lg p-4 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold">Your Orders Summary</h3>
-                  <p className="text-sm opacity-90">
-                    {filteredOrders.length} order{filteredOrders.length !== 1 ? 's' : ''} found
-                    {filterStatus === 'confirmed' && ' (Confirmed bookings only)'}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <div className="text-2xl font-bold">{filteredOrders.length}</div>
-                  <div className="text-sm opacity-90">Total Orders</div>
-                </div>
-              </div>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-coralblush focus:border-transparent"
+              >
+                <option value="all">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="in_progress">In Progress</option>
+                <option value="completed">Completed</option>
+                <option value="delivered">Delivered</option>
+              </select>
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-coralblush focus:border-transparent"
+              >
+                <option value="all">All Types</option>
+                <option value="tailor">Tailor</option>
+                <option value="fabric">Fabric</option>
+                <option value="complete">Complete</option>
+              </select>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-coralblush focus:border-transparent"
+              >
+                <option value="createdAt">Sort by Date</option>
+                <option value="totalAmount">Sort by Amount</option>
+                <option value="status">Sort by Status</option>
+              </select>
+              <button
+                onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
+                className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                {sortOrder === 'desc' ? <FiTrendingDown /> : <FiTrendingUp />}
+              </button>
             </div>
           </div>
-        </header>
 
-        {/* Content */}
-        <main className="flex-1 p-6 overflow-y-auto">
-          <div className="max-w-7xl mx-auto">
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl shadow-md border border-blue-200 p-6 transform transition-all hover:scale-105">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-blue-600 mb-1">Total Orders</p>
-                    <p className="text-3xl font-bold text-blue-900">{orders.length}</p>
-                  </div>
-                  <div className="w-14 h-14 bg-blue-500 rounded-full flex items-center justify-center shadow-lg">
-                    <FiPackage className="w-7 h-7 text-white" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl shadow-md border border-green-200 p-6 transform transition-all hover:scale-105">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-green-600 mb-1">Paid Orders</p>
-                    <p className="text-3xl font-bold text-green-900">
-                      {orders.filter(o => o.payment?.status === 'paid').length}
-                    </p>
-                  </div>
-                  <div className="w-14 h-14 bg-green-500 rounded-full flex items-center justify-center shadow-lg">
-                    <FiCheckCircle className="w-7 h-7 text-white" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl shadow-md border border-red-200 p-6 transform transition-all hover:scale-105">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-red-600 mb-1">Pending Payment</p>
-                    <p className="text-3xl font-bold text-red-900">
-                      {orders.filter(o => o.payment?.status !== 'paid').length}
-                    </p>
-                  </div>
-                  <div className="w-14 h-14 bg-red-500 rounded-full flex items-center justify-center shadow-lg">
-                    <FiXCircle className="w-7 h-7 text-white" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl shadow-md border border-amber-200 p-6 transform transition-all hover:scale-105">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-amber-600 mb-1">Total Spent</p>
-                    <p className="text-3xl font-bold text-amber-900">
-                      {formatPrice(orders.reduce((sum, o) => sum + (o.pricing?.totalAmount || 0), 0))}
-                    </p>
-                  </div>
-                  <div className="w-14 h-14 bg-amber-500 rounded-full flex items-center justify-center shadow-lg">
-                    <FiDollarSign className="w-7 h-7 text-white" />
-                  </div>
-                </div>
-              </div>
+          {/* Content */}
+          {loading ? (
+            <div className="p-8 text-center">
+                <FiRefreshCw className="w-8 h-8 text-coralblush animate-spin mx-auto mb-4" />
+                <p className="text-gray-600">Loading orders...</p>
             </div>
-
-            {/* Orders Display */}
-            {filteredOrders.length > 0 ? (
-              viewMode === 'table' ? (
-                /* Table View */
-              <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+          ) : filteredOrders.length === 0 ? (
+            <div className="bg-white rounded-xl p-12 text-center shadow-lg border border-gray-100">
+                <FiPackage className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No orders found</h3>
+                <p className="text-gray-500">Try adjusting your filters.</p>
+            </div>
+          ) : viewMode === 'table' ? (
+            /* Table View - Keeping for completeness but cleaner style */
+            <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-gradient-to-r from-coralblush to-lilac text-white">
+                    <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-4 text-left text-sm font-semibold">Order ID</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold">Type</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold">Garment</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold">Tailor</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold">Status</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold">Payment</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold">Amount</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold">Order Date</th>
-                        <th className="px-6 py-4 text-center text-sm font-semibold">Actions</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {filteredOrders.map((order, index) => (
-                        <tr key={order._id || order.id} className={`hover:bg-gray-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
-                          {/* Order ID */}
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="w-8 h-8 bg-gradient-to-br from-coralblush to-lilac rounded-lg flex items-center justify-center mr-3">
-                                <FiPackage className="w-4 h-4 text-white" />
-                              </div>
-                              <div>
-                                <div className="text-sm font-medium text-gray-900">
-                                  #{order._id?.slice(-8).toUpperCase() || order.id?.slice(-8).toUpperCase() || 'N/A'}
-                                </div>
-                                <div className="text-xs text-gray-500">Booking ID</div>
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Type */}
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              {getOrderTypeIcon(order.bookingType)}
-                              <span className="ml-2 text-sm font-medium text-gray-900 capitalize">
-                                {order.bookingType}
-                              </span>
-                            </div>
-                          </td>
-
-                          {/* Garment */}
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div>
-                              <div className="text-sm font-medium text-gray-900 capitalize">
-                                {order.orderDetails?.garmentType || 'N/A'}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                Qty: {order.orderDetails?.quantity || 1}
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Tailor */}
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div>
-                              <div className="text-sm font-medium text-gray-900">
-                                {order.tailor?.name || order.tailorDetails?.name || 'N/A'}
-                              </div>
-                              {order.tailor?.location && (
-                                <div className="text-xs text-gray-500">
-                                  {order.tailor.location.city}, {order.tailor.location.state}
-                                </div>
-                              )}
-                            </div>
-                          </td>
-
-                          {/* Status */}
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(order.status)}`}>
-                              {getStatusIcon(order.status)}
-                              <span className="ml-1 capitalize">{order.status.replace(/_/g, ' ')}</span>
-                            </span>
-                          </td>
-
-                          {/* Payment */}
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className={`w-3 h-3 rounded-full mr-2 ${
-                                order.payment?.status === 'paid' ? 'bg-green-500' : 'bg-red-500'
-                              }`}></div>
-                              <span className={`text-sm font-medium ${
-                                order.payment?.status === 'paid' ? 'text-green-700' : 'text-red-700'
-                              }`}>
-                                {order.payment?.status === 'paid' ? 'PAID' : 'PENDING'}
-                              </span>
-                            </div>
-                            {order.payment?.method && (
-                              <div className="text-xs text-gray-500 capitalize">
-                                {order.payment.method}
-                              </div>
-                            )}
-                          </td>
-
-                          {/* Amount */}
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-semibold text-gray-900">
-                              {formatPrice(order.pricing?.totalAmount)}
-                            </div>
-                            {order.pricing?.advanceAmount > 0 && (
-                              <div className="text-xs text-green-600">
-                                Paid: {formatPrice(order.pricing.advanceAmount)}
-                              </div>
-                            )}
-                          </td>
-
-                          {/* Order Date */}
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">
-                              {formatDate(order.timeline?.bookingDate || order.createdAt)}
-                            </div>
-                            {order.orderDetails?.deliveryDate && (
-                              <div className="text-xs text-gray-500">
-                                Expected: {formatDate(order.orderDetails.deliveryDate)}
-                              </div>
-                            )}
-                          </td>
-
-                          {/* Actions */}
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <button
-                              onClick={() => handleViewDetails(order)}
-                              className="inline-flex items-center px-3 py-2 bg-gradient-to-r from-coralblush to-lilac text-white text-sm font-medium rounded-lg hover:shadow-lg transition-all duration-200 transform hover:scale-105"
-                            >
-                              <FiEye className="w-4 h-4 mr-1" />
-                              View
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {currentOrders.map((order) => {
+                         const StatusIcon = getStatusIcon(order.status);
+                         return (
+                            <tr key={order._id} className="hover:bg-gray-50">
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="text-sm font-medium text-charcoal capitalize">{order.bookingType}</div>
+                                    <div className="text-xs text-gray-500">#{order._id.slice(-8)}</div>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <div className="text-sm text-gray-900 capitalize">{order.orderDetails?.garmentType}</div>
+                                    <div className="text-xs text-gray-500">Qty: {order.orderDetails?.quantity}</div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                    {formatPrice(order.pricing?.totalAmount)}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                                        <StatusIcon className="w-3 h-3 mr-1" />
+                                        {order.status.replace(/_/g, ' ')}
+                                    </span>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {formatDate(order.createdAt)}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                    <button onClick={() => { setSelectedOrder(order); setShowOrderDetails(true); }} className="text-coralblush hover:text-pink-600 mr-3"><FiEye /></button>
+                                    {order.status !== 'pending' && <button onClick={() => handleTrackOrder(order)} className="text-indigo-600 hover:text-indigo-900"><FiMapPin /></button>}
+                                </td>
+                            </tr>
+                         )
+                      })}
                     </tbody>
                   </table>
                 </div>
-
-                {/* Table Footer */}
-                <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm text-gray-700">
-                      Showing {filteredOrders.length} of {orders.length} orders
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <button className="px-3 py-1 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
-                        Previous
-                      </button>
-                      <button className="px-3 py-1 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
-                        Next
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              ) : (
-                /* Card View */
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredOrders.map((order) => (
-                    <div 
-                      key={order._id || order.id} 
-                      className="bg-white rounded-xl shadow-md border border-gray-200 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden"
-                    >
-                      {/* Order Header */}
-                      <div className="bg-gradient-to-r from-coralblush to-lilac p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-2 text-white">
-                            {getOrderTypeIcon(order.bookingType)}
-                            <span className="font-semibold capitalize">{order.bookingType} Order</span>
-                          </div>
-                          <span className={`px-3 py-1 text-xs font-semibold rounded-full flex items-center space-x-1 bg-white border ${getStatusColor(order.status)}`}>
-                            {getStatusIcon(order.status)}
-                            <span className="capitalize ml-1">{order.status.replace(/_/g, ' ')}</span>
-                          </span>
-                        </div>
-                        <div className="text-white text-sm mt-2 opacity-90">
-                          Booking ID: #{order._id?.slice(-8).toUpperCase() || order.id?.slice(-8).toUpperCase() || 'N/A'}
-                        </div>
-                      </div>
-
-                      {/* Order Body */}
-                      <div className="p-5 space-y-4">
-                        {/* Garment Details */}
-                        <div className="bg-gray-50 rounded-lg p-4">
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <p className="text-xs text-gray-500 mb-1">Garment Type</p>
-                              <p className="font-semibold text-gray-900 capitalize text-lg">
-                                {order.orderDetails?.garmentType || 'N/A'}
-                              </p>
-                              <p className="text-sm text-gray-600 mt-1">
-                                Quantity: {order.orderDetails?.quantity || 1}
-                              </p>
+            </div>
+          ) : (
+            /* Card View - Enhanced */
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {currentOrders.map((order) => {
+                    const StatusIcon = getStatusIcon(order.status);
+                    return (
+                        <div key={order._id} className="bg-white rounded-xl shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300 flex flex-col">
+                            {/* Card Header */}
+                            <div className="p-5 border-b border-gray-100 flex justify-between items-start">
+                                <div className="flex items-center space-x-3">
+                                    <div className={`p-2 rounded-lg ${order.bookingType === 'tailor' ? 'bg-blue-50 text-blue-600' : 'bg-pink-50 text-pink-600'}`}>
+                                        {getOrderTypeIcon(order.bookingType)}
+                                    </div>
+                                    <div>
+                                        <h3 className="font-semibold text-charcoal capitalize">{order.bookingType} Order</h3>
+                                        <p className="text-xs text-gray-500">ID: #{order._id.slice(-8).toUpperCase()}</p>
+                                    </div>
+                                </div>
+                                <span className={`px-2.5 py-1 rounded-full text-xs font-medium flex items-center ${getStatusColor(order.status)}`}>
+                                    <StatusIcon className="w-3 h-3 mr-1" />
+                                    <span className="capitalize">{order.status.replace(/_/g, ' ')}</span>
+                                </span>
                             </div>
-                            <div className="w-12 h-12 bg-gradient-to-br from-coralblush to-lilac rounded-lg flex items-center justify-center">
-                              <FiPackage className="w-6 h-6 text-white" />
-                            </div>
-                          </div>
-                        </div>
 
-                        {/* Tailor/Fabric Info */}
-                        {order.tailor && (
-                          <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <FiScissors className="w-4 h-4 text-blue-600" />
-                              <p className="text-xs font-medium text-blue-600">Tailor</p>
-                            </div>
-                            <p className="font-semibold text-blue-900">{order.tailor.name || 'N/A'}</p>
-                            {order.tailor.location && (
-                              <p className="text-sm text-blue-700 mt-1">
-                                {order.tailor.location.city}, {order.tailor.location.state}
-                              </p>
-                            )}
-                          </div>
-                        )}
+                            {/* Card Body */}
+                            <div className="p-5 flex-1 space-y-4">
+                                {/* Garment Info */}
+                                <div className="flex justify-between items-start pb-4 border-b border-gray-50">
+                                    <div>
+                                        <p className="text-xs text-gray-500 uppercase tracking-wide">Garment</p>
+                                        <p className="font-medium text-gray-900 capitalize">{order.orderDetails?.garmentType || 'N/A'}</p>
+                                        <p className="text-xs text-gray-500 mt-0.5">Qty: {order.orderDetails?.quantity}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-xs text-gray-500 uppercase tracking-wide">Amount</p>
+                                        <p className="font-bold text-gray-900">{formatPrice(order.pricing?.totalAmount)}</p>
+                                        <p className={`text-xs ${order.payment?.status === 'paid' ? 'text-green-600' : 'text-red-500'}`}>
+                                            {order.payment?.status === 'paid' ? 'Paid' : 'Pending'}
+                                        </p>
+                                    </div>
+                                </div>
 
-                        {order.fabric && (
-                          <div className="bg-green-50 rounded-lg p-4 border border-green-100">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <FiShoppingBag className="w-4 h-4 text-green-600" />
-                              <p className="text-xs font-medium text-green-600">Fabric</p>
+                                {/* Detail Blocks */}
+                                <div className="space-y-3">
+                                    {order.tailorDetails && (
+                                        <div className="flex items-center text-sm text-gray-600">
+                                            <FiScissors className="w-4 h-4 mr-2 text-gray-400" />
+                                            <span className="truncate">{order.tailorDetails.name}</span>
+                                        </div>
+                                    )}
+                                    {order.fabricDetails && (
+                                        <div className="flex items-center text-sm text-gray-600">
+                                            <FiShoppingBag className="w-4 h-4 mr-2 text-gray-400" />
+                                            <span className="truncate">{order.fabricDetails.name}</span>
+                                        </div>
+                                    )}
+                                    <div className="flex items-center text-sm text-gray-600">
+                                        <FiCalendar className="w-4 h-4 mr-2 text-gray-400" />
+                                        <span>{formatDate(order.createdAt)}</span>
+                                    </div>
+                                </div>
                             </div>
-                            <p className="font-semibold text-green-900">{order.fabric.name || 'N/A'}</p>
-                            <p className="text-sm text-green-700 mt-1">
-                              {order.fabric.color} - {order.fabric.pattern}
-                            </p>
-                          </div>
-                        )}
 
-                        {/* Payment Status Card */}
-                        <div className={`rounded-lg p-4 border-2 ${
-                          order.payment?.status === 'paid' 
-                            ? 'bg-green-50 border-green-200' 
-                            : 'bg-red-50 border-red-200'
-                        }`}>
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                                order.payment?.status === 'paid' ? 'bg-green-500' : 'bg-red-500'
-                              }`}>
-                                {order.payment?.status === 'paid' ? (
-                                  <FiCheckCircle className="w-6 h-6 text-white" />
+                            {/* Card Footer */}
+                            <div className="p-4 bg-gray-50 rounded-b-xl border-t border-gray-100 grid grid-cols-2 gap-3">
+                                <button 
+                                    onClick={() => { setSelectedOrder(order); setShowOrderDetails(true); }}
+                                    className="flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-white hover:border-gray-400 transition-colors"
+                                >
+                                    <FiEye className="mr-2" /> Details
+                                </button>
+                                {order.status !== 'pending' && order.status !== 'cancelled' ? (
+                                    <button 
+                                        onClick={() => handleTrackOrder(order)}
+                                        className="flex items-center justify-center px-4 py-2 bg-coralblush text-white rounded-lg text-sm font-medium hover:bg-pink-600 transition-colors"
+                                    >
+                                        <FiMapPin className="mr-2" /> Track
+                                    </button>
                                 ) : (
-                                  <FiXCircle className="w-6 h-6 text-white" />
+                                    <button disabled className="flex items-center justify-center px-4 py-2 bg-gray-100 text-gray-400 rounded-lg text-sm font-medium cursor-not-allowed">
+                                        <FiClock className="mr-2" /> Track
+                                    </button>
                                 )}
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-gray-600">Payment Status</p>
-                                <p className={`text-lg font-bold ${
-                                  order.payment?.status === 'paid' ? 'text-green-700' : 'text-red-700'
-                                }`}>
-                                  {order.payment?.status === 'paid' ? 'PAID' : 'PENDING'}
-                                </p>
-                              </div>
                             </div>
-                            <div className="text-right">
-                              <p className="text-xs text-gray-600 mb-1">Total Amount</p>
-                              <p className="font-bold text-gray-900 text-xl">
-                                {formatPrice(order.pricing?.totalAmount)}
-                              </p>
-                            </div>
-                          </div>
                         </div>
+                    );
+                })}
+            </div>
+          )}
 
-                        {/* Timeline */}
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center space-x-2 text-gray-600">
-                            <FiCalendar className="w-4 h-4" />
-                            <span>Ordered: {formatDate(order.timeline?.bookingDate || order.createdAt)}</span>
-                          </div>
-                        </div>
-                        {order.orderDetails?.deliveryDate && (
-                          <div className="flex items-center space-x-2 text-sm text-gray-600">
-                            <FiTruck className="w-4 h-4" />
-                            <span>Expected: {formatDate(order.orderDetails.deliveryDate)}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Order Footer */}
-                      <div className="p-5 bg-gray-50 border-t border-gray-200">
-                        <button
-                          onClick={() => handleViewDetails(order)}
-                          className="w-full flex items-center justify-center px-4 py-3 bg-gradient-to-r from-coralblush to-lilac text-white rounded-lg font-medium hover:shadow-lg transition-all duration-200 transform hover:scale-105"
-                        >
-                          <FiEye className="w-4 h-4 mr-2" />
-                          View Details
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )
-            ) : (
-              <div className="text-center py-16">
-                <div className="w-24 h-24 bg-gradient-to-r from-coralblush to-lilac rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
-                  <FiPackage className="w-12 h-12 text-white" />
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-3">No orders found</h3>
-                <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                  {searchQuery || filterStatus !== "all" || filterType !== "all"
-                    ? "Try adjusting your search or filters to find what you're looking for" 
-                    : "You haven't placed any orders yet. Start browsing to create your first order!"
-                  }
-                </p>
-                {!searchQuery && filterStatus === "all" && filterType === "all" && (
-                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                    <button
-                      onClick={() => navigate('/customer/fabrics')}
-                      className="px-6 py-3 bg-gradient-to-r from-coralblush to-lilac text-white rounded-lg font-medium hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="mt-8 flex justify-center">
+                <nav className="flex items-center space-x-2">
+                    <button 
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="p-2 border border-gray-300 rounded-lg disabled:opacity-50 hover:bg-gray-50"
                     >
-                      Start Shopping
+                        <FiChevronLeft />
                     </button>
-                    <button
-                      onClick={testSimpleAPI}
-                      className="px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                    <span className="text-sm text-gray-600 px-4">
+                        Page {currentPage} of {totalPages}
+                    </span>
+                    <button 
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        className="p-2 border border-gray-300 rounded-lg disabled:opacity-50 hover:bg-gray-50"
                     >
-                      Test Simple API
+                        <FiChevronRight />
                     </button>
-                    <button
-                      onClick={debugUser}
-                      className="px-6 py-3 bg-orange-600 text-white rounded-lg font-medium hover:shadow-lg transition-all duration-200 transform hover:scale-105"
-                    >
-                      Debug User
-                    </button>
-                    <button
-                      onClick={testDirectAPI}
-                      className="px-6 py-3 bg-purple-600 text-white rounded-lg font-medium hover:shadow-lg transition-all duration-200 transform hover:scale-105"
-                    >
-                      Test Auth API
-                    </button>
-                    <button
-                      onClick={debugDatabase}
-                      className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:shadow-lg transition-all duration-200 transform hover:scale-105"
-                    >
-                      Debug Database
-                    </button>
-                    <button
-                      onClick={createSampleBooking}
-                      className="px-6 py-3 bg-gray-600 text-white rounded-lg font-medium hover:shadow-lg transition-all duration-200 transform hover:scale-105"
-                    >
-                      Create Sample Order
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </main>
+                </nav>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Order Details Modal */}
+      {/* Order Details Modal (Preserved) */}
       {showOrderDetails && selectedOrder && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="sticky top-0 bg-gradient-to-r from-coralblush to-lilac p-6 border-b border-gray-200 z-10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-white">Order Details</h2>
-                  <p className="text-white text-sm mt-1 opacity-90">
-                    Order ID: #{selectedOrder._id?.slice(-8).toUpperCase() || 'N/A'}
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    setShowOrderDetails(false);
-                    setSelectedOrder(null);
-                  }}
-                  className="text-white hover:bg-white hover:bg-opacity-20 rounded-full p-2 transition-all"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-            
-            {/* Modal Body */}
-            <div className="p-6 space-y-6">
-              {/* Status & Type */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                  <p className="text-sm text-gray-600 mb-2">Order Status</p>
-                  <div className={`inline-flex items-center space-x-2 px-4 py-2 rounded-full border ${getStatusColor(selectedOrder.status)}`}>
-                    {getStatusIcon(selectedOrder.status)}
-                    <span className="font-semibold capitalize">{selectedOrder.status.replace(/_/g, ' ')}</span>
-                  </div>
-                </div>
-                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                  <p className="text-sm text-gray-600 mb-2">Order Type</p>
-                  <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-white border border-gray-300">
-                    {getOrderTypeIcon(selectedOrder.bookingType)}
-                    <span className="font-semibold capitalize">{selectedOrder.bookingType}</span>
-                  </div>
-                </div>
-              </div>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+             <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+               <div className="p-6 border-b border-gray-200 flex justify-between items-center sticky top-0 bg-white">
+                 <h3 className="text-xl font-bold text-charcoal">Order Details</h3>
+                 <button onClick={() => setShowOrderDetails(false)} className="text-gray-400 hover:text-gray-600">
+                   <FiX className="w-6 h-6" />
+                 </button>
+               </div>
+               <div className="p-6 space-y-6">
+                 {/* Basic Info */}
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <div>
+                     <h4 className="font-medium text-gray-500 uppercase text-xs tracking-wide mb-3">Order Info</h4>
+                     <div className="space-y-2 text-sm">
+                        <div className="flex justify-between"><span className="text-gray-600">Order ID:</span> <span className="font-medium text-gray-900">#{selectedOrder._id}</span></div>
+                        <div className="flex justify-between"><span className="text-gray-600">Date:</span> <span className="font-medium text-gray-900">{formatDate(selectedOrder.createdAt)}</span></div>
+                        <div className="flex justify-between"><span className="text-gray-600">Status:</span> <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(selectedOrder.status)}`}>{selectedOrder.status}</span></div>
+                     </div>
+                   </div>
+                   <div>
+                     <h4 className="font-medium text-gray-500 uppercase text-xs tracking-wide mb-3">Payment Info</h4>
+                     <div className="space-y-2 text-sm">
+                        <div className="flex justify-between"><span className="text-gray-600">Total Amount:</span> <span className="font-bold text-gray-900">{formatPrice(selectedOrder.pricing?.totalAmount)}</span></div>
+                        <div className="flex justify-between"><span className="text-gray-600">Advance Paid:</span> <span className="font-medium text-green-600">{formatPrice(selectedOrder.pricing?.advanceAmount)}</span></div>
+                        <div className="flex justify-between"><span className="text-gray-600">Payment Status:</span> <span className={`font-medium ${selectedOrder.payment?.status === 'paid' ? 'text-green-600' : 'text-red-500'}`}>{selectedOrder.payment?.status || 'Pending'}</span></div>
+                     </div>
+                   </div>
+                 </div>
 
-              {/* Order Details */}
-              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
-                <h3 className="font-bold text-gray-900 mb-4 flex items-center">
-                  <FiPackage className="w-5 h-5 mr-2 text-blue-600" />
-                  Garment Details
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-600">Garment Type</p>
-                    <p className="font-semibold text-gray-900 capitalize">
-                      {selectedOrder.orderDetails?.garmentType || 'N/A'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Quantity</p>
-                    <p className="font-semibold text-gray-900">{selectedOrder.orderDetails?.quantity || 1}</p>
-                  </div>
-                  {selectedOrder.orderDetails?.designDescription && (
-                    <div className="col-span-2">
-                      <p className="text-sm text-gray-600">Design Description</p>
-                      <p className="font-medium text-gray-900">{selectedOrder.orderDetails.designDescription}</p>
+                 <div className="border-t border-gray-100 pt-6">
+                    <h4 className="font-medium text-gray-500 uppercase text-xs tracking-wide mb-3">Item Details</h4>
+                    <div className="bg-gray-50 rounded-lg p-4">
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <p className="font-medium text-gray-900">{selectedOrder.orderDetails?.garmentType}</p>
+                                <p className="text-sm text-gray-600 mt-1">{selectedOrder.orderDetails?.designDescription}</p>
+                                {selectedOrder.orderDetails?.specialInstructions && <p className="text-xs text-gray-500 mt-2">Note: {selectedOrder.orderDetails.specialInstructions}</p>}
+                            </div>
+                            <div className="text-right">
+                                <p className="text-sm font-medium">Qty: {selectedOrder.orderDetails?.quantity}</p>
+                            </div>
+                        </div>
                     </div>
-                  )}
-                  {selectedOrder.orderDetails?.specialInstructions && (
-                    <div className="col-span-2">
-                      <p className="text-sm text-gray-600">Special Instructions</p>
-                      <p className="font-medium text-gray-900">{selectedOrder.orderDetails.specialInstructions}</p>
+                 </div>
+               </div>
+               <div className="p-6 border-t border-gray-200 bg-gray-50 flex justify-end">
+                   <button onClick={() => setShowOrderDetails(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-700 font-medium">Close</button>
+               </div>
+             </div>
+        </div>
+      )}
+
+      {/* Tracking Modal */}
+      {showTrackingModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setShowTrackingModal(false)}></div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="sm:flex sm:items-start">
+                  <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 sm:mx-0 sm:h-10 sm:w-10">
+                    <FiTruck className="h-6 w-6 text-indigo-600" />
+                  </div>
+                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                    <h3 className="text-lg leading-6 font-medium text-gray-900" id="modal-title">Order Tracking</h3>
+                    <div className="mt-4">
+                      {loadingTracking ? (
+                        <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>
+                      ) : trackingError ? (
+                        <div className="bg-red-50 p-4 rounded-md text-red-700 text-sm">{trackingError}</div>
+                      ) : !trackingData ? (
+                        <div className="text-center py-8 text-gray-500"><p>Tracking information is not yet available.</p></div>
+                      ) : (
+                        <div className="space-y-6">
+                          <div className="bg-gray-50 p-3 rounded-lg"><p className="text-sm text-gray-500">Current Status</p><p className="text-lg font-semibold capitalize text-indigo-700">{trackingData.overallStatus?.replace(/_/g, ' ')}</p></div>
+                          {trackingData.timeline && trackingData.timeline.length > 0 && (
+                              <div className="border-t border-gray-200 pt-4">
+                                  <h4 className="text-sm font-medium text-gray-900 mb-2">Timeline</h4>
+                                  <ul className="space-y-4">
+                                      {trackingData.timeline.map((event, i) => (
+                                          <li key={i} className="flex gap-3">
+                                              <div className="mt-1"><FiCheckCircle className="text-indigo-600 w-4 h-4" /></div>
+                                              <div><p className="text-sm font-medium capitalize">{event.status.replace(/_/g, ' ')}</p><p className="text-xs text-gray-500">{new Date(event.timestamp).toLocaleDateString()} {new Date(event.timestamp).toLocaleTimeString()}</p></div>
+                                          </li>
+                                      ))}
+                                  </ul>
+                              </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
-
-              {/* Pricing Breakdown */}
-              <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-lg p-6 border border-amber-200">
-                <h3 className="font-bold text-gray-900 mb-4 flex items-center">
-                  <FiDollarSign className="w-5 h-5 mr-2 text-amber-600" />
-                  Pricing Details
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-gray-700">Fabric Cost</span>
-                    <span className="font-semibold">{formatPrice(selectedOrder.pricing?.fabricCost)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-700">Tailoring Cost</span>
-                    <span className="font-semibold">{formatPrice(selectedOrder.pricing?.tailoringCost)}</span>
-                  </div>
-                  {selectedOrder.pricing?.additionalCharges > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-700">Additional Charges</span>
-                      <span className="font-semibold">{formatPrice(selectedOrder.pricing.additionalCharges)}</span>
-                    </div>
-                  )}
-                  <div className="border-t border-amber-300 pt-3 flex justify-between">
-                    <span className="font-bold text-gray-900 text-lg">Total Amount</span>
-                    <span className="font-bold text-amber-900 text-2xl">{formatPrice(selectedOrder.pricing?.totalAmount)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-700">Advance Paid</span>
-                    <span className="font-semibold text-green-600">{formatPrice(selectedOrder.pricing?.advanceAmount)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-700">Remaining</span>
-                    <span className="font-semibold text-red-600">{formatPrice(selectedOrder.pricing?.remainingAmount)}</span>
-                  </div>
-                </div>
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button type="button" className="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:ml-3 sm:w-auto sm:text-sm" onClick={() => setShowTrackingModal(false)}>Close</button>
               </div>
-
-              {/* Timeline */}
-              {selectedOrder.timeline && (
-                <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
-                  <h3 className="font-bold text-gray-900 mb-4 flex items-center">
-                    <FiCalendar className="w-5 h-5 mr-2 text-gray-600" />
-                    Timeline
-                  </h3>
-                  <div className="space-y-3">
-                    {selectedOrder.timeline.bookingDate && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-700">Booking Date</span>
-                        <span className="font-semibold">{formatDate(selectedOrder.timeline.bookingDate)}</span>
-                      </div>
-                    )}
-                    {selectedOrder.timeline.confirmationDate && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-700">Confirmation Date</span>
-                        <span className="font-semibold">{formatDate(selectedOrder.timeline.confirmationDate)}</span>
-                      </div>
-                    )}
-                    {selectedOrder.orderDetails?.deliveryDate && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-700">Expected Delivery</span>
-                        <span className="font-semibold">{formatDate(selectedOrder.orderDetails.deliveryDate)}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-6 bg-gray-50 border-t border-gray-200 flex items-center justify-end space-x-3">
-              <button
-                onClick={() => {
-                  setShowOrderDetails(false);
-                  setSelectedOrder(null);
-                }}
-                className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-100 transition-all"
-              >
-                Close
-              </button>
-              <button
-                className="px-6 py-3 bg-gradient-to-r from-coralblush to-lilac text-white rounded-lg font-medium hover:shadow-lg transition-all transform hover:scale-105"
-              >
-                <FiDownload className="w-4 h-4 inline mr-2" />
-                Download Invoice
-              </button>
             </div>
           </div>
         </div>
       )}
+
     </div>
   );
 };
 
 export default CustomerOrders;
-

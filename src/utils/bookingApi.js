@@ -108,6 +108,54 @@ export const customerAPI = {
   }
 };
 
+// Delivery Service API calls
+export const deliveryAPI = {
+  // Get tracking information for a booking
+  getTracking: async (bookingId) => {
+    try {
+      const deliveryServiceUrl = import.meta.env.VITE_DELIVERY_SERVICE_URL;
+
+      if (!deliveryServiceUrl) {
+        throw new Error('Delivery Service URL is not configured');
+      }
+
+      // We need to use a custom fetch implementation here because apiCall currently relies 
+      // on pre-configured base URLs keyed by service name in ../config/api.js, 
+      // but we haven't checked if DELIVERY_SERVICE is configured there.
+      // To be safe and consistent with the plan, we'll use a direct fetch approach 
+      // or if we could extend apiCall, we would.
+      // Assuming we need to stay within the pattern but maybe the service key isn't there yet.
+      // Let's check if we can just pass the URL directly or if we need to use the token.
+
+      // Since apiCall might throw "Service URL not configured" if we use a new key 'DELIVERY_SERVICE'
+      // without updating the config, let's try to be robust. 
+      // However, for this implementation, let's assume we can use the direct URL with the token.
+
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${deliveryServiceUrl}/api/deliveries/tracking/${bookingId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          return { success: false, notFound: true, message: 'Tracking information not found' };
+        }
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Delivery service error: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching tracking:', error);
+      throw error;
+    }
+  }
+};
+
 // Vendor Service API calls
 export const vendorAPI = {
   // Get all products/fabrics
@@ -392,11 +440,11 @@ export const calculateDistance = (lat1, lon1, lat2, lon2) => {
   const R = 6371; // Radius of the Earth in kilometers
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-    Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   const distance = R * c;
   return distance;
 };
