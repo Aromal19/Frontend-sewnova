@@ -37,6 +37,11 @@ import BookingFlow from "./pages/customer/BookingFlow";
 import Cart from "./pages/customer/Cart";
 import Checkout from "./pages/customer/Checkout";
 import DesignPage from "./pages/DesignPage";
+// Delivery tracking pages
+import OrderTracking from "./pages/customer/OrderTracking";
+import OrderDeliveryUpdate from "./pages/tailor/OrderDeliveryUpdate";
+import FabricDispatch from "./pages/seller/FabricDispatch";
+import DeliveryMonitoring from "./pages/admin/DeliveryMonitoring";
 // Protected route component
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
@@ -208,6 +213,11 @@ function App() {
             <AdminInsights />
           </ProtectedRoute>
         } />
+        <Route path="/admin/deliveries" element={
+          <ProtectedRoute requiredRole="admin">
+            <DeliveryMonitoring />
+          </ProtectedRoute>
+        } />
         
         {/* Seller Routes - Protected */}
         <Route path="/add-fabric" element={
@@ -282,6 +292,25 @@ function App() {
         <Route path="/tailor/active-orders" element={
           <ProtectedRoute requiredRole="tailor">
             <ActiveOrders />
+          </ProtectedRoute>
+        } />
+        <Route path="/tailor/delivery/:bookingId" element={
+          <ProtectedRoute requiredRole="tailor">
+            <OrderDeliveryUpdate />
+          </ProtectedRoute>
+        } />
+        
+        {/* Seller/Vendor delivery routes */}
+        <Route path="/seller/dispatch" element={
+          <ProtectedRoute requiredRole="seller">
+            <FabricDispatch />
+          </ProtectedRoute>
+        } />
+        
+        {/* Customer tracking route */}
+        <Route path="/customer/tracking" element={
+          <ProtectedRoute requiredRole="customer">
+            <OrderTracking />
           </ProtectedRoute>
         } />
         

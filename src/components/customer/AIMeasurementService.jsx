@@ -88,7 +88,7 @@ const AIMeasurementService = ({ onMeasurementsGenerated, onClose }) => {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
-        timeout: 60000, // 60 second timeout for AI processing
+        timeout: 180000, // 180 second timeout for CPU-based AI processing (increased from 60s)
       });
 
       if (response.data.success) {
@@ -108,10 +108,15 @@ const AIMeasurementService = ({ onMeasurementsGenerated, onClose }) => {
       console.error('AI measurement error:', error);
       let errorMessage = 'Failed to process measurements. Please try again.';
       
-      if (error.response?.data?.message) {
+      // Handle validation errors from new validation module
+      if (error.response?.data?.error_message) {
+        errorMessage = error.response.data.error_message;
+      } else if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error.response?.data?.error) {
         errorMessage = error.response.data.error;
+      } else if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
       } else if (error.message) {
         errorMessage = error.message;
       }

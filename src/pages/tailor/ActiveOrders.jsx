@@ -20,7 +20,8 @@ import {
   FiActivity,
   FiMapPin,
   FiX,
-  FiRefreshCw
+  FiRefreshCw,
+  FiTruck
 } from "react-icons/fi";
 
 const ActiveOrders = () => {
@@ -560,6 +561,13 @@ const ActiveOrders = () => {
                         <FiCheckCircle className="w-4 h-4" />
                       </button>
                     )}
+                    <button 
+                      className="p-2 bg-orange-100 text-orange-600 rounded-lg hover:bg-orange-200 transition-colors"
+                      title="Update Delivery"
+                      onClick={() => navigate(`/tailor/delivery/${order._id}`)}
+                    >
+                      <FiTruck className="w-4 h-4" />
+                    </button>
                     <button 
                       className="p-2 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200 transition-colors"
                       title="Contact Customer"
