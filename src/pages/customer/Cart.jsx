@@ -427,13 +427,19 @@ const Cart = () => {
                 Proceed to Checkout
               </button>
               
-              <button 
-                onClick={proceedToBooking} 
-                className="w-full px-6 py-3 bg-white text-amber-600 border-2 border-amber-600 rounded-lg hover:bg-amber-50 transition-colors font-semibold text-lg flex items-center justify-center"
-              >
-                <FiScissors className="mr-2" />
-                Book with Tailor
-              </button>
+              {/* Only show Book with Tailor if there's a single fabric */}
+              {(() => {
+                const fabricCount = items.filter(item => item.type === 'fabric').length;
+                return fabricCount <= 1;
+              })() && (
+                <button 
+                  onClick={proceedToBooking} 
+                  className="w-full px-6 py-3 bg-white text-amber-600 border-2 border-amber-600 rounded-lg hover:bg-amber-50 transition-colors font-semibold text-lg flex items-center justify-center"
+                >
+                  <FiScissors className="mr-2" />
+                  Book with Tailor
+                </button>
+              )}
             </div>
 
             {/* Continue Shopping */}

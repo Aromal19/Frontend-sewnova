@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
-import { customerAPI, deliveryAPI } from "../../utils/bookingApi";
-import { adminApiService } from "../../services/adminApiService"; // Added import
-import { getCurrentUser } from "../../utils/api"; // Added import
+import { customerAPI } from "../../utils/bookingApi";
+import deliveryService from "../../services/deliveryService"; 
+import { adminApiService } from "../../services/adminApiService"; 
+import { getCurrentUser } from "../../utils/api"; 
 import { 
   FiPackage, 
   FiClock,
@@ -25,7 +26,8 @@ import {
   FiChevronLeft,
   FiChevronRight,
   FiX,
-  FiDownload
+  FiDownload,
+  FiAlertCircle
 } from "react-icons/fi";
 
 const CustomerOrders = () => {
@@ -112,23 +114,37 @@ const CustomerOrders = () => {
         return;
     }
 
+    setSelectedOrder(order);
     setLoadingTracking(true);
     setTrackingError(null);
     setTrackingData(null);
     setShowTrackingModal(true);
 
     try {
-      const data = await deliveryAPI.getTracking(order._id);
+      const data = await deliveryService.getDeliveryTracking(order._id);
       if (data.success) {
-        setTrackingData(data.tracking);
-      } else if (data.notFound) {
-         setTrackingData(null);
+        setTrackingData(data.tracking || data);
       } else {
         setTrackingError(data.message || 'Failed to fetch tracking info');
       }
     } catch (error) {
-      console.error("Error fetching tracking:", error);
-      setTrackingError("Unable to load tracking details.");
+       // If 404, it means delivery record hasn't been created or synced yet.
+       // We treat this as "Preparing for Dispatch".
+       if (error.response && error.response.status === 404) {
+           setTrackingData({
+               status: 'PREPARING',
+               courierName: 'Pending Assignment',
+               trackingId: 'Pending Generation',
+               timeline: [{
+                   status: 'Order Confirmed',
+                   timestamp: order.createdAt,
+                   notes: 'Your order has been placed and is being prepared.'
+               }]
+           });
+       } else {
+           console.error("Error fetching tracking:", error);
+           setTrackingError("Unable to load tracking details. Please try again later.");
+       }
     } finally {
       setLoadingTracking(false);
     }
@@ -626,32 +642,78 @@ const CustomerOrders = () => {
           <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setShowTrackingModal(false)}></div>
             <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div className="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-gray-100">
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <div className="sm:flex sm:items-start">
                   <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 sm:mx-0 sm:h-10 sm:w-10">
                     <FiTruck className="h-6 w-6 text-indigo-600" />
                   </div>
                   <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                    <h3 className="text-lg leading-6 font-medium text-gray-900" id="modal-title">Order Tracking</h3>
+                    <h3 className="text-lg leading-6 font-bold text-gray-900" id="modal-title">
+                        Order Tracking #{selectedOrder?._id.slice(-6)}
+                    </h3>
                     <div className="mt-4">
                       {loadingTracking ? (
                         <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>
                       ) : trackingError ? (
-                        <div className="bg-red-50 p-4 rounded-md text-red-700 text-sm">{trackingError}</div>
+                        <div className="bg-red-50 p-4 rounded-md text-red-700 text-sm flex items-center"><FiAlertCircle className="mr-2"/>{trackingError}</div>
                       ) : !trackingData ? (
-                        <div className="text-center py-8 text-gray-500"><p>Tracking information is not yet available.</p></div>
+                        <div className="text-center py-8 text-gray-500"><p>Tracking information is preparing...</p></div>
                       ) : (
                         <div className="space-y-6">
-                          <div className="bg-gray-50 p-3 rounded-lg"><p className="text-sm text-gray-500">Current Status</p><p className="text-lg font-semibold capitalize text-indigo-700">{trackingData.overallStatus?.replace(/_/g, ' ')}</p></div>
+                            {/* Status Card */}
+                          <div className={`p-4 rounded-lg flex justify-between items-center ${
+                              trackingData.status === 'DELIVERED' ? 'bg-green-50 text-green-700' : 
+                              trackingData.status === 'DISPATCHED' ? 'bg-blue-50 text-blue-700' : 
+                              trackingData.status === 'PREPARING' ? 'bg-yellow-50 text-yellow-700' : 'bg-gray-50 text-gray-600'
+                          }`}>
+                              <div>
+                                <p className="text-xs uppercase tracking-wide opacity-75">Current Status</p>
+                                <p className="text-lg font-bold capitalize">{trackingData.status}</p>
+                              </div>
+                              <FiPackage className="w-8 h-8 opacity-20" />
+                          </div>
+
+                          {/* Details */}
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div>
+                                  <p className="text-gray-500 text-xs">Courier</p>
+                                  <p className="font-medium text-charcoal">{trackingData.courierName || 'Pending'}</p>
+                              </div>
+                              <div>
+                                  <p className="text-gray-500 text-xs">Tracking ID</p>
+                                  <p className="font-medium text-charcoal">{trackingData.trackingId || 'Pending'}</p>
+                              </div>
+                              <div>
+                                  <p className="text-gray-500 text-xs">Dispatched</p>
+                                  <p className="font-medium text-charcoal">{trackingData.dispatchedAt ? new Date(trackingData.dispatchedAt).toLocaleDateString() : '-'}</p>
+                              </div>
+                              <div>
+                                  <p className="text-gray-500 text-xs">Delivered</p>
+                                  <p className="font-medium text-charcoal">{trackingData.deliveredAt ? new Date(trackingData.deliveredAt).toLocaleDateString() : '-'}</p>
+                              </div>
+                          </div>
+
+                          {/* Timeline */}
                           {trackingData.timeline && trackingData.timeline.length > 0 && (
-                              <div className="border-t border-gray-200 pt-4">
-                                  <h4 className="text-sm font-medium text-gray-900 mb-2">Timeline</h4>
-                                  <ul className="space-y-4">
+                              <div className="border-t border-gray-100 pt-4">
+                                  <h4 className="text-sm font-bold text-gray-900 mb-3 flex items-center">
+                                      <FiClock className="mr-2 text-indigo-500"/> Timeline
+                                  </h4>
+                                  <ul className="space-y-4 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
                                       {trackingData.timeline.map((event, i) => (
-                                          <li key={i} className="flex gap-3">
-                                              <div className="mt-1"><FiCheckCircle className="text-indigo-600 w-4 h-4" /></div>
-                                              <div><p className="text-sm font-medium capitalize">{event.status.replace(/_/g, ' ')}</p><p className="text-xs text-gray-500">{new Date(event.timestamp).toLocaleDateString()} {new Date(event.timestamp).toLocaleTimeString()}</p></div>
+                                          <li key={i} className="flex gap-3 relative">
+                                              <div className="mt-1 relative z-10">
+                                                  <FiCheckCircle className="text-indigo-600 w-4 h-4" />
+                                                  {i !== trackingData.timeline.length - 1 && <div className="absolute top-4 left-2 w-0.5 h-full bg-gray-200 -z-10"></div>}
+                                              </div>
+                                              <div>
+                                                  <p className="text-sm font-medium capitalize text-charcoal">{event.status}</p>
+                                                  <p className="text-xs text-gray-500">
+                                                      {new Date(event.timestamp).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                                                  </p>
+                                                  {event.notes && <p className="text-xs text-gray-400 mt-0.5">{event.notes}</p>}
+                                              </div>
                                           </li>
                                       ))}
                                   </ul>
@@ -664,7 +726,20 @@ const CustomerOrders = () => {
                 </div>
               </div>
               <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                <button type="button" className="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:ml-3 sm:w-auto sm:text-sm" onClick={() => setShowTrackingModal(false)}>Close</button>
+                <button 
+                  type="button" 
+                  className="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm" 
+                  onClick={() => setShowTrackingModal(false)}
+                >
+                  Close
+                </button>
+                <button 
+                  type="button" 
+                  className="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                  onClick={() => { setShowTrackingModal(false); navigate(`/customer/tracking?orderId=${selectedOrder._id}`); }}
+                >
+                  Full Details
+                </button>
               </div>
             </div>
           </div>

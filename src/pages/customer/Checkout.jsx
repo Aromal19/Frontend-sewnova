@@ -144,8 +144,32 @@ const Checkout = () => {
   const fabrics = useMemo(() => items.filter((it) => it.type === "fabric"), [items]);
 
   const handleContinue = () => {
-    // Only allow fabric-only purchases here
-    navigate("/customer/bookings", { state: { message: "Fabric order placed (mock)", total: totals.total } });
+    if (choice === "fabric") {
+      // For fabric-only: pass all fabrics to booking flow
+      navigate("/customer/booking-flow", { 
+        state: { 
+          fabrics: fabrics.map(f => ({
+            id: f.id,
+            name: f.name,
+            price: f.price,
+            quantity: f.quantity || 1,
+            image: f.image
+          })),
+          serviceType: 'fabric-only'
+        } 
+      });
+    } else if (choice === "fabric_tailor") {
+      // For fabric + tailoring: only works with single fabric
+      if (fabrics.length === 1) {
+        navigate("/customer/booking-flow", { 
+          state: { 
+            fabricId: fabrics[0].id,
+            serviceType: 'fabric-tailor',
+            quantity: fabrics[0].quantity || 1
+          } 
+        });
+      }
+    }
   };
 
   return (
@@ -203,7 +227,7 @@ const Checkout = () => {
             <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
               <h2 className="text-2xl font-semibold text-gray-900 mb-6">Choose Your Service</h2>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className={`grid grid-cols-1 ${fabrics.length === 1 ? 'md:grid-cols-2' : ''} gap-6`}>
                 <button 
                   onClick={() => setChoice("fabric")} 
                   className={`p-6 border-2 rounded-lg text-left transition-all duration-200 ${
@@ -237,38 +261,63 @@ const Checkout = () => {
                   </div>
                 </button>
                 
-                <button 
-                  onClick={() => setChoice("fabric_tailor")} 
-                  className={`p-6 border-2 rounded-lg text-left transition-all duration-200 ${
-                    choice === "fabric_tailor" 
-                      ? 'border-amber-500 bg-amber-50 shadow-lg' 
-                      : 'border-gray-200 hover:border-gray-300 hover:shadow-md'
-                  }`}
-                >
-                  <div className="flex items-center space-x-4 mb-4">
-                    <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
-                      <FiScissors className="w-6 h-6 text-amber-600" />
+                {/* Only show Fabric + Tailoring option when there's a single fabric */}
+                {fabrics.length === 1 && (
+                  <button 
+                    onClick={() => setChoice("fabric_tailor")} 
+                    className={`p-6 border-2 rounded-lg text-left transition-all duration-200 ${
+                      choice === "fabric_tailor" 
+                        ? 'border-amber-500 bg-amber-50 shadow-lg' 
+                        : 'border-gray-200 hover:border-gray-300 hover:shadow-md'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-4 mb-4">
+                      <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
+                        <FiScissors className="w-6 h-6 text-amber-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-semibold text-gray-900">Fabric + Tailoring</h3>
+                        <p className="text-gray-600">Complete custom tailoring service</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-xl font-semibold text-gray-900">Fabric + Tailoring</h3>
-                      <p className="text-gray-600">Complete custom tailoring service</p>
+                    <div className="space-y-2 text-sm text-gray-600">
+                      <div className="flex items-center">
+                        <FiUser className="w-4 h-4 mr-2 text-green-500" />
+                        <span>Choose your tailor</span>
+                      </div>
+                      <div className="flex items-center">
+                        <FiPackage className="w-4 h-4 mr-2 text-green-500" />
+                        <span>Custom design options</span>
+                      </div>
+                      <div className="flex items-center">
+                        <FiShield className="w-4 h-4 mr-2 text-green-500" />
+                        <span>Professional measurements</span>
+                      </div>
+                    </div>
+                  </button>
+                )}
+                
+                {/* Show info message when multiple fabrics prevent tailoring */}
+                {fabrics.length > 1 && (
+                  <div className="p-6 border-2 border-blue-200 bg-blue-50 rounded-lg">
+                    <div className="flex items-start space-x-3">
+                      <FiShoppingBag className="w-6 h-6 text-blue-600 flex-shrink-0 mt-1" />
+                      <div>
+                        <h3 className="text-lg font-semibold text-blue-900 mb-2">Multiple Fabrics Detected</h3>
+                        <p className="text-sm text-blue-800 mb-3">
+                          You have {fabrics.length} different fabrics in your cart. Tailoring services require a single fabric selection.
+                        </p>
+                        <p className="text-sm text-blue-700">
+                          <strong>Options:</strong>
+                        </p>
+                        <ul className="text-sm text-blue-700 mt-2 space-y-1 ml-4">
+                          <li>• Continue with fabric-only purchase for all items</li>
+                          <li>• Or remove items to select tailoring for one fabric</li>
+                        </ul>
+                      </div>
                     </div>
                   </div>
-                  <div className="space-y-2 text-sm text-gray-600">
-                    <div className="flex items-center">
-                      <FiUser className="w-4 h-4 mr-2 text-green-500" />
-                      <span>Choose your tailor</span>
-                    </div>
-                    <div className="flex items-center">
-                      <FiPackage className="w-4 h-4 mr-2 text-green-500" />
-                      <span>Custom design options</span>
-                    </div>
-                    <div className="flex items-center">
-                      <FiShield className="w-4 h-4 mr-2 text-green-500" />
-                      <span>Professional measurements</span>
-                    </div>
-                  </div>
-                </button>
+                )}
               </div>
             </div>
           </div>

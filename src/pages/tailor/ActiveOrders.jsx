@@ -53,8 +53,8 @@ const ActiveOrders = () => {
     if (user && (user._id || user.id || user.userId)) {
       console.log('✅ User found, loading orders and statistics');
       setCurrentUser(user);
-      loadOrders();
-      loadStatistics();
+      loadOrders(user); // Pass user directly to avoid race condition
+      loadStatistics(user); // Pass user directly to avoid race condition
     } else {
       console.log('❌ No valid user found in localStorage');
       console.log('🔍 Available localStorage keys:', Object.keys(localStorage));
@@ -71,9 +71,9 @@ const ActiveOrders = () => {
     }
   }, []);
 
-  const loadOrders = async () => {
+  const loadOrders = async (user = currentUser) => {
     // Try different ways to get the user ID
-    const userId = currentUser?._id || currentUser?.id || currentUser?.userId;
+    const userId = user?._id || user?.id || user?.userId;
     
     if (!userId) {
       console.log('❌ No current user ID found:', currentUser);
@@ -144,8 +144,8 @@ const ActiveOrders = () => {
     }
   };
 
-  const loadStatistics = async () => {
-    if (!currentUser?._id) return;
+  const loadStatistics = async (user = currentUser) => {
+    if (!user?._id) return;
     
     try {
       const response = await adminApiService.getOrderStatistics();
@@ -153,8 +153,8 @@ const ActiveOrders = () => {
         // Filter statistics to only show current tailor's data
         const tailorStats = {
           ...response.data,
-          totalBookings: response.data.bookingsByTailor?.[currentUser._id] || 0,
-          totalRevenue: response.data.revenueByTailor?.[currentUser._id] || 0,
+          totalBookings: response.data.bookingsByTailor?.[user._id] || 0,
+          totalRevenue: response.data.revenueByTailor?.[user._id] || 0,
           bookingsByStatus: response.data.bookingsByStatus || {}
         };
         setStatistics(tailorStats);
@@ -317,8 +317,8 @@ const ActiveOrders = () => {
                   const user = getCurrentUser();
                   if (user && (user._id || user.id || user.userId)) {
                     setCurrentUser(user);
-                    loadOrders();
-                    loadStatistics();
+                    loadOrders(user); // Pass user directly
+                    loadStatistics(user); // Pass user directly
                   } else {
                     setError('Please log in to view your orders.');
                     setLoading(false);

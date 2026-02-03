@@ -154,9 +154,8 @@ const DeliveryMonitoring = () => {
                   <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Order ID</th>
                   <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Customer</th>
                   <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Type</th>
-                  <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Vendor Status</th>
-                  <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Tailor Status</th>
-                  <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Overall</th>
+                  <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Courier</th>
                   <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Updated</th>
                   <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Actions</th>
                 </tr>
@@ -164,14 +163,14 @@ const DeliveryMonitoring = () => {
               <tbody className="divide-y divide-gray-200">
                 {loading ? (
                   <tr>
-                    <td colSpan="8" className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
                       <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mb-2"></div>
                       <p>Loading data...</p>
                     </td>
                   </tr>
                 ) : deliveries.length === 0 ? (
                   <tr>
-                    <td colSpan="8" className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
                       <FiPackage className="w-12 h-12 mx-auto text-gray-300 mb-2" />
                       <p>No delivery records found matching your filters.</p>
                     </td>
@@ -180,7 +179,7 @@ const DeliveryMonitoring = () => {
                   deliveries.map((delivery) => (
                     <tr key={delivery._id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 text-sm font-medium text-purple-600">
-                        #{delivery.bookingId?._id?.substring(0, 8).toUpperCase() || 'N/A'}
+                        #{delivery.orderId?._id?.substring(0, 8).toUpperCase() || delivery.bookingId?._id?.substring(0, 8).toUpperCase() || 'N/A'}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-700">
                         {delivery.customerId ? (
@@ -191,20 +190,13 @@ const DeliveryMonitoring = () => {
                         ) : 'Unknown'}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-700 capitalize">
-                        {delivery.bookingType}
+                        {delivery.deliveryType || delivery.bookingType}
                       </td>
                       <td className="px-6 py-4 text-sm">
-                        {delivery.bookingType !== 'tailor' ? (
-                          getStatusBadge(delivery.vendorDispatch?.status || 'pending')
-                        ) : (
-                          <span className="text-gray-400 text-xs">-</span>
-                        )}
+                        {getStatusBadge(delivery.status || delivery.overallStatus)}
                       </td>
-                      <td className="px-6 py-4 text-sm">
-                        {getStatusBadge(delivery.tailorDelivery?.status || 'pending')}
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        {getStatusBadge(delivery.overallStatus)}
+                      <td className="px-6 py-4 text-sm text-gray-500">
+                         {delivery.courierName || '-'}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500">
                         <div className="flex items-center">
@@ -290,91 +282,89 @@ const DeliveryMonitoring = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Vendor Section */}
-                {selectedDelivery.bookingType !== 'tailor' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 {/* Shipment Info */}
                   <div className="border border-gray-200 rounded-lg p-4">
                     <h3 className="font-bold text-gray-800 mb-3 flex items-center justify-between">
-                      <span>Vendor Dispatch</span>
-                      {getStatusBadge(selectedDelivery.vendorDispatch?.status || 'pending')}
+                      <span>Shipment Details</span>
+                      {getStatusBadge(selectedDelivery.status)}
                     </h3>
                     <div className="space-y-2 text-sm">
-                      {selectedDelivery.vendorDispatch?.trackingNumber && (
+                      <div className="flex justify-between">
+                          <span className="text-gray-500">Type:</span>
+                          <span className="font-medium capitalize">{selectedDelivery.deliveryType}</span>
+                      </div>
+                      {selectedDelivery.trackingId && (
                         <div className="flex justify-between">
                           <span className="text-gray-500">Tracking:</span>
-                          <span className="font-medium">{selectedDelivery.vendorDispatch.trackingNumber}</span>
+                          <span className="font-medium text-blue-600">{selectedDelivery.trackingId}</span>
                         </div>
                       )}
-                      {selectedDelivery.vendorDispatch?.courierName && (
+                      {selectedDelivery.courierName && (
                         <div className="flex justify-between">
                           <span className="text-gray-500">Courier:</span>
-                          <span className="font-medium">{selectedDelivery.vendorDispatch.courierName}</span>
+                          <span className="font-medium">{selectedDelivery.courierName}</span>
                         </div>
                       )}
-                      {selectedDelivery.vendorDispatch?.estimatedDelivery && (
+                      {selectedDelivery.dispatchedAt && (
                         <div className="flex justify-between">
-                          <span className="text-gray-500">Est. Delivery:</span>
-                          <span className="font-medium">{new Date(selectedDelivery.vendorDispatch.estimatedDelivery).toLocaleDateString()}</span>
+                          <span className="text-gray-500">Dispatched:</span>
+                          <span className="font-medium">{new Date(selectedDelivery.dispatchedAt).toLocaleDateString()}</span>
                         </div>
                       )}
-                      {selectedDelivery.vendorDispatch?.notes && (
-                        <div className="mt-2 text-gray-600 bg-gray-50 p-2 rounded text-xs">
-                          {selectedDelivery.vendorDispatch.notes}
+                       {selectedDelivery.deliveredAt && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Delivered:</span>
+                          <span className="font-medium text-green-600">{new Date(selectedDelivery.deliveredAt).toLocaleDateString()}</span>
                         </div>
                       )}
                     </div>
                   </div>
-                )}
 
-                {/* Tailor Section */}
-                <div className="border border-gray-200 rounded-lg p-4">
-                  <h3 className="font-bold text-gray-800 mb-3 flex items-center justify-between">
-                    <span>Tailor Delivery</span>
-                    {getStatusBadge(selectedDelivery.tailorDelivery?.status || 'pending')}
-                  </h3>
-                  <div className="space-y-2 text-sm">
-                    {selectedDelivery.tailorDelivery?.deliveryMethod && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Method:</span>
-                        <span className="font-medium capitalize">{selectedDelivery.tailorDelivery.deliveryMethod.replace(/_/g, ' ')}</span>
-                      </div>
-                    )}
-                    {selectedDelivery.tailorDelivery?.trackingNumber && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Tracking:</span>
-                        <span className="font-medium">{selectedDelivery.tailorDelivery.trackingNumber}</span>
-                      </div>
-                    )}
-                    {selectedDelivery.tailorDelivery?.courierName && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Courier:</span>
-                        <span className="font-medium">{selectedDelivery.tailorDelivery.courierName}</span>
-                      </div>
-                    )}
-                     {selectedDelivery.tailorDelivery?.notes && (
-                        <div className="mt-2 text-gray-600 bg-gray-50 p-2 rounded text-xs">
-                          {selectedDelivery.tailorDelivery.notes}
+                 {/* Administrative Info */}
+                 <div className="border border-gray-200 rounded-lg p-4">
+                     <h3 className="font-bold text-gray-800 mb-3">System Details</h3>
+                     <div className="space-y-2 text-sm">
+                         <div className="flex justify-between">
+                          <span className="text-gray-500">Locked:</span>
+                          <span className={`font-medium ${selectedDelivery.isLocked ? 'text-red-500' : 'text-green-500'}`}>
+                              {selectedDelivery.isLocked ? 'Yes' : 'No'}
+                          </span>
                         </div>
-                      )}
-                  </div>
-                </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Last Update:</span>
+                          <span className="font-medium">{new Date(selectedDelivery.updatedAt).toLocaleString()}</span>
+                        </div>
+                        {selectedDelivery.adminOverrides && selectedDelivery.adminOverrides.length > 0 && (
+                            <div className="mt-2 bg-yellow-50 p-2 rounded border border-yellow-100">
+                                <span className="text-yellow-800 text-xs font-bold block mb-1">Admin Interventions:</span>
+                                {selectedDelivery.adminOverrides.map((ov, i) => (
+                                    <p key={i} className="text-xs text-yellow-700">- {ov.action} ({new Date(ov.timestamp).toLocaleDateString()})</p>
+                                ))}
+                            </div>
+                        )}
+                     </div>
+                 </div>
               </div>
               
               {/* Timeline */}
               <div>
-                 <h3 className="text-sm font-bold text-gray-700 uppercase mb-3">Recent Status History</h3>
+                 <h3 className="text-sm font-bold text-gray-700 uppercase mb-3">Status History</h3>
                  <div className="space-y-3">
                    {selectedDelivery.statusHistory && selectedDelivery.statusHistory.length > 0 ? (
-                     selectedDelivery.statusHistory.slice(0, 5).map((history, idx) => (
+                     selectedDelivery.statusHistory.slice().reverse().map((history, idx) => (
                        <div key={idx} className="flex items-start text-sm">
-                         <div className="mt-1 mr-3 w-2 h-2 rounded-full bg-purple-500 flex-shrink-0"></div>
+                         <div className={`mt-1 mr-3 w-2 h-2 rounded-full flex-shrink-0 ${
+                             history.status === 'DELIVERED' ? 'bg-green-500' : 
+                             history.status === 'DISPATCHED' ? 'bg-blue-500' : 'bg-gray-400'
+                         }`}></div>
                          <div>
                            <p className="font-medium text-gray-800 capitalize">
-                             {history.status.replace(/_/g, ' ')} 
-                             <span className="text-gray-400 font-normal ml-2 text-xs">({history.phase?.replace(/_/g, ' ') || 'update'})</span>
+                             {history.status} 
                            </p>
                            <p className="text-xs text-gray-500">{new Date(history.timestamp).toLocaleString()}</p>
                            {history.notes && <p className="text-xs text-gray-600 italic mt-1">"{history.notes}"</p>}
+                           {history.updatedBy && <p className="text-xs text-gray-400 mt-0.5">By: {history.updatedBy}</p>}
                          </div>
                        </div>
                      ))

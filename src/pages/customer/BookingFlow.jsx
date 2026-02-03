@@ -151,7 +151,7 @@ const BookingFlow = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const { state: bookingState, setServiceType, setCurrentStep: setFlowStep, setSelectedFabric: setCtxSelectedFabric } = useBooking();
-  const { items } = useCart();
+  const { items, clearCart } = useCart();
 
   // Booking data state
   const [bookingData, setBookingData] = useState({
@@ -210,22 +210,93 @@ const BookingFlow = () => {
   // Add localStorage persistence
   useEffect(() => {
     // Save to localStorage whenever bookingData changes
-    localStorage.setItem('bookingData', JSON.stringify(bookingData));
-  }, [bookingData]);
+    // But don't save if we just loaded from location.state
+    if (!location.state) {
+      localStorage.setItem('bookingData', JSON.stringify(bookingData));
+    }
+  }, [bookingData, location.state]);
 
-  // Load from localStorage on component mount
+  // Initialize from location.state (from checkout page) - PRIORITY
   useEffect(() => {
-    const savedBookingData = localStorage.getItem('bookingData');
-    if (savedBookingData) {
-      try {
-        const parsedData = JSON.parse(savedBookingData);
-        console.log('🔄 Restoring booking data from localStorage:', parsedData);
-        setBookingData(parsedData);
-      } catch (error) {
-        console.error('❌ Error parsing saved booking data:', error);
+    if (location.state) {
+      console.log('📍 Received location state:', location.state);
+      
+      // Clear old localStorage when new data arrives from checkout
+      localStorage.removeItem('bookingData');
+      
+      // Handle multiple fabrics from checkout
+      if (location.state.fabrics && Array.isArray(location.state.fabrics)) {
+        console.log('🛍️ Multiple fabrics detected:', location.state.fabrics);
+        
+        // Calculate total fabric cost
+        const totalFabricCost = location.state.fabrics.reduce((sum, fabric) => {
+          return sum + (fabric.price * fabric.quantity);
+        }, 0);
+        
+        // Auto-select fabric-only for multiple fabrics and skip Review Cart step
+        const isMultipleFabrics = location.state.fabrics.length > 1;
+        
+        setBookingData(prev => ({
+          ...prev,
+          selectedFabrics: location.state.fabrics,
+          serviceType: 'fabric-only', // Auto-select fabric-only
+          fabricCost: totalFabricCost,
+          quantity: location.state.fabrics.reduce((sum, f) => sum + f.quantity, 0)
+        }));
+        
+        // Skip Review Cart step if multiple fabrics - go directly to step 2
+        if (isMultipleFabrics) {
+          console.log('⏭️ Skipping Review Cart step for multiple fabrics');
+          setCurrentStep(2); // Skip to next step (Delivery Address)
+        }
+        
+        // Set first fabric as selected for display purposes
+        if (location.state.fabrics.length > 0) {
+          // Fetch full fabric details for the first one
+          const fetchFabricDetails = async () => {
+            try {
+              const response = await apiCall('ADMIN_SERVICE', `/api/fabrics/${location.state.fabrics[0].id}`);
+              if (response?.success && response?.fabric) {
+                setSelectedFabric(response.fabric);
+              }
+            } catch (error) {
+              console.error('Error fetching fabric details:', error);
+            }
+          };
+          fetchFabricDetails();
+        }
+      }
+      // Handle single fabric (legacy support)
+      else if (location.state.fabricId) {
+        setBookingData(prev => ({
+          ...prev,
+          fabricId: location.state.fabricId,
+          serviceType: location.state.serviceType,
+          quantity: location.state.quantity || 1
+        }));
+      }
+      // Handle service type
+      else if (location.state.serviceType) {
+        setBookingData(prev => ({
+          ...prev,
+          serviceType: location.state.serviceType
+        }));
       }
     }
-  }, []);
+    // Only load from localStorage if there's NO location.state
+    else {
+      const savedBookingData = localStorage.getItem('bookingData');
+      if (savedBookingData) {
+        try {
+          const parsedData = JSON.parse(savedBookingData);
+          console.log('🔄 Restoring booking data from localStorage:', parsedData);
+          setBookingData(parsedData);
+        } catch (error) {
+          console.error('❌ Error parsing saved booking data:', error);
+        }
+      }
+    }
+  }, [location.state]);
 
   const loadScript = (src) => {
     return new Promise((resolve) => {
@@ -371,6 +442,11 @@ const BookingFlow = () => {
                   
                   // Clear booking cache AFTER successful save
                   clearBookingCache();
+                  
+                  // Clear cart items since order is complete
+                  console.log('🛒 Clearing cart after successful order');
+                  clearCart();
+                  
                   // Dispatch custom event to notify other components
                   window.dispatchEvent(new CustomEvent('bookingCacheCleared'));
                   
@@ -631,8 +707,144 @@ const BookingFlow = () => {
     }
   };
 
-  const handleNext = () => {
+  // Helper to normalize measurement field names for backend API
+  const normalizeMeasurements = (measurements) => {
+    const normalized = {};
+    const fieldMapping = {
+      'shoulder_width': 'shoulder',
+      'sleeve_length': 'sleeve',
+      'body_length': 'length',
+      'kurta_length': 'length',
+      'shirt_length': 'length'
+    };
+    
+    for (const [key, value] of Object.entries(measurements)) {
+      const normalizedKey = fieldMapping[key] || key;
+      normalized[normalizedKey] = value;
+    }
+    
+    return normalized;
+  };
+
+  // Helper to fetch fabric estimate
+  const fetchFabricEstimate = async (measurementsObj, garmentTypeOverride = null) => {
+    // Use override if provided, otherwise fall back to bookingData
+    const garmentType = garmentTypeOverride || bookingData.garmentType;
+    
+    // Only estimate if we have a valid garment type and measurements
+    if (!garmentType || garmentType === 'other' || !measurementsObj) {
+        console.log("⚠️ Skipping fabric estimation:", { garmentType, hasMeasurements: !!measurementsObj });
+        return;
+    }
+
+    try {
+        setLoading(true);
+        
+        // Normalize measurement field names
+        const normalizedMeasurements = normalizeMeasurements(measurementsObj);
+        console.log("🔍 Fetching fabric estimate for:", garmentType, normalizedMeasurements);
+        
+        const res = await apiCall("ADMIN_SERVICE", "/api/fabric/estimate", {
+            method: "POST",
+            body: { 
+                garmentType: garmentType, 
+                measurements: normalizedMeasurements 
+            }
+        });
+
+        if (res && res.finalMeters) {
+            console.log("✅ Fabric Estimate Received:", res);
+            setBookingData(prev => ({
+                ...prev,
+                quantity: res.finalMeters,
+                estimationDetails: res // Store full details for UI
+            }));
+            
+            // Optional: User feedback
+            Swal.fire({
+                icon: 'info',
+                title: 'Fabric Requirement Updated',
+                text: `Based on your measurements, you need ${res.finalMeters} meters.`,
+                timer: 2000,
+                showConfirmButton: false
+            });
+        } else {
+            console.warn("⚠️ API response missing finalMeters:", res);
+        }
+    } catch (error) {
+        console.error("❌ Fabric estimation failed:", error);
+        // Fail silently or fallback to default? 
+        // We'll just log it for now so flow isn't blocked.
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  const handleNext = async () => {
     if (currentStep < steps.length) {
+      const currentStepTitle = steps[currentStep - 1]?.title;
+      
+      // Validation before moving to next step
+      if (currentStepTitle === "Review Cart") {
+        if (!selectedFabric) {
+          Swal.fire({
+            icon: 'warning',
+            title: 'No Fabric Selected',
+            text: 'Please select a fabric before proceeding.',
+            confirmButtonText: 'OK'
+          });
+          return;
+        }
+        if (!bookingData.serviceType) {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Service Type Required',
+            text: 'Please choose whether you want fabric only or fabric with tailoring.',
+            confirmButtonText: 'OK'
+          });
+          return;
+        }
+      }
+      
+      // Address validation for fabric-only flow
+      if (currentStepTitle === "Delivery Address") {
+        if (!bookingData.addressId && !bookingData.deliveryAddress?._id) {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Address Required',
+            text: 'Please select a delivery address before proceeding.',
+            confirmButtonText: 'OK'
+          });
+          return;
+        }
+      }
+      
+      // IMPORTANT: Only trigger fabric estimation for fabric-tailor flow, NOT fabric-only
+      // Fabric-only is a quantity-and-payment flow, not a measurement or estimation flow
+      if (currentStepTitle === "Measurements" && 
+          bookingData.serviceType === 'fabric-tailor' && 
+          bookingData.garmentType && 
+          bookingData.garmentType !== 'other') {
+        console.log("🚀 Leaving Measurements step (fabric-tailor flow), triggering fabric estimation...");
+        
+        // Get measurements from either customMeasurements or find the selected measurement
+        let measurementsToUse = bookingData.customMeasurements;
+        
+        if (!measurementsToUse || Object.keys(measurementsToUse).length === 0) {
+          // Try to find the selected measurement from the list
+          const selectedMeasurement = measurements.find(m => m._id === bookingData.measurementId);
+          if (selectedMeasurement && selectedMeasurement.measurements) {
+            measurementsToUse = selectedMeasurement.measurements;
+          }
+        }
+        
+        if (measurementsToUse && Object.keys(measurementsToUse).length > 0) {
+          await fetchFabricEstimate(measurementsToUse, bookingData.garmentType);
+        } else {
+          console.warn("⚠️ No measurements found to estimate fabric");
+        }
+      }
+      
       setCurrentStep(currentStep + 1);
       saveBookingProgress();
     }
@@ -653,24 +865,36 @@ const BookingFlow = () => {
       errors.push('Service type is required');
     }
     
+    // Tailor is only required for fabric-tailor flow
     if (bookingData.serviceType === 'fabric-tailor' && !bookingData.tailorId) {
       errors.push('Tailor selection is required');
     }
     
-    if (!bookingData.measurementId && (!bookingData.customMeasurements || Object.keys(bookingData.customMeasurements).length === 0)) {
+    // Measurements are only required for fabric-tailor flow
+    if (bookingData.serviceType === 'fabric-tailor' && 
+        !bookingData.measurementId && 
+        (!bookingData.customMeasurements || Object.keys(bookingData.customMeasurements).length === 0)) {
       errors.push('Measurements are required');
     }
     
+    // Address is always required
     if (!bookingData.addressId && !bookingData.deliveryAddress?._id) {
       errors.push('Delivery address is required');
     }
     
-    if (!bookingData.garmentType) {
+    // Garment type is only required for fabric-tailor flow
+    if (bookingData.serviceType === 'fabric-tailor' && !bookingData.garmentType) {
       errors.push('Garment type is required');
     }
     
-    if (bookingData.quantity <= 0) {
+    // Quantity must always be at least 1
+    if (!bookingData.quantity || bookingData.quantity <= 0) {
       errors.push('Quantity must be greater than 0');
+    }
+    
+    // Fabric must be selected
+    if (!bookingData.fabricId) {
+      errors.push('Fabric selection is required');
     }
     
     return {
@@ -687,17 +911,85 @@ const BookingFlow = () => {
       // Import BookingService
       const { default: BookingService } = await import('../../services/bookingService');
       
-      // Prepare booking data for API
+      // Determine booking type
+      const isFabricOnly = bookingDataToSave.serviceType === 'fabric-only';
+      
+      // Check if we have multiple fabrics
+      const hasMultipleFabrics = bookingDataToSave.selectedFabrics && bookingDataToSave.selectedFabrics.length > 1;
+      
+      if (hasMultipleFabrics) {
+        console.log(`📦 Creating ${bookingDataToSave.selectedFabrics.length} separate bookings for multiple fabrics`);
+        
+        // Calculate total fabric cost for proportional pricing
+        const totalFabricCost = bookingDataToSave.selectedFabrics.reduce((sum, fabric) => 
+          sum + (fabric.price * fabric.quantity), 0
+        );
+        
+        // Create a booking for each fabric
+        const bookingPromises = bookingDataToSave.selectedFabrics.map(async (fabric, index) => {
+          const fabricCost = fabric.price * fabric.quantity;
+          // Calculate proportional share of total payment
+          const proportionalPayment = Math.round((fabricCost / totalFabricCost) * (bookingDataToSave.advanceAmount || bookingDataToSave.totalCost || 0));
+          
+          const fabricBookingData = {
+            bookingType: 'fabric',
+            tailorId: null,
+            fabricId: fabric.id,
+            addressId: bookingDataToSave.addressId,
+            orderDetails: {
+              garmentType: 'other',
+              quantity: fabric.quantity,
+              designDescription: `Fabric ${index + 1} of ${bookingDataToSave.selectedFabrics.length}`,
+              specialInstructions: bookingDataToSave.notes || '',
+              deliveryDate: bookingDataToSave.preferredDate ? new Date(bookingDataToSave.preferredDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+            },
+            pricing: {
+              fabricCost: fabricCost,
+              tailoringCost: 0,
+              additionalCharges: 0,
+              totalAmount: fabricCost,
+              advanceAmount: proportionalPayment,
+              remainingAmount: fabricCost - proportionalPayment
+            },
+            payment: {
+              status: 'paid',
+              method: 'razorpay',
+              paidAmount: proportionalPayment,
+              paidAt: new Date()
+            }
+          };
+          
+          console.log(`📦 Creating booking ${index + 1}/${bookingDataToSave.selectedFabrics.length} for fabric:`, fabric.name);
+          return await BookingService.createBooking(fabricBookingData);
+        });
+        
+        // Wait for all bookings to complete
+        const responses = await Promise.all(bookingPromises);
+        console.log(`✅ All ${responses.length} bookings saved successfully`);
+        return { success: true, bookings: responses };
+      }
+      
+      // Single fabric booking (original logic)
+      
+      // Ensure we have a valid fabricId
+      const finalFabricId = bookingDataToSave.fabricId || 
+                           (bookingDataToSave.selectedFabrics && bookingDataToSave.selectedFabrics.length > 0 
+                            ? (bookingDataToSave.selectedFabrics[0].id || bookingDataToSave.selectedFabrics[0]._id) 
+                            : null);
+
       const apiBookingData = {
-        bookingType: bookingDataToSave.serviceType === 'fabric-only' ? 'fabric' : 
+        bookingType: isFabricOnly ? 'fabric' : 
                     bookingDataToSave.serviceType === 'fabric-tailor' ? 'complete' : 'tailor',
-        tailorId: bookingDataToSave.tailorId,
-        fabricId: bookingDataToSave.fabricId,
-        measurementId: bookingDataToSave.measurementId,
-        measurementSnapshot: bookingDataToSave.customMeasurements,
+        tailorId: isFabricOnly ? null : bookingDataToSave.tailorId,
+        fabricId: finalFabricId,
+        // Only include measurements for fabric-tailor orders
+        ...(isFabricOnly ? {} : {
+          measurementId: bookingDataToSave.measurementId,
+          measurementSnapshot: bookingDataToSave.customMeasurements
+        }),
         addressId: bookingDataToSave.addressId,
         orderDetails: {
-          garmentType: bookingDataToSave.garmentType,
+          garmentType: bookingDataToSave.garmentType || 'other',
           quantity: bookingDataToSave.quantity,
           designDescription: bookingDataToSave.designInstructions,
           specialInstructions: bookingDataToSave.notes,
@@ -705,12 +997,13 @@ const BookingFlow = () => {
         },
         pricing: {
           fabricCost: bookingDataToSave.fabricCost || 0,
-          tailoringCost: bookingDataToSave.tailoringCost || 0,
+          tailoringCost: isFabricOnly ? 0 : (bookingDataToSave.tailoringCost || 0),
           additionalCharges: 0,
           totalAmount: bookingDataToSave.totalCost || 0,
           advanceAmount: bookingDataToSave.advanceAmount || 0,
           remainingAmount: (bookingDataToSave.totalCost || 0) - (bookingDataToSave.advanceAmount || 0)
         },
+        // IMPORTANT: Populate sellerId if implicit from fabric (though backend should handle it too)
         payment: {
           status: 'paid',
           method: 'razorpay',
@@ -907,7 +1200,7 @@ const BookingFlow = () => {
                     <h3 className="font-semibold text-lg text-gray-900 mb-2">{fabric.name}</h3>
                     <p className="text-gray-600 text-sm mb-2">Color: {fabric.color}</p>
                     <p className="text-gray-600 text-sm mb-2">Category: {fabric.category}</p>
-                    <p className="text-gray-600 text-sm mb-3">Seller: {fabric.seller}</p>
+                    <p className="text-gray-600 text-sm mb-3">Seller: {typeof fabric.seller === 'object' ? (fabric.seller?.businessName || fabric.seller?.name || 'Unknown') : fabric.seller}</p>
                     <div className="flex justify-between items-center">
                       <span className="text-2xl font-bold text-amber-600">₹{fabric.price}</span>
                       {bookingData.fabricId === fabric._id && (
@@ -926,136 +1219,317 @@ const BookingFlow = () => {
         return (
           <div className="space-y-6">
             <div className="text-center">
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">Review Your Cart</h2>
-              <p className="text-gray-600">Review your fabric selection and choose your service type</p>
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">Review Your Selection</h2>
+              <p className="text-gray-600">Confirm your fabric and choose your service type</p>
             </div>
             
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-xl font-semibold mb-4">Selected Fabrics</h3>
-              {selectedFabric ? (
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center space-x-4">
-                    <img
-                      src={(Array.isArray(selectedFabric.images) && (selectedFabric.images[0]?.url || selectedFabric.images[0])) || selectedFabric.image || '/placeholder-fabric.jpg'}
-                      alt={selectedFabric.name}
-                      className="w-16 h-16 object-cover rounded"
-                    />
-                    <div>
-                      <h4 className="font-medium">{selectedFabric.name}</h4>
-                      <p className="text-gray-600 text-sm">{selectedFabric.color} • {selectedFabric.category}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => {
-                          if (bookingData.quantity > 1) {
-                            setBookingData(prev => ({ ...prev, quantity: prev.quantity - 1 }));
-                          }
-                        }}
-                        className="p-1 rounded-full hover:bg-gray-100"
-                      >
-                        <FiMinus className="h-4 w-4" />
-                      </button>
-                      <span className="min-w-[3rem] text-center">{bookingData.quantity} m</span>
-                      <button
-                        onClick={() => setBookingData(prev => ({ ...prev, quantity: prev.quantity + 1 }))}
-                        className="p-1 rounded-full hover:bg-gray-100"
-                      >
-                        <FiPlus className="h-4 w-4" />
-                      </button>
-                    </div>
-                    <span className="font-semibold">₹{(selectedFabric.price || 0) * (bookingData.quantity || 1)}</span>
-                  </div>
-                </div>
-              ) : bookingData.selectedFabrics.length === 0 ? (
-                <p className="text-gray-500">No fabrics selected</p>
-              ) : (
-                <div className="space-y-4">
+            {/* Enhanced Fabric Card */}
+            <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-amber-100">
+              <div className="flex items-start justify-between mb-4">
+                <h3 className="text-xl font-semibold text-gray-900">
+                  {bookingData.selectedFabrics && bookingData.selectedFabrics.length > 1 
+                    ? `Selected Fabrics (${bookingData.selectedFabrics.length})` 
+                    : 'Selected Fabric'}
+                </h3>
+                {(selectedFabric || (bookingData.selectedFabrics && bookingData.selectedFabrics.length > 0)) && (
+                  <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium flex items-center">
+                    <FiCheck className="mr-1 h-4 w-4" /> Confirmed
+                  </span>
+                )}
+              </div>
+              
+              {/* Display Multiple Fabrics from Checkout */}
+              {bookingData.selectedFabrics && bookingData.selectedFabrics.length > 0 ? (
+                <div className="space-y-6">
+                  {/* Multiple Fabrics List */}
                   {bookingData.selectedFabrics.map((fabric, index) => (
-                    <div key={fabric._id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <img
-                          src={(Array.isArray(fabric.images) && (fabric.images[0]?.url || fabric.images[0])) || fabric.image || '/placeholder-fabric.jpg'}
-                          alt={fabric.name}
-                          className="w-16 h-16 object-cover rounded"
-                        />
-                        <div>
-                          <h4 className="font-medium">{fabric.name}</h4>
-                          <p className="text-gray-600 text-sm">{fabric.color} • {fabric.category}</p>
+                    <div key={index} className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-lg p-6 border border-amber-200">
+                      <div className="flex flex-col md:flex-row gap-6">
+                        {/* Fabric Image */}
+                        <div className="flex-shrink-0">
+                          <img
+                            src={fabric.image || '/placeholder-fabric.jpg'}
+                            alt={fabric.name}
+                            className="w-full md:w-32 h-32 object-cover rounded-lg shadow-md border-2 border-white"
+                          />
                         </div>
-                      </div>
-                      <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => {
-                              if (fabric.quantity > 1) {
-                                const updatedFabrics = [...bookingData.selectedFabrics];
-                                updatedFabrics[index].quantity -= 1;
-                                setBookingData(prev => ({ ...prev, selectedFabrics: updatedFabrics }));
-                              }
-                            }}
-                            className="p-1 rounded-full hover:bg-gray-100"
-                          >
-                            <FiMinus className="h-4 w-4" />
-                          </button>
-                          <span className="min-w-[3rem] text-center">{fabric.quantity} m</span>
-                          <button
-                            onClick={() => {
-                              const updatedFabrics = [...bookingData.selectedFabrics];
-                              updatedFabrics[index].quantity += 1;
-                              setBookingData(prev => ({ ...prev, selectedFabrics: updatedFabrics }));
-                            }}
-                            className="p-1 rounded-full hover:bg-gray-100"
-                          >
-                            <FiPlus className="h-4 w-4" />
-                          </button>
+                        
+                        {/* Fabric Info */}
+                        <div className="flex-1 space-y-3">
+                          <div>
+                            <h4 className="text-xl font-bold text-gray-900">{fabric.name}</h4>
+                            <div className="flex items-center gap-4 mt-2">
+                              <span className="text-lg font-semibold text-amber-600">₹{fabric.price}</span>
+                              <span className="text-gray-600">per meter</span>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center justify-between bg-white rounded-lg p-4 border border-amber-200">
+                            <div>
+                              <div className="text-sm text-gray-600">Quantity</div>
+                              <div className="text-2xl font-bold text-gray-900">{fabric.quantity} <span className="text-lg text-gray-600">meters</span></div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-sm text-gray-600">Subtotal</div>
+                              <div className="text-2xl font-bold text-amber-600">₹{(fabric.price * fabric.quantity).toLocaleString()}</div>
+                            </div>
+                          </div>
                         </div>
-                        <span className="font-semibold">₹{fabric.price * fabric.quantity}</span>
                       </div>
                     </div>
                   ))}
+                  
+                  {/* Total Cost Display */}
+                  <div className="bg-white rounded-lg p-6 border-2 border-amber-300">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm text-gray-600 mb-1">Total Fabrics</div>
+                        <div className="text-2xl font-bold text-gray-900">{bookingData.selectedFabrics.reduce((sum, f) => sum + f.quantity, 0)} <span className="text-lg text-gray-600">meters</span></div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm text-gray-600 mb-1">Total Fabric Cost</div>
+                        <div className="text-3xl font-bold text-amber-600">
+                          ₹{bookingData.selectedFabrics.reduce((sum, f) => sum + (f.price * f.quantity), 0).toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : selectedFabric ? (
+                <div className="space-y-6">
+                  {/* Single Fabric Display (existing code) */}
+                  <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-lg p-6 border border-amber-200">
+                    <div className="flex flex-col md:flex-row gap-6">
+                      {/* Fabric Image */}
+                      <div className="flex-shrink-0">
+                        <img
+                          src={(Array.isArray(selectedFabric.images) && (selectedFabric.images[0]?.url || selectedFabric.images[0])) || selectedFabric.image || '/placeholder-fabric.jpg'}
+                          alt={selectedFabric.name}
+                          className="w-full md:w-40 h-40 object-cover rounded-lg shadow-md border-2 border-white"
+                        />
+                      </div>
+                      
+                      {/* Fabric Info */}
+                      <div className="flex-1 space-y-3">
+                        <div>
+                          <h4 className="text-2xl font-bold text-gray-900">{selectedFabric.name}</h4>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            <span className="bg-white px-3 py-1 rounded-full text-sm font-medium text-gray-700 border border-gray-200">
+                              {selectedFabric.color}
+                            </span>
+                            <span className="bg-white px-3 py-1 rounded-full text-sm font-medium text-gray-700 border border-gray-200">
+                              {selectedFabric.category}
+                            </span>
+                            {selectedFabric.seller && (
+                              <span className="bg-white px-3 py-1 rounded-full text-sm font-medium text-gray-700 border border-gray-200">
+                                By {typeof selectedFabric.seller === 'object' ? (selectedFabric.seller?.businessName || selectedFabric.seller?.name || 'Unknown') : selectedFabric.seller}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="bg-white rounded-lg p-4 border border-amber-200">
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-3xl font-bold text-amber-600">₹{selectedFabric.price}</span>
+                            <span className="text-gray-600 font-medium">per meter</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Quantity Controls - Prominent Design */}
+                  <div className="bg-white rounded-lg p-6 border-2 border-gray-200">
+                    <label className="block text-lg font-semibold text-gray-900 mb-4">
+                      Meters of Fabric Required
+                    </label>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        {/* Decrease Button */}
+                        <button
+                          onClick={() => {
+                            if (bookingData.quantity > 1) {
+                              setBookingData(prev => ({ ...prev, quantity: prev.quantity - 1 }));
+                            }
+                          }}
+                          disabled={bookingData.quantity <= 1}
+                          className={`w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-2xl transition-all duration-200 shadow-lg ${
+                            bookingData.quantity <= 1
+                              ? 'bg-gray-300 cursor-not-allowed'
+                              : 'bg-red-500 hover:bg-red-600 active:scale-95'
+                          }`}
+                          aria-label="Decrease quantity"
+                        >
+                          <FiMinus className="h-6 w-6" />
+                        </button>
+                        
+                        {/* Quantity Display */}
+                        <div className="bg-gradient-to-br from-amber-100 to-orange-100 px-8 py-4 rounded-lg border-2 border-amber-300 min-w-[140px] text-center">
+                          <div className="text-4xl font-bold text-gray-900">{bookingData.quantity}</div>
+                          <div className="text-sm font-medium text-gray-600 mt-1">meters</div>
+                        </div>
+                        
+                        {/* Increase Button */}
+                        <button
+                          onClick={() => setBookingData(prev => ({ ...prev, quantity: prev.quantity + 1 }))}
+                          className="w-14 h-14 rounded-full bg-green-500 hover:bg-green-600 active:scale-95 flex items-center justify-center text-white font-bold text-2xl transition-all duration-200 shadow-lg"
+                          aria-label="Increase quantity"
+                        >
+                          <FiPlus className="h-6 w-6" />
+                        </button>
+                      </div>
+                      
+                      {/* Real-time Price Calculation */}
+                      <div className="text-right">
+                        <div className="text-sm text-gray-600 mb-1">Total Fabric Cost</div>
+                        <div className="text-3xl font-bold text-amber-600">
+                          ₹{((selectedFabric.price || 0) * (bookingData.quantity || 1)).toLocaleString()}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {selectedFabric.price} × {bookingData.quantity} meters
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Minimum quantity note */}
+                    <p className="text-sm text-gray-500 mt-4 flex items-center">
+                      <FiShield className="mr-2 h-4 w-4" />
+                      Minimum order: 1 meter
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <FiShoppingBag className="mx-auto h-16 w-16 text-gray-300 mb-4" />
+                  <p className="text-gray-500 text-lg">No fabric selected</p>
+                  <button
+                    onClick={() => setCurrentStep(1)}
+                    className="mt-4 text-amber-600 hover:text-amber-700 font-medium"
+                  >
+                    Go back to select fabric
+                  </button>
                 </div>
               )}
             </div>
 
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-xl font-semibold mb-4">Choose Service Type</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Service Type Selection - Enhanced */}
+            <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-gray-100">
+              <h3 className="text-xl font-semibold mb-2 text-gray-900">Choose Your Service</h3>
+              <p className="text-gray-600 mb-6">Select whether you want fabric only or with tailoring services</p>
+              
+              <div className={`grid grid-cols-1 ${bookingData.selectedFabrics && bookingData.selectedFabrics.length > 1 ? '' : 'md:grid-cols-2'} gap-6`}>
+                {/* Fabric Only Option */}
                 <button
                   onClick={() => setBookingData(prev => ({ ...prev, serviceType: 'fabric-only' }))}
-                  className={`p-6 border-2 rounded-lg text-left transition-all duration-200 ${
+                  className={`relative p-6 border-3 rounded-xl text-left transition-all duration-300 transform hover:scale-105 ${
                     bookingData.serviceType === 'fabric-only'
-                      ? 'border-amber-500 bg-amber-50'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-amber-500 bg-gradient-to-br from-amber-50 to-orange-50 shadow-xl'
+                      : 'border-gray-200 hover:border-amber-300 hover:shadow-lg'
                   }`}
                 >
-                  <div className="flex items-center space-x-3">
-                    <FiShoppingBag className="h-8 w-8 text-amber-600" />
-                    <div>
-                      <h4 className="font-semibold text-lg">Fabric Only</h4>
-                      <p className="text-gray-600">Just the fabrics, no tailoring</p>
+                  {bookingData.serviceType === 'fabric-only' && (
+                    <div className="absolute top-3 right-3 bg-amber-500 text-white rounded-full p-1">
+                      <FiCheck className="h-5 w-5" />
+                    </div>
+                  )}
+                  <div className="flex items-start space-x-4">
+                    <div className={`p-3 rounded-lg ${
+                      bookingData.serviceType === 'fabric-only' ? 'bg-amber-100' : 'bg-gray-100'
+                    }`}>
+                      <FiShoppingBag className="h-8 w-8 text-amber-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-bold text-xl mb-2 text-gray-900">Fabric Only</h4>
+                      <p className="text-gray-600 text-sm mb-3">Purchase fabric without tailoring services</p>
+                      <ul className="space-y-1 text-sm text-gray-600">
+                        <li className="flex items-center">
+                          <FiCheck className="mr-2 h-4 w-4 text-green-500" />
+                          Quick delivery
+                        </li>
+                        <li className="flex items-center">
+                          <FiCheck className="mr-2 h-4 w-4 text-green-500" />
+                          No measurements needed
+                        </li>
+                        <li className="flex items-center">
+                          <FiCheck className="mr-2 h-4 w-4 text-green-500" />
+                          Lower cost
+                        </li>
+                      </ul>
                     </div>
                   </div>
                 </button>
                 
-                <button
-                  onClick={() => setBookingData(prev => ({ ...prev, serviceType: 'fabric-tailor' }))}
-                  className={`p-6 border-2 rounded-lg text-left transition-all duration-200 ${
-                    bookingData.serviceType === 'fabric-tailor'
-                      ? 'border-amber-500 bg-amber-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-center space-x-3">
-                    <FiScissors className="h-8 w-8 text-amber-600" />
-                    <div>
-                      <h4 className="font-semibold text-lg">Fabric + Tailoring</h4>
-                      <p className="text-gray-600">Fabrics with custom tailoring</p>
+                {/* Fabric + Tailoring Option - Only show for single fabric */}
+                {(!bookingData.selectedFabrics || bookingData.selectedFabrics.length <= 1) && (
+                  <button
+                    onClick={() => setBookingData(prev => ({ ...prev, serviceType: 'fabric-tailor' }))}
+                    className={`relative p-6 border-3 rounded-xl text-left transition-all duration-300 transform hover:scale-105 ${
+                      bookingData.serviceType === 'fabric-tailor'
+                        ? 'border-amber-500 bg-gradient-to-br from-amber-50 to-orange-50 shadow-xl'
+                        : 'border-gray-200 hover:border-amber-300 hover:shadow-lg'
+                    }`}
+                  >
+                    {bookingData.serviceType === 'fabric-tailor' && (
+                      <div className="absolute top-3 right-3 bg-amber-500 text-white rounded-full p-1">
+                        <FiCheck className="h-5 w-5" />
+                      </div>
+                    )}
+                    <div className="flex items-start space-x-4">
+                      <div className={`p-3 rounded-lg ${
+                        bookingData.serviceType === 'fabric-tailor' ? 'bg-amber-100' : 'bg-gray-100'
+                      }`}>
+                        <FiScissors className="h-8 w-8 text-amber-600" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-bold text-xl mb-2 text-gray-900">Fabric + Tailoring</h4>
+                        <p className="text-gray-600 text-sm mb-3">Get custom tailoring with your fabric</p>
+                        <ul className="space-y-1 text-sm text-gray-600">
+                          <li className="flex items-center">
+                            <FiCheck className="mr-2 h-4 w-4 text-green-500" />
+                            Custom design options
+                          </li>
+                          <li className="flex items-center">
+                            <FiCheck className="mr-2 h-4 w-4 text-green-500" />
+                            Expert tailors
+                          </li>
+                          <li className="flex items-center">
+                            <FiCheck className="mr-2 h-4 w-4 text-green-500" />
+                            Perfect fit guaranteed
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                  </button>
+                )}
+                
+                {/* Info message when multiple fabrics prevent tailoring */}
+                {bookingData.selectedFabrics && bookingData.selectedFabrics.length > 1 && (
+                  <div className="p-6 border-2 border-blue-200 bg-blue-50 rounded-lg">
+                    <div className="flex items-start space-x-3">
+                      <FiShoppingBag className="w-6 h-6 text-blue-600 flex-shrink-0 mt-1" />
+                      <div>
+                        <h4 className="text-lg font-semibold text-blue-900 mb-2">Multiple Fabrics Detected</h4>
+                        <p className="text-sm text-blue-800">
+                          You have {bookingData.selectedFabrics.length} different fabrics selected. Tailoring services require a single fabric selection, so only "Fabric Only" purchase is available.
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </button>
+                )}
               </div>
+              
+              {/* Service type selection indicator */}
+              {bookingData.serviceType && (
+                <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-800 flex items-center">
+                    <FiCheck className="mr-2 h-4 w-4" />
+                    You've selected: <strong className="ml-1">
+                      {bookingData.serviceType === 'fabric-only' ? 'Fabric Only' : 'Fabric + Tailoring'}
+                    </strong>
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         );
@@ -1104,12 +1578,30 @@ const BookingFlow = () => {
               <div className="space-y-6">
                 <DesignSelection 
                   onDesignSelect={(design) => {
-                    console.log('Selected design in booking flow:', design);
+                    console.log('🎨 Selected design in booking flow:', design);
+                    
+                    // Normalize garment type to match backend codes
+                    let normalizedGarmentType = 'other';
+                    const designGarmentType = (design.garmentType || '').toLowerCase();
+                    const designName = (design.name || '').toLowerCase();
+                    
+                    // Map various formats to backend codes
+                    if (designGarmentType.includes('kurta') || designName.includes('kurta')) {
+                      normalizedGarmentType = 'mens-kurta';
+                    } else if (designGarmentType.includes('shirt') || designName.includes('shirt')) {
+                      normalizedGarmentType = 'mens-kurta'; // TEMP: Map shirts to kurta for demo
+                    }
+                    
+                    console.log('📐 Mapped garmentType:', { 
+                      original: design.garmentType, 
+                      normalized: normalizedGarmentType 
+                    });
+                    
                     setBookingData(prev => ({ 
                       ...prev, 
                       selectedDesign: design,
                       designType: 'predefined',
-                      garmentType: design.garmentType || 'other' // Set garment type from design garmentType
+                      garmentType: normalizedGarmentType
                     }));
                   }}
                   selectedDesignId={bookingData.selectedDesign?._id}
@@ -1257,16 +1749,29 @@ const BookingFlow = () => {
 
               <EnhancedMeasurementForm
                 design={bookingData.selectedDesign}
-                onMeasurementSubmit={(measurementData, savedMeasurement) => {
-                  console.log('Measurements submitted:', measurementData);
-                  console.log('Saved measurement:', savedMeasurement);
+                onMeasurementSubmit={async (measurementData, savedMeasurement) => {
+                  console.log('📋 Measurements submitted:', measurementData);
+                  console.log('💾 Saved measurement:', savedMeasurement);
                   
-                  // Update booking data with measurements
-                  setBookingData(prev => ({
-                    ...prev,
-                    measurementId: savedMeasurement?._id || savedMeasurement?.id,
-                    customMeasurements: measurementData
-                  }));
+                  // Update booking data with measurements FIRST
+                  await new Promise(resolve => {
+                    setBookingData(prev => {
+                      const updated = {
+                        ...prev,
+                        measurementId: savedMeasurement?._id || savedMeasurement?.id || null,
+                        customMeasurements: measurementData
+                      };
+                      console.log('✅ Updated bookingData with measurements:', updated.customMeasurements);
+                      resolve();
+                      return updated;
+                    });
+                  });
+                  
+                  // Trigger estimation (pass garmentType explicitly)
+                  const currentGarmentType = bookingData.garmentType;
+                  console.log("📏 Triggering fabric estimation, garmentType:", currentGarmentType);
+                  
+                  await fetchFabricEstimate(measurementData, currentGarmentType);
                   
                   // Move to next step
                   handleNext();
@@ -1320,7 +1825,13 @@ const BookingFlow = () => {
                       ? "border-amber-500 bg-amber-50"
                       : "border-gray-200 hover:border-gray-300"
                   }`}
-                  onClick={() => setBookingData(prev => ({ ...prev, measurementId: measurement._id }))}
+                   onClick={() => {
+                    setBookingData(prev => ({ ...prev, measurementId: measurement._id }));
+                    // Trigger estimation using the selected measurement's data
+                    if (measurement.measurements) {
+                        fetchFabricEstimate(measurement.measurements, bookingData.garmentType);
+                    }
+                  }}
                 >
                   <h3 className="font-semibold text-lg mb-2">{measurement.measurementName}</h3>
                   <div className="space-y-1">
@@ -1346,6 +1857,8 @@ const BookingFlow = () => {
                       ...prev, 
                       measurementId: savedMeasurement._id || savedMeasurement.id 
                     }));
+                    // Trigger estimation
+                    fetchFabricEstimate(measurements, bookingData.garmentType);
                   }
                   setShowAIMeasurement(false);
                 }}
@@ -1401,6 +1914,7 @@ const BookingFlow = () => {
         );
 
       case "Confirm Order":
+        console.log("Confirm Order Data:", bookingData); // Debug log
         return (
           <div className="space-y-6">
             <div className="text-center">
@@ -1410,73 +1924,210 @@ const BookingFlow = () => {
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="space-y-6">
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h3 className="text-xl font-semibold mb-4">Order Summary</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="font-medium">Fabrics</h4>
-                      {bookingData.selectedFabrics.map((fabric) => (
-                        <div key={fabric._id} className="flex justify-between text-sm text-gray-600 ml-4">
-                          <span>{fabric.name} x {fabric.quantity} m</span>
-                          <span>₹{fabric.price * fabric.quantity}</span>
-                        </div>
-                      ))}
-                    </div>
+                {/* Fabric-Only Specific Summary */}
+                {bookingData.serviceType === 'fabric-only' ? (
+                  <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-amber-100">
+                    <h3 className="text-2xl font-bold mb-6 text-gray-900 flex items-center">
+                      <FiShoppingBag className="mr-3 h-6 w-6 text-amber-600" />
+                      Fabric Purchase Summary
+                    </h3>
                     
-                    <div>
-                      <h4 className="font-medium">Garment Details</h4>
-                      <div className="text-sm text-gray-600 ml-4">
-                        <div>Type: {bookingData.garmentType ? bookingData.garmentType.charAt(0).toUpperCase() + bookingData.garmentType.slice(1) : 'Not selected'}</div>
-                        <div>Quantity: {bookingData.quantity || 1}</div>
-                        {bookingData.selectedDesign && (
-                          <div>Design: {bookingData.selectedDesign.name}</div>
-                        )}
+                    {/* Fabric Details - Show all fabrics if multiple, otherwise show single */}
+                    {bookingData.selectedFabrics && bookingData.selectedFabrics.length > 0 ? (
+                      <div className="space-y-4 mb-6">
+                        {bookingData.selectedFabrics.map((fabric, index) => (
+                          <div key={index} className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-lg p-6 border border-amber-200">
+                            <div className="flex flex-col md:flex-row gap-6">
+                              <img
+                                src={fabric.image || '/placeholder-fabric.jpg'}
+                                alt={fabric.name}
+                                className="w-full md:w-32 h-32 object-cover rounded-lg shadow-md border-2 border-white"
+                              />
+                              <div className="flex-1">
+                                <h4 className="text-xl font-bold text-gray-900 mb-2">{fabric.name}</h4>
+                                <div className="bg-white rounded-lg p-3 border border-amber-200 inline-block mb-3">
+                                  <div className="text-sm text-gray-600">Price per meter</div>
+                                  <div className="text-2xl font-bold text-amber-600">₹{fabric.price}</div>
+                                </div>
+                                <div className="flex items-center justify-between bg-white rounded-lg p-4 border border-amber-200">
+                                  <div>
+                                    <div className="text-sm text-gray-600">Quantity</div>
+                                    <div className="text-xl font-bold text-gray-900">{fabric.quantity} <span className="text-base text-gray-600">meters</span></div>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="text-sm text-gray-600">Subtotal</div>
+                                    <div className="text-xl font-bold text-amber-600">₹{(fabric.price * fabric.quantity).toLocaleString()}</div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : selectedFabric && (
+                      <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-lg p-6 mb-6 border border-amber-200">
+                        <div className="flex flex-col md:flex-row gap-6">
+                          <img
+                            src={(Array.isArray(selectedFabric.images) && (selectedFabric.images[0]?.url || selectedFabric.images[0])) || selectedFabric.image || '/placeholder-fabric.jpg'}
+                            alt={selectedFabric.name}
+                            className="w-full md:w-32 h-32 object-cover rounded-lg shadow-md border-2 border-white"
+                          />
+                          <div className="flex-1">
+                            <h4 className="text-xl font-bold text-gray-900 mb-2">{selectedFabric.name}</h4>
+                            <div className="flex flex-wrap gap-2 mb-3">
+                              <span className="bg-white px-3 py-1 rounded-full text-sm font-medium text-gray-700 border border-gray-200">
+                                {selectedFabric.color}
+                              </span>
+                              <span className="bg-white px-3 py-1 rounded-full text-sm font-medium text-gray-700 border border-gray-200">
+                                {selectedFabric.category}
+                              </span>
+                            </div>
+                            <div className="bg-white rounded-lg p-3 border border-amber-200 inline-block">
+                              <div className="text-sm text-gray-600">Price per meter</div>
+                              <div className="text-2xl font-bold text-amber-600">₹{selectedFabric.price}</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Quantity Display */}
+                    <div className="bg-white rounded-lg p-6 border-2 border-gray-200 mb-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-sm text-gray-600 mb-1">Quantity Ordered</div>
+                          <div className="text-3xl font-bold text-gray-900">
+                            {(() => {
+                              // Calculate total quantity from all fabrics
+                              if (bookingData.selectedFabrics && bookingData.selectedFabrics.length > 0) {
+                                return bookingData.selectedFabrics.reduce((sum, fabric) => sum + fabric.quantity, 0);
+                              }
+                              return bookingData.quantity || 0;
+                            })()} <span className="text-xl text-gray-600">meters</span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm text-gray-600 mb-1">Total Fabric Cost</div>
+                          <div className="text-3xl font-bold text-amber-600">
+                            ₹{(() => {
+                              // Calculate total cost from all fabrics
+                              if (bookingData.selectedFabrics && bookingData.selectedFabrics.length > 0) {
+                                return bookingData.selectedFabrics.reduce((sum, fabric) => sum + (fabric.price * fabric.quantity), 0).toLocaleString();
+                              }
+                              return (bookingData.fabricCost || 0).toLocaleString();
+                            })()}
+                          </div>
+                        </div>
                       </div>
                     </div>
                     
-                    {bookingData.serviceType === 'fabric-tailor' && (
-                      <>
-                        <div>
-                          <h4 className="font-medium">Tailoring</h4>
-                          <div className="flex justify-between text-sm text-gray-600 ml-4">
-                            <span>Custom tailoring</span>
-                            <span>₹{selectedTailor?.services[0]?.price || 0}</span>
-                          </div>
-                        </div>
-                        
-                        <div>
-                          <h4 className="font-medium">Design</h4>
-                          <div className="text-sm text-gray-600 ml-4">
-                            {bookingData.designType === 'custom' ? (
-                              <div>
-                                <div>Custom Design</div>
-                                {bookingData.designInstructions && (
-                                  <div className="mt-1 text-xs text-gray-500">
-                                    "{bookingData.designInstructions.substring(0, 50)}..."
-                                  </div>
-                                )}
-                              </div>
-                            ) : bookingData.selectedDesign ? (
-                              <div>
-                                <div>Predefined Design: {bookingData.selectedDesign.name}</div>
-                                <div className="text-xs text-gray-500 mt-1">
-                                  {bookingData.selectedDesign.category} • {bookingData.selectedDesign.difficulty}
-                                </div>
-                                {bookingData.selectedDesign.sizeCriteria && bookingData.selectedDesign.sizeCriteria.length > 0 && (
-                                  <div className="text-xs text-blue-600 mt-1">
-                                    Size criteria: {bookingData.selectedDesign.sizeCriteria.join(', ')}
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              'No design selected'
-                            )}
-                          </div>
-                        </div>
-                      </>
-                    )}
+                    {/* Service Type Badge */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <p className="text-sm text-blue-800 flex items-center">
+                        <FiCheck className="mr-2 h-5 w-5" />
+                        <strong>Fabric Only Purchase</strong> - No tailoring services included
+                      </p>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  /* Fabric-Tailor Summary */
+                  <div className="bg-white rounded-lg shadow-md p-6">
+                    <h3 className="text-xl font-semibold mb-4">Order Summary</h3>
+                    <div className="space-y-4">
+                      {/* Fabric Requirement Card for Tailor Flow */}
+                      {bookingData.estimationDetails ? (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-5 mb-4">
+                          <div className="flex items-center space-x-2 mb-3">
+                            <FiScissors className="text-blue-600 h-5 w-5" />
+                            <h3 className="text-lg font-bold text-gray-900">Fabric Requirement</h3>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
+                            <div>
+                              <span className="block text-gray-500">Selected Garment</span>
+                              <span className="font-semibold text-gray-900">
+                                {bookingData.garmentType ? bookingData.garmentType.charAt(0).toUpperCase() + bookingData.garmentType.slice(1) : 'Standard'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="block text-gray-500">Selected Size</span>
+                              <span className="font-semibold text-gray-900 bg-blue-100 px-2 py-0.5 rounded text-blue-800">
+                                {bookingData.estimationDetails.selectedSize}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="block text-gray-500">Fabric Required</span>
+                              <span className="font-bold text-lg text-blue-700">
+                                {bookingData.estimationDetails.finalMeters} meters
+                              </span>
+                            </div>
+                            <div>
+                              <span className="block text-gray-500">Fabric Width</span>
+                              <span className="font-semibold text-gray-900">
+                                {bookingData.estimationDetails.fabricWidth || 44}"
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="bg-white rounded border border-blue-100 p-3">
+                            <span className="block text-xs font-bold text-gray-500 uppercase mb-1">Explanation</span>
+                            <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
+                              {bookingData.estimationDetails.explanation && bookingData.estimationDetails.explanation.map((reason, idx) => (
+                                <li key={idx}>{reason}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      ) : selectedFabric && (
+                        <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                          <h4 className="font-semibold text-gray-800 mb-2">{selectedFabric.name}</h4>
+                          <div className="text-sm text-gray-600">
+                            <div>Quantity: {bookingData.quantity || 1} meters</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Tailoring Details */}
+                      <div>
+                        <h4 className="font-medium">Tailoring Service</h4>
+                        <div className="flex justify-between text-sm text-gray-600 ml-4">
+                          <span>{selectedTailor?.shopName}</span>
+                          <span>₹{selectedTailor?.services[0]?.price || 0}</span>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <h4 className="font-medium">Design</h4>
+                        <div className="text-sm text-gray-600 ml-4">
+                          {bookingData.designType === 'custom' ? (
+                            <div>
+                              <div>Custom Design</div>
+                              {bookingData.designInstructions && (
+                                <div className="mt-1 text-xs text-gray-500">
+                                  "{bookingData.designInstructions.substring(0, 50)}..."
+                                </div>
+                              )}
+                            </div>
+                          ) : bookingData.selectedDesign ? (
+                            <div>
+                              <div>Predefined Design: {bookingData.selectedDesign.name}</div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                {bookingData.selectedDesign.category} • {bookingData.selectedDesign.difficulty}
+                              </div>
+                              {bookingData.selectedDesign.sizeCriteria && bookingData.selectedDesign.sizeCriteria.length > 0 && (
+                                <div className="text-xs text-blue-600 mt-1">
+                                  Size criteria: {bookingData.selectedDesign.sizeCriteria.join(', ')}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            'No design selected'
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
               
               <div className="space-y-6">
@@ -1485,7 +2136,13 @@ const BookingFlow = () => {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span>Fabric Cost:</span>
-                      <span>₹{bookingData.fabricCost}</span>
+                      <span>₹{(() => {
+                        // Calculate total from all fabrics if selectedFabrics exists
+                        if (bookingData.selectedFabrics && bookingData.selectedFabrics.length > 0) {
+                          return bookingData.selectedFabrics.reduce((sum, fabric) => sum + (fabric.price * fabric.quantity), 0);
+                        }
+                        return bookingData.fabricCost || 0;
+                      })()}</span>
                     </div>
                     {bookingData.serviceType === 'fabric-tailor' && (
                       <div className="flex justify-between">
@@ -1506,7 +2163,10 @@ const BookingFlow = () => {
                     <div className="flex justify-between">
                       <span>Subtotal:</span>
                       <span>₹{(() => {
-                        const fabricCost = bookingData.fabricCost || 0;
+                        // Calculate fabric cost from all fabrics
+                        const fabricCost = bookingData.selectedFabrics && bookingData.selectedFabrics.length > 0
+                          ? bookingData.selectedFabrics.reduce((sum, fabric) => sum + (fabric.price * fabric.quantity), 0)
+                          : (bookingData.fabricCost || 0);
                         const tailoringCost = bookingData.serviceType === 'fabric-tailor' ? (bookingData.tailoringCost || 0) : 0;
                         const designCost = bookingData.selectedDesign?.price || 0;
                         const deliveryFee = 100;
@@ -1516,7 +2176,10 @@ const BookingFlow = () => {
                     <div className="flex justify-between">
                       <span>Tax (5%):</span>
                       <span>₹{(() => {
-                        const fabricCost = bookingData.fabricCost || 0;
+                        // Calculate fabric cost from all fabrics
+                        const fabricCost = bookingData.selectedFabrics && bookingData.selectedFabrics.length > 0
+                          ? bookingData.selectedFabrics.reduce((sum, fabric) => sum + (fabric.price * fabric.quantity), 0)
+                          : (bookingData.fabricCost || 0);
                         const tailoringCost = bookingData.serviceType === 'fabric-tailor' ? (bookingData.tailoringCost || 0) : 0;
                         const designCost = bookingData.selectedDesign?.price || 0;
                         const deliveryFee = 100;
@@ -1528,7 +2191,10 @@ const BookingFlow = () => {
                       <div className="flex justify-between font-semibold text-lg">
                         <span>Total:</span>
                         <span>₹{(() => {
-                          const fabricCost = bookingData.fabricCost || 0;
+                          // Calculate fabric cost from all fabrics
+                          const fabricCost = bookingData.selectedFabrics && bookingData.selectedFabrics.length > 0
+                            ? bookingData.selectedFabrics.reduce((sum, fabric) => sum + (fabric.price * fabric.quantity), 0)
+                            : (bookingData.fabricCost || 0);
                           const tailoringCost = bookingData.serviceType === 'fabric-tailor' ? (bookingData.tailoringCost || 0) : 0;
                           const designCost = bookingData.selectedDesign?.price || 0;
                           const deliveryFee = 100;
@@ -1553,7 +2219,7 @@ const BookingFlow = () => {
                   )}
                 </div>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="w-full">
                   {paymentCompleted ? (
                     <div className="w-full py-3 px-6 rounded-lg font-semibold bg-green-100 text-green-800 border border-green-200 text-center">
                       ✅ Payment Completed
@@ -1567,60 +2233,6 @@ const BookingFlow = () => {
                       {isPaying ? 'Processing...' : 'Pay Now'}
                     </button>
                   )}
-                  <div className="space-y-3">
-                    <button 
-                      onClick={async () => {
-                        try {
-                          // Validate booking data first
-                          const validation = validateBookingData();
-                          if (!validation.isValid) {
-                            Swal.fire({
-                              icon: 'error',
-                              title: 'Incomplete Booking',
-                              text: `Please complete the following: ${validation.errors.join(', ')}`,
-                              confirmButtonText: 'OK'
-                            });
-                            return;
-                          }
-                          
-                          console.log('💾 Placing order without upfront payment:', bookingData);
-                          
-                          // Save booking data to backend
-                          await saveBookingToBackend(bookingData);
-                          
-                          // Show success message
-                          Swal.fire({
-                            icon: 'success',
-                            title: 'Order Placed!',
-                            text: 'Your booking has been confirmed and saved.',
-                            confirmButtonText: 'OK'
-                          });
-                          
-                          // Clear booking cache AFTER successful save
-                          clearBookingCache();
-                          
-                        } catch (error) {
-                          console.error('❌ Error placing order:', error);
-                          Swal.fire({
-                            icon: 'error',
-                            title: 'Order Failed',
-                            text: `Failed to place order: ${error.message}`,
-                            confirmButtonText: 'OK'
-                          });
-                        }
-                      }}
-                      className="w-full bg-gray-100 text-gray-800 py-3 px-6 rounded-lg font-semibold hover:bg-gray-200 transition-colors"
-                    >
-                      Place Order
-                    </button>
-                    
-                    {/* <button 
-                      onClick={debugBookingData}
-                      className="w-full bg-blue-100 text-blue-800 py-2 px-4 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors"
-                    >
-                      🔍 Debug Booking Data
-                    </button> */}
-                  </div>
                 </div>
               </div>
             </div>

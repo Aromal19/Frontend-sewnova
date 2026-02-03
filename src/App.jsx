@@ -167,6 +167,11 @@ function App() {
             <BookingFlow />
           </ProtectedRoute>
         } />
+        <Route path="/customer/booking-flow" element={
+          <ProtectedRoute requiredRole="customer">
+            <BookingFlow />
+          </ProtectedRoute>
+        } />
         <Route path="/customer/cart" element={
           <ProtectedRoute requiredRole="customer">
             <Cart />
