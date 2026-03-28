@@ -255,9 +255,9 @@ const BookingFlow = () => {
           // Fetch full fabric details for the first one
           const fetchFabricDetails = async () => {
             try {
-              const response = await apiCall('ADMIN_SERVICE', `/api/fabrics/${location.state.fabrics[0].id}`);
-              if (response?.success && response?.fabric) {
-                setSelectedFabric(response.fabric);
+              const response = await apiCall('SELLER_SERVICE', `/api/public/products/${location.state.fabrics[0].id}`);
+              if (response?.success && response?.data) {
+                setSelectedFabric(response.data);
               }
             } catch (error) {
               console.error('Error fetching fabric details:', error);
@@ -708,6 +708,7 @@ const BookingFlow = () => {
   };
 
   // Helper to normalize measurement field names for backend API
+  // Also extracts raw numeric values from {value, unit} objects returned by AI service
   const normalizeMeasurements = (measurements) => {
     const normalized = {};
     const fieldMapping = {
@@ -720,7 +721,12 @@ const BookingFlow = () => {
     
     for (const [key, value] of Object.entries(measurements)) {
       const normalizedKey = fieldMapping[key] || key;
-      normalized[normalizedKey] = value;
+      // Handle AI measurement format: { value: 96.2, unit: 'cm' }
+      if (value && typeof value === 'object' && value.value !== undefined) {
+        normalized[normalizedKey] = value.value;
+      } else {
+        normalized[normalizedKey] = value;
+      }
     }
     
     return normalized;
@@ -1560,7 +1566,7 @@ const BookingFlow = () => {
                 onClick={() => setBookingData(prev => ({ 
                   ...prev, 
                   designType: 'custom',
-                  garmentType: 'other' // Default garment type for custom designs
+                  garmentType: '' // Will be selected via dropdown
                 }))}
                 className={`p-6 border-2 rounded-lg text-left transition-all duration-200 ${
                   bookingData.designType === 'custom'
@@ -1573,6 +1579,36 @@ const BookingFlow = () => {
               </button>
             </div>
 
+            {/* Custom Design — Garment Type Selector */}
+            {bookingData.designType === 'custom' && (
+              <div className="bg-white rounded-lg shadow-md p-6 space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900">Select Garment Type</h3>
+                <p className="text-sm text-gray-600">Choose the type of garment you want stitched:</p>
+                <select
+                  value={bookingData.garmentType || ''}
+                  onChange={(e) => setBookingData(prev => ({ ...prev, garmentType: e.target.value }))}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-gray-900"
+                >
+                  <option value="">-- Select garment type --</option>
+                  <optgroup label="Men's Garments">
+                    <option value="mens-kurta">Men's Kurta</option>
+                    <option value="mens-shirt">Men's Shirt</option>
+                    <option value="mens-trousers">Men's Trousers</option>
+                    <option value="mens-suit">Men's Suit</option>
+                  </optgroup>
+                  <optgroup label="Women's Garments">
+                    <option value="womens-blouse">Women's Blouse</option>
+                    <option value="womens-dress">Women's Dress</option>
+                    <option value="womens-lehenga">Women's Lehenga</option>
+                    <option value="womens-saree-blouse">Saree Blouse</option>
+                  </optgroup>
+                </select>
+                {bookingData.garmentType && (
+                  <p className="text-sm text-green-600">✓ Selected: {bookingData.garmentType}</p>
+                )}
+              </div>
+            )}
+
             {/* Predefined Design Selection */}
             {bookingData.designType === 'predefined' && (
               <div className="space-y-6">
@@ -1580,20 +1616,38 @@ const BookingFlow = () => {
                   onDesignSelect={(design) => {
                     console.log('🎨 Selected design in booking flow:', design);
                     
-                    // Normalize garment type to match backend codes
-                    let normalizedGarmentType = 'other';
-                    const designGarmentType = (design.garmentType || '').toLowerCase();
-                    const designName = (design.name || '').toLowerCase();
+                    // Direct garment type mapping — no keyword guessing
+                    const GARMENT_TYPE_MAP = {
+                      'kurta': 'mens-kurta', 'mens kurta': 'mens-kurta', 'ethnic kurta': 'mens-kurta',
+                      'shirt': 'mens-shirt', 'casual shirt': 'mens-shirt', 't-shirt': 'mens-shirt', 'tshirt': 'mens-shirt',
+                      'trousers': 'mens-trousers', 'pants': 'mens-trousers', 'shorts': 'mens-trousers',
+                      'suit': 'mens-suit', 'blazer': 'mens-suit', 'business suit': 'mens-suit',
+                      'blouse': 'womens-blouse', 'top': 'womens-blouse', 'evening blouse': 'womens-blouse',
+                      'dress': 'womens-dress', 'gown': 'womens-dress', 'evening gown': 'womens-dress',
+                      'frock': 'womens-dress', 'jumpsuit': 'womens-dress', 'party dress': 'womens-dress',
+                      'lehenga': 'womens-lehenga', 'ghagra': 'womens-lehenga',
+                      'saree': 'womens-saree-blouse', 'sari': 'womens-saree-blouse', 'saree blouse': 'womens-saree-blouse',
+                    };
+
+                    // Use design's garmentTypeCode if available (ideal), else map from name/garmentType
+                    let normalizedGarmentType = design.garmentTypeCode || '';
                     
-                    // Map various formats to backend codes
-                    if (designGarmentType.includes('kurta') || designName.includes('kurta')) {
-                      normalizedGarmentType = 'mens-kurta';
-                    } else if (designGarmentType.includes('shirt') || designName.includes('shirt')) {
-                      normalizedGarmentType = 'mens-kurta'; // TEMP: Map shirts to kurta for demo
+                    if (!normalizedGarmentType) {
+                      const designGarmentType = (design.garmentType || '').toLowerCase().trim();
+                      const designName = (design.name || '').toLowerCase().trim();
+                      
+                      // Try exact match on garmentType, then name, then partial match
+                      normalizedGarmentType = GARMENT_TYPE_MAP[designGarmentType]
+                        || GARMENT_TYPE_MAP[designName]
+                        || Object.entries(GARMENT_TYPE_MAP).find(([key]) => 
+                            designGarmentType.includes(key) || designName.includes(key)
+                          )?.[1]
+                        || 'mens-kurta'; // Default fallback for unknown types
                     }
                     
                     console.log('📐 Mapped garmentType:', { 
-                      original: design.garmentType, 
+                      original: design.garmentType,
+                      designName: design.name,
                       normalized: normalizedGarmentType 
                     });
                     
@@ -1605,6 +1659,15 @@ const BookingFlow = () => {
                     }));
                   }}
                   selectedDesignId={bookingData.selectedDesign?._id}
+                  initialCategory={(() => {
+                    try {
+                      const userData = JSON.parse(localStorage.getItem('user') || '{}');
+                      const gender = userData.gender;
+                      if (gender === 'male') return 'Men';
+                      if (gender === 'female') return 'Women';
+                      return 'all';
+                    } catch { return 'all'; }
+                  })()}
                 />
                 
                 {bookingData.selectedDesign && (
@@ -2069,14 +2132,6 @@ const BookingFlow = () => {
                             </div>
                           </div>
 
-                          <div className="bg-white rounded border border-blue-100 p-3">
-                            <span className="block text-xs font-bold text-gray-500 uppercase mb-1">Explanation</span>
-                            <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
-                              {bookingData.estimationDetails.explanation && bookingData.estimationDetails.explanation.map((reason, idx) => (
-                                <li key={idx}>{reason}</li>
-                              ))}
-                            </ul>
-                          </div>
                         </div>
                       ) : selectedFabric && (
                         <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">

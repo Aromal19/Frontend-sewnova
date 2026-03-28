@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import API_CONFIG from '../config/api';
 import Modal from './Modal';
 
 const EmailVerificationPending = ({ email, onBack, onResend }) => {
@@ -26,7 +27,7 @@ const EmailVerificationPending = ({ email, onBack, onResend }) => {
     setIsResending(true);
     setResendStatus(null);
     try {
-      const response = await fetch('http://localhost:3000/api/auth/resend-verification', {
+      const response = await fetch(`${API_CONFIG.AUTH_SERVICE}/api/auth/resend-verification`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })

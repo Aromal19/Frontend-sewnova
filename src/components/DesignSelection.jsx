@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { apiCall } from '../config/api';
 
-const DesignSelection = ({ onDesignSelect, selectedDesignId = null }) => {
+const DesignSelection = ({ onDesignSelect, selectedDesignId = null, initialCategory = 'all' }) => {
   const [designs, setDesigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [searchTerm, setSearchTerm] = useState('');
   const [categories, setCategories] = useState([]);
 

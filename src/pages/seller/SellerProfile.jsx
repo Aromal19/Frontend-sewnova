@@ -28,7 +28,7 @@ const SellerProfile = () => {
       const token = localStorage.getItem('accessToken');
       if (!token) return;
 
-      const response = await fetch('http://localhost:3000/api/sellers/profile', {
+      const response = await fetch(`${API_CONFIG.AUTH_SERVICE}/api/sellers/profile`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -250,7 +250,7 @@ const SellerProfile = () => {
     
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:3000/api/sellers/update-profile', {
+      const response = await fetch(`${API_CONFIG.AUTH_SERVICE}/api/sellers/update-profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -281,7 +281,7 @@ const SellerProfile = () => {
 
   const resendVerificationEmail = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/auth/resend-verification', {
+      const response = await fetch(`${API_CONFIG.AUTH_SERVICE}/api/auth/resend-verification`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

@@ -4,6 +4,7 @@ import { getCurrentUser, isAuthenticated, logout } from '../../utils/api';
 import { FiUser, FiMail, FiPhone, FiMapPin, FiEdit, FiCheckCircle, FiXCircle, FiLogOut, FiArrowLeft, FiScissors, FiFileText, FiClock, FiStar, FiCamera, FiUpload, FiX, FiLoader, FiSearch } from 'react-icons/fi';
 import Sidebar from '../../components/Sidebar';
 import PhoneNumberInput from '../../components/PhoneNumberInput';
+import API_CONFIG from '../../config/api';
 import Swal from 'sweetalert2';
 
 const TailorProfile = () => {
@@ -31,7 +32,7 @@ const TailorProfile = () => {
       const token = localStorage.getItem('accessToken');
       if (!token) return;
 
-      const response = await fetch('http://localhost:3000/api/tailors/profile', {
+      const response = await fetch(`${API_CONFIG.AUTH_SERVICE}/api/tailors/profile`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -177,14 +178,14 @@ const TailorProfile = () => {
       if (firstName) form.append('expectedFirstName', firstName);
       if (lastName) form.append('expectedLastName', lastName);
       // Try tailor-service first (3003), then fallback to auth-service (3000)
-      let resp = await fetch('http://localhost:3003/api/tailors/verify-aadhaar', {
+      let resp = await fetch(`${API_CONFIG.TAILOR_SERVICE}/api/tailors/verify-aadhaar`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: form,
         credentials: 'include'
       });
       if (resp.status === 404) {
-        resp = await fetch('http://localhost:3000/api/tailors/verify-aadhaar', {
+        resp = await fetch(`${API_CONFIG.AUTH_SERVICE}/api/tailors/verify-aadhaar`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` },
           body: form,
@@ -322,7 +323,7 @@ const TailorProfile = () => {
       console.log('━'.repeat(60));
       console.log('Full Data:', JSON.stringify(profileData, null, 2));
       
-      const response = await fetch('http://localhost:3000/api/tailors/update-profile', {
+      const response = await fetch(`${API_CONFIG.AUTH_SERVICE}/api/tailors/update-profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -441,7 +442,7 @@ const TailorProfile = () => {
 
   const resendVerificationEmail = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/auth/resend-verification', {
+      const response = await fetch(`${API_CONFIG.AUTH_SERVICE}/api/auth/resend-verification`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -479,7 +480,7 @@ const TailorProfile = () => {
       const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
       
       // Upload to tailor service
-      const uploadResponse = await fetch('http://localhost:3003/api/tailors/upload-image', {
+      const uploadResponse = await fetch(`${API_CONFIG.TAILOR_SERVICE}/api/tailors/upload-image`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`

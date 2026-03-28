@@ -4,6 +4,7 @@ import { FiEye, FiEyeOff, FiUser, FiMail, FiPhone, FiLock, FiArrowRight, FiCheck
 import PhoneNumberInput from "../../components/PhoneNumberInput";
 import { GoogleLogin } from '@react-oauth/google';
 import axios from "axios";
+import API_CONFIG from "../../config/api";
 import EmailVerificationPending from "../../components/EmailVerificationPending";
 
 const CustomerSignup = () => {
@@ -37,7 +38,7 @@ const CustomerSignup = () => {
 
     const timer = setTimeout(async () => {
       try {
-        const res = await axios.get("http://localhost:3000/api/auth/check-email", {
+        const res = await axios.get(`${API_CONFIG.AUTH_SERVICE}/api/auth/check-email`, {
           params: { email }
         });
         const available = res?.data?.available;
@@ -208,7 +209,7 @@ const CustomerSignup = () => {
 
     setLoading(true);
     try {
-      const response = await axios.post("http://localhost:3000/api/customers/register", {
+      const response = await axios.post(`${API_CONFIG.AUTH_SERVICE}/api/customers/register`, {
         firstname: formData.firstName.trim(),
         lastname: formData.lastName.trim(),
         email: formData.email.toLowerCase().trim(),
@@ -241,7 +242,7 @@ const CustomerSignup = () => {
   const handleGoogleSuccess = async (credentialResponse) => {
     setLoading(true);
     try {
-      const response = await axios.post("http://localhost:3000/api/auth/google-signin", {
+      const response = await axios.post(`${API_CONFIG.AUTH_SERVICE}/api/auth/google-signin`, {
         idToken: credentialResponse.credential
       });
 

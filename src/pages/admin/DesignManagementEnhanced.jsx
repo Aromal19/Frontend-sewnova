@@ -21,6 +21,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { isAdminAuthenticated } from "../../utils/api";
 import { adminApiService } from "../../services/adminApiService";
+import API_CONFIG from "../../config/api";
 
 const DesignManagementEnhanced = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -131,7 +132,7 @@ const DesignManagementEnhanced = () => {
 
   const loadSizingOptions = async () => {
     try {
-      const response = await fetch('http://localhost:3006/api/sizing');
+      const response = await fetch(`${API_CONFIG.SELLER_SERVICE}/api/sizing`);
       if (response.ok) {
         const data = await response.json();
         setAvailableSizing(data.data || []);
@@ -143,7 +144,7 @@ const DesignManagementEnhanced = () => {
 
   const loadMeasurementOptions = async () => {
     try {
-      const response = await fetch('http://localhost:3006/api/measurements');
+      const response = await fetch(`${API_CONFIG.SELLER_SERVICE}/api/measurements`);
       if (response.ok) {
         const data = await response.json();
         setAvailableMeasurements(data.data || []);

@@ -23,6 +23,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { isAdminAuthenticated } from "../../utils/api";
 import { adminApiService } from "../../services/adminApiService";
+import API_CONFIG from "../../config/api";
 
 // Garment type options based on category
 const GARMENT_OPTIONS = {
@@ -197,7 +198,7 @@ const DesignManagementEnhanced = () => {
 
   const loadMeasurementOptions = async () => {
     try {
-      const response = await fetch('http://localhost:3006/api/measurements');
+      const response = await fetch(`${API_CONFIG.SELLER_SERVICE}/api/measurements`);
       if (response.ok) {
         const data = await response.json();
         setAvailableMeasurements(data.data || []);

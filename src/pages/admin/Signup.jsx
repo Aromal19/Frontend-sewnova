@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { FiEye, FiEyeOff, FiUser, FiMail, FiPhone, FiLock, FiArrowRight, FiShield } from "react-icons/fi";
 import axios from "axios";
+import API_CONFIG from "../../config/api";
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -69,7 +70,7 @@ const Signup = () => {
     setLoading(true);
     
     try {
-      const response = await axios.post("http://localhost:3000/api/auth/admin/signup", {
+      const response = await axios.post(`${API_CONFIG.AUTH_SERVICE}/api/auth/admin/signup`, {
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
         username: formData.username.trim(),

@@ -4,6 +4,7 @@ import { authAPI, getDashboardRoute } from "../utils/api";
 import { FiEye, FiEyeOff, FiMail, FiLock, FiArrowRight } from "react-icons/fi";
 import { GoogleLogin } from '@react-oauth/google';
 import axios from "axios";
+import API_CONFIG from "../config/api";
 import EmailVerificationPending from "../components/EmailVerificationPending";
 
 const Login = () => {
@@ -125,7 +126,7 @@ const Login = () => {
     setLoading(true);
     setErrors({});
     try {
-      const response = await axios.post("http://localhost:3000/api/auth/google-signin", {
+      const response = await axios.post(`${API_CONFIG.AUTH_SERVICE}/api/auth/google-signin`, {
         idToken: credentialResponse.credential
       }, { withCredentials: true });
       if (response.data.success) {

@@ -1,4 +1,6 @@
-const API_BASE_URL = 'http://localhost:3000/api';
+import API_CONFIG from '../config/api.js';
+
+const API_BASE_URL = `${API_CONFIG.AUTH_SERVICE}/api`;
 
 // Helper function to get auth headers
 const getAuthHeaders = () => {
@@ -124,7 +126,7 @@ export const authAPI = {
 export const setTokenManually = async () => {
   try {
     console.log('🔧 Manually setting token...');
-    const response = await fetch('http://localhost:3000/api/auth/login', {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

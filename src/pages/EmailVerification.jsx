@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import Modal from '../components/Modal';
+import API_CONFIG from '../config/api';
 import EmailVerificationPending from '../components/EmailVerificationPending';
 
 const EmailVerification = () => {
@@ -46,7 +47,7 @@ const EmailVerification = () => {
   const verifyEmail = async (token, type) => {
     try {
       const response = await fetch(
-        `http://localhost:3000/api/auth/verify-email?token=${token}&type=${type}`,
+        `${API_CONFIG.AUTH_SERVICE}/api/auth/verify-email?token=${token}&type=${type}`,
         {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },

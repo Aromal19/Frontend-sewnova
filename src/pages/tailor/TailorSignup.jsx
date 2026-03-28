@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { FiEye, FiEyeOff, FiUser, FiMail, FiPhone, FiLock, FiArrowRight, FiCheck, FiBriefcase } from "react-icons/fi";
 import PhoneNumberInput from "../../components/PhoneNumberInput";
 import axios from "axios";
+import API_CONFIG from "../../config/api";
 import EmailVerificationPending from "../../components/EmailVerificationPending";
 
 const TailorSignup = () => {
@@ -51,7 +52,7 @@ const TailorSignup = () => {
 
     const timer = setTimeout(async () => {
       try {
-        const res = await axios.get("http://localhost:3000/api/auth/check-email", {
+        const res = await axios.get(`${API_CONFIG.AUTH_SERVICE}/api/auth/check-email`, {
           params: { email }
         });
         const available = res?.data?.available;
@@ -246,7 +247,7 @@ const TailorSignup = () => {
     setLoading(true);
     
     try {
-      const response = await axios.post("http://localhost:3000/api/tailors/register", {
+      const response = await axios.post(`${API_CONFIG.AUTH_SERVICE}/api/tailors/register`, {
         firstname: formData.firstName.trim(),
         lastname: formData.lastName.trim(),
         email: formData.email.toLowerCase().trim(),

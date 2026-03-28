@@ -1,30 +1,41 @@
 // API Configuration for SewNova Services
-// To configure environment variables, create a .env file in the frontend directory with:
-// VITE_CUSTOMER_SERVICE_URL=http://localhost:3001
-// VITE_AUTH_SERVICE_URL=http://localhost:3002
-// VITE_TAILOR_SERVICE_URL=http://localhost:3003
-// VITE_SELLER_SERVICE_URL=http://localhost:3004
-// VITE_PAYMENT_SERVICE_URL=http://localhost:3010
+// In production, all services are behind a single API gateway on Render.
+// The gateway routes by service-key prefix: /<service>/api/...
+//
+// In development, you can still point to individual localhost ports via .env:
+// VITE_AUTH_SERVICE_URL=http://localhost:3001
+// VITE_CUSTOMER_SERVICE_URL=http://localhost:3002
+// etc.
+
+// Production gateway base URL (set in Vercel env vars)
+const GATEWAY_URL = import.meta.env.VITE_API_GATEWAY_URL || 'https://sewnova-backend.onrender.com';
 
 const API_CONFIG = {
-  // Customer Service (running on port 3002)
-  CUSTOMER_SERVICE: import.meta.env.VITE_CUSTOMER_SERVICE_URL || 'http://localhost:3002',
-  
-  // Auth Service (running on port 3000)
-  AUTH_SERVICE: import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:3000',
-  
-  // Admin Service (running on port 3007)
-  ADMIN_SERVICE: import.meta.env.VITE_ADMIN_SERVICE_URL || 'http://localhost:3007',
-  
-  // Design Service (running on port 3006)
-  DESIGN_SERVICE: import.meta.env.VITE_DESIGN_SERVICE_URL || 'http://localhost:3006',
-  
-  // Other services can be added here
-  TAILOR_SERVICE: import.meta.env.VITE_TAILOR_SERVICE_URL || 'http://localhost:3003',
-  SELLER_SERVICE: import.meta.env.VITE_SELLER_SERVICE_URL || 'http://localhost:3004',
-  PAYMENT_SERVICE: import.meta.env.VITE_PAYMENT_SERVICE_URL || 'http://localhost:3010',
-  
-  // AI Measurement Service (running on port 8001)
+  // Auth Service — gateway route: /auth/api/*
+  AUTH_SERVICE: import.meta.env.VITE_AUTH_SERVICE_URL || `${GATEWAY_URL}/auth`,
+
+  // Customer Service — gateway route: /customer/api/*
+  CUSTOMER_SERVICE: import.meta.env.VITE_CUSTOMER_SERVICE_URL || `${GATEWAY_URL}/customer`,
+
+  // Admin Service — gateway route: /admin/api/*
+  ADMIN_SERVICE: import.meta.env.VITE_ADMIN_SERVICE_URL || `${GATEWAY_URL}/admin`,
+
+  // Design Service — gateway route: /design/api/*
+  DESIGN_SERVICE: import.meta.env.VITE_DESIGN_SERVICE_URL || `${GATEWAY_URL}/design`,
+
+  // Tailor Service — gateway route: /tailor/api/*
+  TAILOR_SERVICE: import.meta.env.VITE_TAILOR_SERVICE_URL || `${GATEWAY_URL}/tailor`,
+
+  // Seller / Vendor Service — gateway route: /vendor/api/*
+  SELLER_SERVICE: import.meta.env.VITE_SELLER_SERVICE_URL || `${GATEWAY_URL}/vendor`,
+
+  // Payment Service — gateway route: /payment/api/*
+  PAYMENT_SERVICE: import.meta.env.VITE_PAYMENT_SERVICE_URL || `${GATEWAY_URL}/payment`,
+
+  // Delivery Service — gateway route: /delivery/api/*
+  DELIVERY_SERVICE: import.meta.env.VITE_DELIVERY_SERVICE_URL || `${GATEWAY_URL}/delivery`,
+
+  // AI Measurement Service — standalone (kept for local dev only)
   MEASUREMENT_SERVICE: import.meta.env.VITE_MEASUREMENT_SERVICE_URL || 'http://localhost:8001',
 };
 
@@ -143,4 +154,4 @@ export const apiCall = async (service, endpoint, options = {}) => {
   }
 };
 
-export default API_CONFIG; 
+export default API_CONFIG;

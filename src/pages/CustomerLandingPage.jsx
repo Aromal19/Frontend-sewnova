@@ -8,7 +8,9 @@ import {
   FiArrowRight, FiClock, FiCheckCircle, FiZap, FiPackage
 } from "react-icons/fi";
 import { getApiUrl } from "../config/api";
+import API_CONFIG from "../config/api";
 import { useCart } from "../context/CartContext";
+import Swal from "sweetalert2";
 
 const CustomerLandingPage = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -44,6 +46,115 @@ const CustomerLandingPage = () => {
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
+
+  // SweetAlert gender prompt when gender is not set
+  const genderPromptShown = React.useRef(false);
+  useEffect(() => {
+    if (!isLoggedIn || !user) return;
+    if (user.gender) {
+      genderPromptShown.current = true; // already has gender, never show
+      return;
+    }
+    if (genderPromptShown.current) return; // already shown this session
+    genderPromptShown.current = true;
+
+    Swal.fire({
+      title: '👋 Complete Your Profile',
+      html: `
+        <p style="margin-bottom: 16px; color: #6b7280; font-size: 14px;">
+          Please select your gender to personalize your experience.
+        </p>
+        <select id="swal-gender-select" class="swal2-select" style="
+          width: 100%;
+          padding: 10px 14px;
+          border: 2px solid #e5e7eb;
+          border-radius: 10px;
+          font-size: 14px;
+          color: #374151;
+          background: #f9fafb;
+          outline: none;
+          transition: border-color 0.2s;
+          cursor: pointer;
+        ">
+          <option value="">-- Select Gender --</option>
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+          <option value="other">Other</option>
+          <option value="prefer-not-to-say">Prefer not to say</option>
+        </select>
+      `,
+      confirmButtonText: 'Update',
+      cancelButtonText: 'Go to Profile',
+      showCancelButton: true,
+      confirmButtonColor: '#f59e0b',
+      cancelButtonColor: '#6b7280',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      customClass: {
+        popup: 'rounded-2xl',
+        confirmButton: 'rounded-lg',
+        cancelButton: 'rounded-lg',
+      },
+      preConfirm: () => {
+        const genderValue = document.getElementById('swal-gender-select').value;
+        if (!genderValue) {
+          Swal.showValidationMessage('Please select a gender');
+          return false;
+        }
+        return genderValue;
+      }
+    }).then(async (result) => {
+      if (result.isConfirmed && result.value) {
+        try {
+          const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+          const response = await fetch(`${API_CONFIG.AUTH_SERVICE}/api/customers/update-profile`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ gender: result.value })
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            // Update localStorage and state
+            const updatedUser = { ...user, gender: result.value };
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+            setUser(updatedUser);
+
+            Swal.fire({
+              icon: 'success',
+              title: 'Profile Updated!',
+              text: 'Your gender has been saved successfully.',
+              confirmButtonColor: '#f59e0b',
+              timer: 2000,
+              timerProgressBar: true,
+            });
+          } else {
+            Swal.fire({
+              icon: 'error',
+              title: 'Update Failed',
+              text: data.message || 'Could not update gender. Please try from the profile page.',
+              confirmButtonColor: '#f59e0b',
+            });
+          }
+        } catch (error) {
+          console.error('Error updating gender:', error);
+          Swal.fire({
+            icon: 'error',
+            title: 'Network Error',
+            text: 'Could not connect to the server. Please try from the profile page.',
+            confirmButtonColor: '#f59e0b',
+          });
+        }
+      } else if (result.dismiss === Swal.DismissReason.cancel) {
+        // User chose to go to profile page
+        navigate('/customer/profile');
+      }
+    });
+  }, [isLoggedIn, user, navigate]);
 
   const handleLogout = async () => {
     await logout();

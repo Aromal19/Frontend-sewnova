@@ -4,7 +4,7 @@ import { getCurrentUser, isAuthenticated, logout } from '../../utils/api';
 import { FiUser, FiMail, FiPhone, FiMapPin, FiEdit, FiCheckCircle, FiXCircle, FiLogOut, FiArrowLeft, FiShoppingBag, FiHeart, FiStar, FiPackage, FiUserCheck } from 'react-icons/fi';
 import Sidebar from '../../components/Sidebar';
 import PhoneNumberInput from '../../components/PhoneNumberInput';
-import { getApiUrl } from '../../config/api';
+import API_CONFIG, { getApiUrl } from '../../config/api';
 
 const CustomerProfile = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -52,7 +52,7 @@ const CustomerProfile = () => {
       const token = localStorage.getItem('accessToken');
       if (!token) return;
 
-      const response = await fetch('http://localhost:3000/api/customers/profile', {
+      const response = await fetch(`${API_CONFIG.AUTH_SERVICE}/api/customers/profile`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -176,7 +176,7 @@ const CustomerProfile = () => {
     
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:3000/api/customers/update-profile', {
+      const response = await fetch(`${API_CONFIG.AUTH_SERVICE}/api/customers/update-profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -207,7 +207,7 @@ const CustomerProfile = () => {
 
   const resendVerificationEmail = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/auth/resend-verification', {
+      const response = await fetch(`${API_CONFIG.AUTH_SERVICE}/api/auth/resend-verification`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

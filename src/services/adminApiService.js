@@ -1,5 +1,6 @@
 // Admin API Service for direct admin service communication
-const ADMIN_SERVICE_URL = 'http://localhost:3007';
+import API_CONFIG from '../config/api';
+const ADMIN_SERVICE_URL = API_CONFIG.ADMIN_SERVICE;
 
 // Helper function to get admin auth headers (using main authentication)
 const getAdminAuthHeaders = () => {
